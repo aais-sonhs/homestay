@@ -7,6 +7,7 @@
             <span class="account-name">{{ request.user.display_name }}</span>
             <span class="account-role">{{ request.user.get_role_display }}</span>
         </span>
+        <svg class="account-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
     </summary>
     <div class="account-submenu">
         <div class="account-submenu-header">
@@ -19,12 +20,11 @@
             </span>
         </div>
         <div class="account-submenu-body">
-            {% if request.user.is_superuser %}<a href="{% url 'admin:index' %}"><span class="menu-icon" aria-hidden="true">⚙</span>Quản trị hệ thống</a>{% endif %}
-            <a href="{% url 'password-change' %}"><span class="menu-icon" aria-hidden="true">🔑</span>Đổi mật khẩu</a>
-            <a href="{% url 'avatar-update' %}"><span class="menu-icon" aria-hidden="true">📷</span>Đổi ảnh đại diện</a>
+            {% if request.user.is_superuser %}<a href="{% url 'admin:index' %}"><span class="menu-icon menu-icon-blue" aria-hidden="true">⚙</span><span>Quản trị hệ thống</span></a>{% endif %}
+            <a href="{% url 'password-change' %}"><span class="menu-icon menu-icon-amber" aria-hidden="true">⌘</span><span>Đổi mật khẩu</span></a>
+            <a href="{% url 'avatar-update' %}"><span class="menu-icon menu-icon-cyan" aria-hidden="true">◎</span><span>Đổi ảnh đại diện</span></a>
             <div class="account-divider"></div>
-            <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="account-logout" type="submit"><span class="menu-icon" aria-hidden="true">↪</span>Đăng xuất</button></form>
+            <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="account-logout" type="submit"><span class="menu-icon menu-icon-red" aria-hidden="true">↪</span><span>Đăng xuất</span></button></form>
         </div>
     </div>
 </details>
-

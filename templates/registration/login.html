@@ -1,14 +1,34 @@
 {% extends "registration/auth_base.html" %}
 {% block title %}Đăng nhập | Bliss Home{% endblock %}
 {% block content %}
-<h1>Bliss Home</h1>
-<p>Đăng nhập để tiếp tục.</p>
+<div class="login-heading">
+    <h1>Chào mừng trở lại</h1>
+    <p>Đăng nhập để tiếp tục quản lý vận hành buồng phòng.</p>
+</div>
 <form method="post">
     {% csrf_token %}
+    {% if next %}<input type="hidden" name="{{ redirect_field_name }}" value="{{ next }}">{% endif %}
     {{ form.non_field_errors }}
-    <label for="{{ form.username.id_for_label }}">Tên đăng nhập</label>{{ form.username }}
-    <label for="{{ form.password.id_for_label }}">Mật khẩu</label>{{ form.password }}
-    <button type="submit">Đăng nhập</button>
+    <label for="{{ form.username.id_for_label }}">Tên đăng nhập</label>
+    <input type="text" name="{{ form.username.html_name }}" id="{{ form.username.id_for_label }}" value="{{ form.username.value|default_if_none:'' }}" placeholder="Nhập tên đăng nhập" autocomplete="username" required autofocus>
+    {{ form.username.errors }}
+    <label for="{{ form.password.id_for_label }}">Mật khẩu</label>
+    <div class="password-wrap">
+        <input type="password" name="{{ form.password.html_name }}" id="{{ form.password.id_for_label }}" placeholder="Nhập mật khẩu" autocomplete="current-password" required>
+        <button class="toggle" type="button" data-target="{{ form.password.id_for_label }}">Hiện</button>
+    </div>
+    {{ form.password.errors }}
+    <button class="login-submit" type="submit">
+        Đăng nhập hệ thống
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+    </button>
 </form>
 <div class="actions"><a href="{% url 'forgot-password' %}">Quên mật khẩu?</a></div>
+<script>
+document.querySelectorAll('.toggle').forEach((button) => button.addEventListener('click', () => {
+    const input = document.getElementById(button.dataset.target);
+    input.type = input.type === 'password' ? 'text' : 'password';
+    button.textContent = input.type === 'password' ? 'Hiện' : 'Ẩn';
+}));
+</script>
 {% endblock %}

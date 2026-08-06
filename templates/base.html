@@ -4,36 +4,88 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
     <link rel="icon" href="{% static 'branding/bliss-home-mark.svg' %}" type="image/svg+xml">
     <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}">
     <title>{% block title %}Buồng phòng | Bliss Home{% endblock %}</title>
     {% block extra_head %}{% endblock %}
 </head>
-<body>
-<header>
-    <nav class="nav">
-        <a class="brand" href="{% url 'housekeeping:task-list' %}">Bliss Home · Buồng phòng</a>
-        <span id="network" class="network">Đang kiểm tra mạng…</span>
-        <button id="nav-toggle" class="nav-toggle secondary" type="button" aria-expanded="false" aria-controls="nav-panel">☰ Menu</button>
-        <div id="nav-panel" class="nav-panel">
-            <div class="nav-links">
-                <a href="{% url 'housekeeping:task-list' %}"{% if request.resolver_match.url_name == 'task-list' or request.resolver_match.url_name == 'task-detail' %} aria-current="page"{% endif %}>Công việc</a>
-                {% if request.user.role == 'founder' or request.user.role == 'manager' %}<a href="{% url 'housekeeping:task-create' %}"{% if request.resolver_match.url_name == 'task-create' %} aria-current="page"{% endif %}>Tạo công việc</a>{% endif %}
-                <a href="{% url 'housekeeping:operations-dashboard' %}"{% if request.resolver_match.url_name == 'operations-dashboard' %} aria-current="page"{% endif %}>Điều phối</a>
-                <a href="{% url 'housekeeping:support-queue' %}"{% if request.resolver_match.url_name == 'support-queue' %} aria-current="page"{% endif %}>Hỗ trợ</a>
-                <a href="{% url 'housekeeping:activity-log' %}"{% if request.resolver_match.url_name == 'activity-log' %} aria-current="page"{% endif %}>Nhật ký</a>
-                <a href="{% url 'housekeeping:notification-center' %}"{% if request.resolver_match.url_name == 'notification-center' %} aria-current="page"{% endif %}>Thông báo</a>
-            </div>
-            {% include "shared/account_menu.html" %}
+<body class="app-body">
+<div id="app-shell" class="app-shell">
+    <button id="mobile-backdrop" class="mobile-backdrop" type="button" aria-label="Đóng menu"></button>
+    <aside id="sidebar" class="sidebar" aria-label="Điều hướng chính">
+        <a class="sidebar-brand" href="{% url 'housekeeping:task-list' %}" aria-label="Bliss Home - Buồng phòng">
+            <img src="{% static 'branding/bliss-home-mark.svg' %}" alt="" width="48" height="48">
+            <span class="brand-copy"><strong>Bliss Home</strong><small>Housekeeping</small></span>
+        </a>
+
+        <nav id="nav-panel" class="nav-panel">
+            <span class="nav-section-label">Vận hành</span>
+            <a class="nav-link" href="{% url 'housekeeping:task-list' %}"{% if request.resolver_match.url_name == 'task-list' or request.resolver_match.url_name == 'task-detail' %} aria-current="page"{% endif %} title="Công việc">
+                <svg class="nav-icon icon-indigo" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6m-7 3h8m-8 4h5m-7 8h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2.2A3 3 0 0 0 13 2h-2a3 3 0 0 0-2.8 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/></svg>
+                <span>Công việc</span>
+            </a>
+            {% if request.user.role == 'founder' or request.user.role == 'manager' %}
+            <a class="nav-link" href="{% url 'housekeeping:task-create' %}"{% if request.resolver_match.url_name == 'task-create' %} aria-current="page"{% endif %} title="Tạo công việc">
+                <svg class="nav-icon icon-teal" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>
+                <span>Tạo công việc</span>
+            </a>
+            {% endif %}
+            <a class="nav-link" href="{% url 'housekeeping:operations-dashboard' %}"{% if request.resolver_match.url_name == 'operations-dashboard' %} aria-current="page"{% endif %} title="Điều phối">
+                <svg class="nav-icon icon-blue" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m5 10V4m6 16v-7m5 7V7"/></svg>
+                <span>Điều phối</span>
+            </a>
+            <a class="nav-link" href="{% url 'housekeeping:support-queue' %}"{% if request.resolver_match.url_name == 'support-queue' %} aria-current="page"{% endif %} title="Kho và Kỹ thuật">
+                <svg class="nav-icon icon-orange" viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6.5 3-3 3 3-3 3m-1-2-8.8 8.8a2.4 2.4 0 1 1-3.4-3.4L13.1 4"/><path d="m14 14 6 6M3 3l7 7"/></svg>
+                <span>Kho và Kỹ thuật</span>
+            </a>
+
+            <span class="nav-section-label">Theo dõi</span>
+            <a class="nav-link" href="{% url 'housekeeping:activity-log' %}"{% if request.resolver_match.url_name == 'activity-log' %} aria-current="page"{% endif %} title="Nhật ký hoạt động">
+                <svg class="nav-icon icon-slate" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h11M8 12h11M8 18h11"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+                <span>Nhật ký hoạt động</span>
+            </a>
+            <a class="nav-link" href="{% url 'housekeeping:notification-center' %}"{% if request.resolver_match.url_name == 'notification-center' %} aria-current="page"{% endif %} title="Thông báo">
+                <svg class="nav-icon icon-rose" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM9.5 21h5"/></svg>
+                <span>Thông báo</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="network" class="network">Đang kiểm tra kết nối…</span>
         </div>
-    </nav>
-</header>
-<main class="container">
-    {% include "shared/messages.html" %}
-    {% block content %}{% endblock %}
-</main>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="topbar">
+            <div class="topbar-start">
+                <button id="nav-toggle" class="topbar-toggle" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Mở hoặc thu gọn menu">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                </button>
+            </div>
+            <div class="topbar-title">
+                {% if request.resolver_match.url_name == 'operations-dashboard' %}TRUNG TÂM ĐIỀU PHỐI
+                {% elif request.resolver_match.url_name == 'support-queue' %}KHO VÀ KỸ THUẬT
+                {% elif request.resolver_match.url_name == 'activity-log' %}NHẬT KÝ VẬN HÀNH
+                {% elif request.resolver_match.url_name == 'notification-center' %}TRUNG TÂM THÔNG BÁO
+                {% else %}NỀN TẢNG VẬN HÀNH BLISS HOME{% endif %}
+            </div>
+            <div class="topbar-actions">
+                {% include "shared/account_menu.html" %}
+            </div>
+        </header>
+
+        <main class="container">
+            {% include "shared/messages.html" %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
 <script src="{% static 'js/housekeeping.js' %}" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
-

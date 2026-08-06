@@ -2,7 +2,7 @@
 {% block title %}Điều phối buồng phòng | Bliss Home{% endblock %}
 {% block content %}
 <div data-auto-refresh-seconds="30">
-<div class="toolbar">
+<div class="page-heading">
     <div class="grow"><h1 style="margin:0">Điều phối và thời hạn xử lý</h1><span class="muted">Tiến độ nhóm, hàng chờ kiểm tra chất lượng và nguy cơ trễ giờ nhận phòng</span></div>
     <a class="button secondary" href="{% url 'housekeeping:task-list' %}">Danh sách công việc</a>
 </div>
@@ -14,12 +14,12 @@
 </form>
 
 <div class="stat-grid">
-    <div class="stat"><span class="label">Tổng công việc</span><strong>{{ sla.summary.totalTasks }}</strong></div>
-    <div class="stat"><span class="label">Đang xử lý</span><strong>{{ sla.summary.inProgress }}</strong></div>
+    <div class="stat"><span class="label">Tổng công việc</span><strong>{{ sla.summary.totalTasks }}</strong><span class="stat-note">Trong phạm vi đang lọc</span></div>
+    <div class="stat" style="--stat-color:#2563eb;--stat-bg:rgba(37,99,235,.11)"><span class="label">Đang xử lý</span><strong>{{ sla.summary.inProgress }}</strong><span class="stat-note">Đang được thực hiện</span></div>
     <div class="stat warning"><span class="label">Sắp quá hạn</span><strong>{{ sla.summary.nearDue }}</strong></div>
     <div class="stat danger"><span class="label">Quá hạn</span><strong>{{ sla.summary.overdue }}</strong></div>
-    <div class="stat warning"><span class="label">Nguy cơ trễ giờ nhận phòng</span><strong>{{ sla.summary.checkinRisk }}</strong></div>
-    <div class="stat"><span class="label">Vi phạm hoàn thành</span><strong>{{ sla.summary.completionBreached }}</strong></div>
+    <div class="stat warning"><span class="label">Nguy cơ trễ giờ nhận phòng</span><strong>{{ sla.summary.checkinRisk }}</strong><span class="stat-note">Cần ưu tiên điều phối</span></div>
+    <div class="stat" style="--stat-color:#8b5cf6;--stat-bg:rgba(139,92,246,.11)"><span class="label">Vi phạm hoàn thành</span><strong>{{ sla.summary.completionBreached }}</strong></div>
 </div>
 
 <section class="card" style="margin-bottom:16px">
