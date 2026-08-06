@@ -60,7 +60,7 @@ Không được sao chép các điểm yếu sau của Fasthub:
 ## 3. Yêu cầu người dùng đã chốt
 
 - Database PostgreSQL dùng database `homestay`.
-- Cấu hình kết nối và secret được lấy từ biến môi trường; không lưu mật khẩu thật trong Git.
+- Cấu hình database và secret được cố định riêng trong Django settings để không nhận nhầm biến môi trường của dự án khác trên server.
 - Conda environment: `env`.
 - Script khởi động: `startup.sh`.
 - Code phải tham khảo convention của `/mnt/data/fasthub/`.

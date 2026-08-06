@@ -1,28 +1,26 @@
-import os
 import sys
 from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "bliss-home-insecure-development-key",
-)
-DEBUG = True
-ALLOWED_HOSTS = ["*"]
+SECRET_KEY = "4zC8pN7vQ2xK9mT5rW1sH6fD3jL0bY8uA4eG7cR2nM9qP5kX1tV6wS3hF0dJ8zB"
+DEBUG = False
+ALLOWED_HOSTS = ["homestay.aaistech.com", "127.0.0.1", "localhost"]
 CSRF_TRUSTED_ORIGINS = [
-    "http://113.160.218.241:8020",
-    "http://127.0.0.1:8020",
-    "http://localhost:8020",
+    "https://homestay.aaistech.com",
 ]
-SECURE_SSL_REDIRECT = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -69,9 +67,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'homestay',                # tên DB trong DBeaver
         'USER': 'postgres',                 # user bạn dùng (thường là postgres)
-        'PASSWORD': os.environ.get("DB_PASSWORD", os.environ.get("PGPASSWORD", "")),
-        'HOST': os.environ.get("PGHOST", "localhost"),
-        'PORT': os.environ.get("PGPORT", "5432"),
+        'PASSWORD': 'TuanHai2508',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
     }
 }
 
@@ -81,6 +79,10 @@ if "test" in sys.argv:
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:",
     }
+    ALLOWED_HOSTS.append("testserver")
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 AUTH_USER_MODEL = "accounts.User"
 AUTH_PASSWORD_VALIDATORS = []
