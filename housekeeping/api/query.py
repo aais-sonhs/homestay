@@ -5,9 +5,10 @@ from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from accounts.models import User
-from housekeeping.models import HousekeepingTask, ShiftAssignment, TaskChecklistItem
+from housekeeping.models import HousekeepingTask, TaskChecklistItem
 from housekeeping.selectors import prioritized_task_queryset, task_queryset_for_user
 from housekeeping.services import HousekeepingError
+from organizations.models import ShiftAssignment
 
 
 TRUE_VALUES = {"1", "true", "yes", "on"}

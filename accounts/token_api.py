@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from housekeeping.api.auth import api_authenticated
+from common.api_auth import api_authenticated
 from housekeeping.api.errors import APIError, api_endpoint, parse_json, success_response
 
 from .identifiers import normalize_email, normalize_phone

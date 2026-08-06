@@ -1,9 +1,9 @@
 from django.utils import timezone
 
 from accounts.models import User
-from housekeeping.display import localized_system_text
+from common.display import localized_system_text
 from housekeeping.models import HousekeepingTask, TaskChecklistItem
-from housekeeping.permissions import Capability, decide_task_capability
+from common.access import Capability, decide_task_capability
 
 
 def iso_datetime(value):

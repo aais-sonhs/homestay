@@ -2,9 +2,10 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import User
+from common.display import localized_system_text
+from organizations.models import BranchMembership
 
-from .display import localized_system_text
-from .models import BranchMembership, Notification, NotificationRecipient, OutboxEvent
+from .models import Notification, NotificationRecipient, OutboxEvent
 
 
 MEMBERSHIP_ROLE_MAP = {

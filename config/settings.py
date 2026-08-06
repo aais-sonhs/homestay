@@ -3,18 +3,33 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+LOG_DIR = BASE_DIR / "logs"
+LOG_APP_DIR = LOG_DIR / "app"
+LOG_SERVER_DIR = LOG_DIR / "server"
 
 SECRET_KEY = "4zC8pN7vQ2xK9mT5rW1sH6fD3jL0bY8uA4eG7cR2nM9qP5kX1tV6wS3hF0dJ8zB"
 DEBUG = False
-ALLOWED_HOSTS = ["homestay.aaistech.com", "127.0.0.1", "localhost"]
-CSRF_TRUSTED_ORIGINS = [
-    "https://homestay.aaistech.com",
+ALLOWED_HOSTS = [
+    "homestay.aaistech.com",
+    "113.160.218.241",
+    "127.0.0.1",
+    "localhost",
 ]
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+CSRF_TRUSTED_ORIGINS = [
+    "http://homestay.aaistech.com",
+    "https://homestay.aaistech.com",
+    "http://113.160.218.241:8020",
+    "https://113.160.218.241:8020",
+    "http://127.0.0.1:8020",
+    "https://127.0.0.1:8020",
+]
+# Giống Fasthub: lớp proxy bên ngoài xử lý TLS, Uvicorn vẫn nhận HTTP ở 8020.
+# Không ép scheme để cả HTTP trực tiếp và HTTPS qua proxy đều hoạt động.
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_SECONDS = 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -31,14 +46,16 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "accounts",
     "housekeeping",
+    "organizations",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "housekeeping.api.auth.BearerAuthenticationMiddleware",
+    "common.api_auth.BearerAuthenticationMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -68,7 +85,7 @@ DATABASES = {
         'NAME': 'homestay',                # tên DB trong DBeaver
         'USER': 'postgres',                 # user bạn dùng (thường là postgres)
         'PASSWORD': 'TuanHai2508',
-        'HOST': '127.0.0.1',
+        'HOST': '14.224.220.54',
         'PORT': '5432',
     }
 }
@@ -96,9 +113,16 @@ TIME_ZONE = "Asia/Ho_Chi_Minh"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_URL = "media/"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_REDIRECT_URL = "housekeeping:task-list"
@@ -132,3 +156,55 @@ PASSWORD_RESET_MAX_OTP_ATTEMPTS = 5
 PASSWORD_RESET_ACCOUNT_LIMIT_15_MINUTES = 3
 PASSWORD_RESET_ACCOUNT_LIMIT_24_HOURS = 5
 PASSWORD_RESET_IP_LIMIT_24_HOURS = 10
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "suppress_not_found": {"()": "common.logging_filters.SuppressNotFoundFilter"},
+    },
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s %(name)s %(funcName)s:%(lineno)d %(levelname)s %(message)s",
+            "datefmt": "%d/%m/%Y %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "filters": ["suppress_not_found"],
+        },
+        "app_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": str(LOG_APP_DIR / "app.log"),
+            "when": "midnight",
+            "backupCount": 30,
+            "encoding": "utf8",
+            "delay": True,
+            "formatter": "verbose",
+        },
+        "server_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": str(LOG_SERVER_DIR / "server.log"),
+            "when": "midnight",
+            "backupCount": 30,
+            "encoding": "utf8",
+            "delay": True,
+            "formatter": "verbose",
+            "filters": ["suppress_not_found"],
+        },
+    },
+    "loggers": {
+        "django.server": {
+            "handlers": ["console", "server_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "housekeeping": {
+            "handlers": ["console", "app_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

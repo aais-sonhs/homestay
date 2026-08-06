@@ -6,7 +6,7 @@ from functools import wraps
 from django.http import JsonResponse
 from django.views.csrf import csrf_failure as django_csrf_failure
 
-from housekeeping.idempotency import IdempotencyError
+from common.idempotency import IdempotencyError
 from housekeeping.services import HousekeepingError
 
 

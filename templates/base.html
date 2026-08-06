@@ -1,0 +1,39 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="{% static 'branding/bliss-home-mark.svg' %}" type="image/svg+xml">
+    <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}">
+    <title>{% block title %}Buồng phòng | Bliss Home{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+<header>
+    <nav class="nav">
+        <a class="brand" href="{% url 'housekeeping:task-list' %}">Bliss Home · Buồng phòng</a>
+        <span id="network" class="network">Đang kiểm tra mạng…</span>
+        <button id="nav-toggle" class="nav-toggle secondary" type="button" aria-expanded="false" aria-controls="nav-panel">☰ Menu</button>
+        <div id="nav-panel" class="nav-panel">
+            <div class="nav-links">
+                <a href="{% url 'housekeeping:task-list' %}"{% if request.resolver_match.url_name == 'task-list' or request.resolver_match.url_name == 'task-detail' %} aria-current="page"{% endif %}>Công việc</a>
+                {% if request.user.role == 'founder' or request.user.role == 'manager' %}<a href="{% url 'housekeeping:task-create' %}"{% if request.resolver_match.url_name == 'task-create' %} aria-current="page"{% endif %}>Tạo công việc</a>{% endif %}
+                <a href="{% url 'housekeeping:operations-dashboard' %}"{% if request.resolver_match.url_name == 'operations-dashboard' %} aria-current="page"{% endif %}>Điều phối</a>
+                <a href="{% url 'housekeeping:support-queue' %}"{% if request.resolver_match.url_name == 'support-queue' %} aria-current="page"{% endif %}>Hỗ trợ</a>
+                <a href="{% url 'housekeeping:activity-log' %}"{% if request.resolver_match.url_name == 'activity-log' %} aria-current="page"{% endif %}>Nhật ký</a>
+                <a href="{% url 'housekeeping:notification-center' %}"{% if request.resolver_match.url_name == 'notification-center' %} aria-current="page"{% endif %}>Thông báo</a>
+            </div>
+            {% include "shared/account_menu.html" %}
+        </div>
+    </nav>
+</header>
+<main class="container">
+    {% include "shared/messages.html" %}
+    {% block content %}{% endblock %}
+</main>
+<script src="{% static 'js/housekeeping.js' %}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
+

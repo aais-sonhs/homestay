@@ -6,7 +6,7 @@ import uuid
 from django.utils import timezone
 
 from housekeeping.dashboard import build_performance_dashboard, build_sla_dashboard
-from housekeeping.idempotency import execute_idempotent
+from common.idempotency import execute_idempotent
 from housekeeping.models import (
     HousekeepingTask,
     IssueTicket,

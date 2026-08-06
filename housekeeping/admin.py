@@ -1,16 +1,11 @@
 from django.contrib import admin
 
 from .models import (
-    Area,
     Booking,
-    Branch,
-    BranchHousekeepingPolicy,
-    BranchMembership,
     ChecklistItemDefinition,
     ChecklistTemplate,
     ChecklistVersion,
     HousekeepingActivityLog,
-    HousekeepingTeam,
     HousekeepingTask,
     IssueTicket,
     Notification,
@@ -20,10 +15,6 @@ from .models import (
     QCFailedItem,
     QCTask,
     ReworkRound,
-    Room,
-    Shift,
-    ShiftAssignment,
-    Skill,
     SLAEscalationEvent,
     SLAPolicy,
     SupplyRequest,
@@ -48,21 +39,6 @@ class HousekeepingTaskAdmin(admin.ModelAdmin):
     filter_horizontal = ("required_skills",)
 
 
-@admin.register(Room)
-class RoomAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "branch", "floor", "area", "status")
-    list_filter = ("branch", "status", "floor")
-    search_fields = ("code", "name")
-
-
-admin.site.register(Branch)
-admin.site.register(BranchHousekeepingPolicy)
-admin.site.register(Area)
-admin.site.register(Skill)
-admin.site.register(HousekeepingTeam)
-admin.site.register(BranchMembership)
-admin.site.register(Shift)
-admin.site.register(ShiftAssignment)
 admin.site.register(Booking)
 admin.site.register(ChecklistTemplate)
 admin.site.register(ChecklistVersion)

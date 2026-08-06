@@ -1,0 +1,8 @@
+{% if is_paginated %}
+<nav class="toolbar" aria-label="Phân trang">
+    {% if page_obj.has_previous %}<a class="button secondary" href="?page={{ page_obj.previous_page_number }}{{ pagination_query }}">Trang trước</a>{% endif %}
+    <span class="muted">Trang {{ page_obj.number }} / {{ paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="button secondary" href="?page={{ page_obj.next_page_number }}{{ pagination_query }}">Trang sau</a>{% endif %}
+</nav>
+{% endif %}
+

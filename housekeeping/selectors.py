@@ -4,7 +4,7 @@ from django.utils import timezone
 from accounts.models import User
 
 from .models import HousekeepingTask
-from .permissions import GLOBAL_ROLES, active_memberships, is_active_user, open_task_scope_q
+from common.access import GLOBAL_ROLES, active_memberships, is_active_user, open_task_scope_q
 
 
 def task_queryset_for_user(user):

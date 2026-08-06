@@ -11,7 +11,7 @@ from accounts.management.commands.seed_demo_data import (
     RETIRED_DEMO_USERS,
 )
 from accounts.models import AccessToken, RefreshToken, User
-from housekeeping.models import BranchMembership
+from organizations.models import BranchMembership
 
 
 MEMBERSHIP_LABELS = {

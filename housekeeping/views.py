@@ -14,23 +14,25 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from accounts.models import User
+from organizations.models import (
+    Area,
+    Branch,
+    BranchMembership,
+    HousekeepingTeam,
+    Room,
+    Shift,
+    Skill,
+)
 
 from .api.query import filtered_task_queryset, task_for_detail
 from .dashboard import build_performance_dashboard, build_sla_dashboard
 from .models import (
-    Area,
     Booking,
-    Branch,
-    BranchMembership,
     ChecklistVersion,
     HousekeepingActivityLog,
-    HousekeepingTeam,
     HousekeepingTask,
     IssueTicket,
     NotificationRecipient,
-    Room,
-    Shift,
-    Skill,
     SupplyRequest,
 )
 from .notifications import mark_notification_read

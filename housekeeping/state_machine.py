@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
-from .models import HousekeepingActivityLog, HousekeepingTask, Room, TaskStatusHistory
+from organizations.models import Room
+
+from .models import HousekeepingActivityLog, HousekeepingTask, TaskStatusHistory
 
 
 class Action:

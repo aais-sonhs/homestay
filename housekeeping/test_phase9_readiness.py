@@ -19,7 +19,7 @@ class NearRealtimeClientContractTests(SimpleTestCase):
         home = (base / "housekeeping_app/lib/src/screens/offline_home_screen.dart").read_text()
         task_list = (base / "templates/housekeeping/task_list.html").read_text()
         dashboard = (base / "templates/housekeeping/operations_dashboard.html").read_text()
-        shell = (base / "templates/housekeeping/base.html").read_text()
+        shell = (base / "static/js/housekeeping.js").read_text()
 
         self.assertIn("Duration(seconds: 30)", home)
         self.assertIn("_online == true", home)

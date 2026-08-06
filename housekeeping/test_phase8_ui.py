@@ -344,7 +344,7 @@ class Phase8BackofficeUITests(TestCase):
         tasks = client.get(reverse("housekeeping:task-list"))
         operations = client.get(reverse("housekeeping:operations-dashboard"))
         base_source = (
-            Path(settings.BASE_DIR) / "templates/housekeeping/base.html"
+            Path(settings.BASE_DIR) / "static/js/housekeeping.js"
         ).read_text()
 
         self.assertContains(
@@ -357,8 +357,8 @@ class Phase8BackofficeUITests(TestCase):
             'href="/housekeeping/operations/" aria-current="page"',
             html=False,
         )
-        self.assertIn('navPanel.querySelector(\'[aria-current="page"]\')', base_source)
-        self.assertIn('event.key === "Escape"', base_source)
+        self.assertIn('navPanel?.querySelector(\'[aria-current="page"]\')', base_source)
+        self.assertIn('event.key !== "Escape"', base_source)
         self.assertIn('navPanel.classList.contains("is-open")', base_source)
 
     def test_warehouse_and_technician_can_operate_their_scoped_queues(self):

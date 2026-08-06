@@ -12,25 +12,27 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from accounts.models import User
+from organizations.models import (
+    Area,
+    Branch,
+    BranchHousekeepingPolicy,
+    HousekeepingTeam,
+    Room,
+    Shift,
+    Skill,
+)
 
 from .checklist_validation import ChecklistValueError, validate_checklist_value
 from .models import (
-    Area,
     Booking,
-    Branch,
-    BranchHousekeepingPolicy,
     ChecklistVersion,
     HousekeepingActivityLog,
-    HousekeepingTeam,
     HousekeepingTask,
     IssueTicket,
     OfflineMutationReceipt,
     QCFailedItem,
     QCTask,
     ReworkRound,
-    Room,
-    Shift,
-    Skill,
     SupplyRequest,
     SupplyRequestItem,
     SupplyLocation,
@@ -44,7 +46,7 @@ from .models import (
     TaskStatusHistory,
 )
 from .notifications import notify_task
-from .permissions import (
+from common.access import (
     Capability,
     FIELD_ROLES,
     GLOBAL_ROLES,

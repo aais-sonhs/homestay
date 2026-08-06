@@ -1,6 +1,6 @@
 from django import template
 
-from housekeeping.display import display_label, localized_json, localized_system_text
+from common.display import display_label, localized_json, localized_system_text
 
 
 register = template.Library()

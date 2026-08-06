@@ -3,7 +3,7 @@ from collections import defaultdict
 from django.db import transaction
 from django.utils import timezone
 
-from .idempotency import IdempotencyError, canonical_payload_hash, execute_idempotent
+from common.idempotency import IdempotencyError, canonical_payload_hash, execute_idempotent
 from .models import HousekeepingTask, OfflineMutationReceipt, TaskChecklistItem
 from .selectors import task_queryset_for_user
 from .services import (

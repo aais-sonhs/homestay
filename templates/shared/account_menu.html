@@ -1,0 +1,30 @@
+<details id="account-menu" class="account-menu">
+    <summary aria-label="Mở menu tài khoản của {{ request.user.username }}">
+        <span class="account-avatar">
+            {% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="Ảnh đại diện của {{ request.user.username }}">{% else %}{{ request.user.username|first|upper }}{% endif %}
+        </span>
+        <span class="account-copy">
+            <span class="account-name">{{ request.user.display_name }}</span>
+            <span class="account-role">{{ request.user.get_role_display }}</span>
+        </span>
+    </summary>
+    <div class="account-submenu">
+        <div class="account-submenu-header">
+            <span class="account-avatar">
+                {% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="Ảnh đại diện của {{ request.user.username }}">{% else %}{{ request.user.username|first|upper }}{% endif %}
+            </span>
+            <span class="account-submenu-identity">
+                <strong>{{ request.user.display_name }}</strong>
+                <span>@{{ request.user.username }}</span>
+            </span>
+        </div>
+        <div class="account-submenu-body">
+            {% if request.user.is_superuser %}<a href="{% url 'admin:index' %}"><span class="menu-icon" aria-hidden="true">⚙</span>Quản trị hệ thống</a>{% endif %}
+            <a href="{% url 'password-change' %}"><span class="menu-icon" aria-hidden="true">🔑</span>Đổi mật khẩu</a>
+            <a href="{% url 'avatar-update' %}"><span class="menu-icon" aria-hidden="true">📷</span>Đổi ảnh đại diện</a>
+            <div class="account-divider"></div>
+            <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="account-logout" type="submit"><span class="menu-icon" aria-hidden="true">↪</span>Đăng xuất</button></form>
+        </div>
+    </div>
+</details>
+
