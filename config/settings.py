@@ -85,7 +85,7 @@ DATABASES = {
         'NAME': 'homestay',                # tên DB trong DBeaver
         'USER': 'postgres',                 # user bạn dùng (thường là postgres)
         'PASSWORD': 'TuanHai2508',
-        'HOST': '14.224.220.54',
+        'HOST': 'localhost',
         'PORT': '5432',
     }
 }
