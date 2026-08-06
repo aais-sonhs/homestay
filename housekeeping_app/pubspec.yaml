@@ -1,0 +1,31 @@
+name: bliss_housekeeping_app
+description: Ứng dụng hiện trường ưu tiên ngoại tuyến cho bộ phận buồng phòng Bliss Home.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  connectivity_plus: ^7.3.1
+  flutter_secure_storage: ^10.3.1
+  http: ^1.6.0
+  image_picker: ^1.2.3
+  geolocator: ^13.0.4
+  mobile_scanner: ^7.3.0
+  network_info_plus: ^5.0.3
+  crypto: ^3.0.7
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  sqflite_sqlcipher: ^3.4.0
+  uuid: ^4.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

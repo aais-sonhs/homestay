@@ -1,0 +1,56 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Điều phối buồng phòng | Bliss Home{% endblock %}
+{% block content %}
+<div data-auto-refresh-seconds="30">
+<div class="toolbar">
+    <div class="grow"><h1 style="margin:0">Điều phối và thời hạn xử lý</h1><span class="muted">Tiến độ nhóm, hàng chờ kiểm tra chất lượng và nguy cơ trễ giờ nhận phòng</span></div>
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}">Danh sách công việc</a>
+</div>
+
+<form class="card toolbar" method="get">
+    <label class="field"><span class="field-label">Ngày</span><input type="date" name="date" value="{{ selected_date }}"></label>
+    <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh được cấp</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if request.GET.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+    <button type="submit">Cập nhật bảng điều hành</button>
+</form>
+
+<div class="stat-grid">
+    <div class="stat"><span class="label">Tổng công việc</span><strong>{{ sla.summary.totalTasks }}</strong></div>
+    <div class="stat"><span class="label">Đang xử lý</span><strong>{{ sla.summary.inProgress }}</strong></div>
+    <div class="stat warning"><span class="label">Sắp quá hạn</span><strong>{{ sla.summary.nearDue }}</strong></div>
+    <div class="stat danger"><span class="label">Quá hạn</span><strong>{{ sla.summary.overdue }}</strong></div>
+    <div class="stat warning"><span class="label">Nguy cơ trễ giờ nhận phòng</span><strong>{{ sla.summary.checkinRisk }}</strong></div>
+    <div class="stat"><span class="label">Vi phạm hoàn thành</span><strong>{{ sla.summary.completionBreached }}</strong></div>
+</div>
+
+<section class="card" style="margin-bottom:16px">
+    <h2>Công việc có nguy cơ quá hạn hoặc trễ giờ nhận phòng</h2>
+    <div class="table-wrap"><table>
+        <thead><tr><th>Công việc / phòng</th><th>Trạng thái</th><th>Người làm</th><th>Tiến độ</th><th>Hạn</th><th>Cảnh báo</th></tr></thead>
+        <tbody>{% for row in sla.tasks %}<tr>
+            <td><a href="{% url 'housekeeping:task-detail' row.taskId %}"><strong>{{ row.room.code }}</strong> · {{ row.taskCode }}</a><br><span class="muted">{{ row.branch.name }}</span></td>
+            <td>{{ row.statusLabel }}</td><td>{% if row.assignee %}{{ row.assignee.name }}{% else %}Chưa giao{% endif %}</td><td>{{ row.progressPercent }}%</td>
+            <td>{{ row.completionDueLabel|default:"—" }}</td>
+            <td>{% if row.checkinRisk %}<span class="pill warn">⚠ Nguy cơ trễ giờ nhận phòng</span>{% endif %} {% if row.overdue %}<span class="pill danger">⚠ Quá {{ row.overdueMinutes }} phút</span>{% elif row.nearDue %}<span class="pill warn">⏱ Sắp quá hạn</span>{% endif %}</td>
+        </tr>{% empty %}<tr><td colspan="6" class="empty">Không có công việc rủi ro trong phạm vi lọc.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</section>
+
+<div class="split">
+    <section class="card">
+        <h2>Tiến độ đang hoạt động</h2>
+        {% for task in active_tasks %}<div class="inline-form"><div class="grow"><a href="{% url 'housekeeping:task-detail' task.id %}"><strong>{{ task.room.code }} · {{ task.code }}</strong></a><br><span class="muted">{{ task.get_status_display }} · {% if task.assignee %}{{ task.assignee.get_full_name|default:task.assignee.username }}{% else %}Chưa giao{% endif %}</span><div class="progress" role="progressbar" aria-label="Tiến độ {{ task.code }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ task.progress_percent }}"><span style="width:{{ task.progress_percent }}%"></span></div></div><strong>{{ task.progress_percent }}%</strong></div>{% empty %}<p class="empty">Không có công việc đang hoạt động.</p>{% endfor %}
+    </section>
+    <section class="card">
+        <h2>Hàng chờ kiểm tra chất lượng</h2>
+        {% for task in qc_tasks %}<div class="inline-form"><div class="grow"><a href="{% url 'housekeeping:task-detail' task.id %}"><strong>{{ task.room.code }} · {{ task.code }}</strong></a><br><span class="muted">{{ task.get_status_display }} · vòng kiểm tra {{ task.current_qc_round|default:"—" }}</span></div>{% if task.status == 'QC_REJECTED' %}<span class="pill danger">↻ Cần làm lại</span>{% else %}<span class="pill">Chờ kiểm tra</span>{% endif %}</div>{% empty %}<p class="empty">Hàng chờ kiểm tra đang trống.</p>{% endfor %}
+    </section>
+</div>
+
+<section class="card" style="margin-top:16px">
+    <h2>Hiệu suất theo nhân viên / ca / chi nhánh</h2>
+    <div class="table-wrap"><table><thead><tr><th>Nhân viên</th><th>Chi nhánh / ca</th><th>Công việc</th><th>Hoàn thành</th><th>Kiểm tra đạt</th><th>Quá hạn</th><th>Lượt làm lại</th><th>Tiến độ trung bình</th><th>Thời gian làm trung bình</th></tr></thead><tbody>
+    {% for row in performance.rows %}<tr><td>{% if row.employee %}{{ row.employee.name }}{% else %}Chưa giao{% endif %}</td><td>{{ row.branch.name }}{% if row.shift %}<br><span class="muted">{{ row.shift.name }}</span>{% endif %}</td><td>{{ row.taskCount }}</td><td>{{ row.completionRatePercent }}%</td><td>{{ row.qcApprovalRatePercent }}%</td><td>{{ row.slaBreachedCount }}</td><td>{{ row.reworkRoundCount }}</td><td>{{ row.averageProgressPercent }}%</td><td>{{ row.averageActiveMinutes }} phút</td></tr>{% empty %}<tr><td colspan="9" class="empty">Chưa có dữ liệu hiệu suất.</td></tr>{% endfor %}
+    </tbody></table></div>
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,168 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | Quản trị Bliss Home{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">Quản trị hệ thống Bliss Home</a></h1>
+{% if user.is_anonymous %}{% include "admin/color_theme_toggle.html" %}{% endif %}
+{% endblock %}
+
+{% block footer %}
+<div id="footer"></div>
+<script>
+(() => {
+    const phrases = new Map(Object.entries({
+        "Access tokens": "Mã truy cập",
+        "Access token": "Mã truy cập",
+        "Activity logs": "Nhật ký hoạt động",
+        "Activity log": "Nhật ký hoạt động",
+        "Password historys": "Lịch sử mật khẩu",
+        "Password history": "Lịch sử mật khẩu",
+        "Password reset requests": "Yêu cầu đặt lại mật khẩu",
+        "Password reset request": "Yêu cầu đặt lại mật khẩu",
+        "Refresh tokens": "Mã làm mới phiên đăng nhập",
+        "Refresh token": "Mã làm mới phiên đăng nhập",
+        "Users": "Người dùng",
+        "User": "Người dùng",
+        "Areas": "Khu vực",
+        "Area": "Khu vực",
+        "Bookings": "Đặt phòng",
+        "Booking": "Đặt phòng",
+        "Branch policies": "Chính sách buồng phòng chi nhánh",
+        "Branch policys": "Chính sách buồng phòng chi nhánh",
+        "Branch memberships": "Thành viên chi nhánh",
+        "Branch membership": "Thành viên chi nhánh",
+        "Branchs": "Chi nhánh",
+        "Branch": "Chi nhánh",
+        "Checklist item definitions": "Định nghĩa hạng mục kiểm tra",
+        "Checklist templates": "Mẫu danh sách kiểm tra",
+        "Checklist versions": "Phiên bản danh sách kiểm tra",
+        "Housekeeping activity logs": "Nhật ký hoạt động buồng phòng",
+        "Housekeeping tasks": "Công việc buồng phòng",
+        "Housekeeping teams": "Nhóm buồng phòng",
+        "Issue tickets": "Phiếu sự cố",
+        "Notification recipients": "Người nhận thông báo",
+        "Notifications": "Thông báo",
+        "Offline mutation receipts": "Bản ghi đồng bộ ngoại tuyến",
+        "Outbox events": "Sự kiện chờ gửi",
+        "Qc failed items": "Hạng mục kiểm tra không đạt",
+        "Qc tasks": "Công việc kiểm tra chất lượng",
+        "Rework rounds": "Vòng làm lại",
+        "Rooms": "Phòng",
+        "Sla escalation events": "Sự kiện cảnh báo quá hạn",
+        "Sla policys": "Chính sách thời hạn xử lý",
+        "Shift assignments": "Phân công ca",
+        "Shifts": "Ca làm việc",
+        "Skills": "Kỹ năng",
+        "Supply locations": "Điểm cấp vật tư",
+        "Supply requests": "Yêu cầu vật tư",
+        "Task assignments": "Phân công công việc",
+        "Task checklist items": "Hạng mục kiểm tra công việc",
+        "Task handovers": "Bàn giao công việc",
+        "Task pauses": "Lượt tạm dừng công việc",
+        "Task photos": "Ảnh công việc",
+        "Task room verifications": "Xác minh phòng của công việc",
+        "Task sla states": "Trạng thái thời hạn công việc",
+        "Task status historys": "Lịch sử trạng thái công việc",
+        "Toggle theme": "Đổi giao diện",
+        "current theme": "giao diện hiện tại",
+        "Start typing to filter": "Nhập để lọc",
+        "Filter navigation items": "Lọc mục điều hướng"
+    }));
+    const words = new Map(Object.entries({
+        "acceptance": "tiếp nhận", "breached": "vi phạm", "due": "hạn",
+        "minutes": "phút", "accepted": "đã nhận", "accuracy": "độ chính xác",
+        "meters": "mét", "acknowledged": "đã tiếp nhận", "action": "thao tác",
+        "address": "địa chỉ", "aggregate": "tổng hợp", "allow": "cho phép",
+        "parallel": "song song", "return": "trả lại", "work": "làm việc",
+        "outside": "ngoài", "shift": "ca", "allowed": "được phép",
+        "identifiers": "định danh", "approved": "đã duyệt", "area": "khu vực",
+        "assigned": "đã phân công", "assignee": "người thực hiện",
+        "attempts": "số lần thử", "available": "có sẵn", "avatar": "ảnh đại diện",
+        "base": "gốc", "version": "phiên bản", "block": "chặn",
+        "completion": "hoàn thành", "pending": "đang chờ", "supply": "vật tư",
+        "sync": "đồng bộ", "blocks": "chặn", "ready": "sẵn sàng",
+        "body": "nội dung", "booking": "đặt phòng", "branch": "chi nhánh",
+        "manage": "quản lý", "team": "nhóm", "cancellation": "hủy",
+        "reason": "lý do", "cancelled": "đã hủy", "captured": "đã chụp",
+        "category": "loại", "changed": "đã thay đổi", "changes": "thay đổi",
+        "channel": "kênh", "checkin": "nhận phòng", "checkout": "trả phòng",
+        "risk": "nguy cơ", "buffer": "khoảng đệm", "checklist": "danh sách kiểm tra",
+        "item": "hạng mục", "snapshot": "bản chụp dữ liệu", "template": "mẫu",
+        "checksum": "mã kiểm tra", "client": "thiết bị", "mutation": "thay đổi",
+        "request": "yêu cầu", "code": "mã", "completed": "đã hoàn thành",
+        "concurrent": "đồng thời", "conflict": "xung đột", "payload": "dữ liệu",
+        "correlation": "liên kết", "created": "đã tạo", "current": "hiện tại",
+        "rework": "làm lại", "deadline": "hạn chót", "deduplication": "chống trùng",
+        "definition": "định nghĩa", "delivered": "đã gửi", "depends": "phụ thuộc",
+        "description": "mô tả", "destination": "đích", "device": "thiết bị",
+        "disabled": "bị vô hiệu hóa", "admin": "quản trị viên", "ended": "đã kết thúc",
+        "error": "lỗi", "escalation": "cảnh báo tăng cấp", "event": "sự kiện",
+        "exclude": "loại trừ", "pause": "tạm dừng", "time": "thời gian",
+        "excluded": "đã loại trừ", "seconds": "giây", "expires": "hết hạn",
+        "failed": "thất bại", "failure": "không đạt", "floor": "tầng",
+        "status": "trạng thái", "group": "nhóm", "guest": "khách",
+        "consent": "đồng ý", "confirmed": "đã xác nhận", "phone": "điện thoại",
+        "handover": "bàn giao", "image": "ảnh", "active": "hoạt động",
+        "deleted": "đã xóa", "occupied": "có người", "locked": "bị khóa",
+        "overtime": "ngoài giờ", "permanently": "vĩnh viễn", "required": "bắt buộc",
+        "issue": "sự cố", "key": "mã", "label": "nhãn", "last": "gần nhất",
+        "evaluated": "đã đánh giá", "progress": "tiến độ", "sent": "đã gửi",
+        "used": "đã dùng", "latitude": "vĩ độ", "leader": "trưởng nhóm",
+        "legacy": "cũ", "backfill": "bổ sung", "longitude": "kinh độ",
+        "membership": "thành viên", "metadata": "thông tin bổ sung",
+        "method": "phương thức", "next": "tiếp theo", "normalized": "đã chuẩn hóa",
+        "note": "ghi chú", "notification": "thông báo", "role": "vai trò",
+        "object": "đối tượng", "occurred": "đã xảy ra", "operation": "thao tác",
+        "operational": "vận hành", "options": "lựa chọn", "password": "mật khẩu",
+        "hash": "mã băm", "policy": "chính sách", "previous": "trước",
+        "priority": "ưu tiên", "processed": "đã xử lý", "percent": "phần trăm",
+        "published": "đã phát hành", "round": "vòng", "read": "đã đọc",
+        "recipient": "người nhận", "reconfirm": "xác nhận lại", "reported": "đã báo",
+        "requested": "đã yêu cầu", "require": "yêu cầu", "camera": "máy ảnh",
+        "direct": "trực tiếp", "evidence": "bằng chứng", "photo": "ảnh",
+        "resend": "gửi lại", "reset": "đặt lại", "token": "mã",
+        "resolution": "xử lý", "resolved": "đã xử lý", "response": "phản hồi",
+        "result": "kết quả", "resumed": "đã tiếp tục", "reviewed": "đã đánh giá",
+        "reviewer": "người đánh giá", "revoked": "đã thu hồi", "source": "nguồn",
+        "special": "đặc biệt", "standard": "tiêu chuẩn", "duration": "thời lượng",
+        "submitted": "đã gửi", "value": "giá trị", "success": "thành công",
+        "successful": "thành công", "warehouse": "kho", "title": "tiêu đề",
+        "type": "loại", "name": "tên", "user": "người dùng", "at": "lúc",
+        "by": "bởi", "from": "từ", "to": "đến", "only": "chỉ"
+    }));
+
+    const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const translate = value => {
+        let result = value;
+        [...phrases.entries()].sort((a, b) => b[0].length - a[0].length).forEach(([source, target]) => {
+            result = result.replace(new RegExp(`\\b${escapeRegex(source)}\\b`, "gi"), target);
+        });
+        result = result.replace(/\b[A-Za-z][A-Za-z-]*\b/g, word => {
+            if (word.length > 2 && word === word.toUpperCase()) return word;
+            return words.get(word.toLowerCase()) || word;
+        });
+        return result;
+    };
+    const selectors = [
+        ".breadcrumbs", "#content h1", "#content h2", "#content h3",
+        "#content label", "#content thead th", "#content .help",
+        "#content .object-tools", "#content .submit-row", "#changelist-filter",
+        "#user-tools", ".skip-to-content-link"
+    ];
+    document.querySelectorAll(selectors.join(",")).forEach(root => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(node => { node.nodeValue = translate(node.nodeValue); });
+    });
+    document.querySelectorAll("[title], [aria-label], [placeholder]").forEach(element => {
+        ["title", "aria-label", "placeholder"].forEach(attribute => {
+            if (element.hasAttribute(attribute)) {
+                element.setAttribute(attribute, translate(element.getAttribute(attribute)));
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

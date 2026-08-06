@@ -1,0 +1,7 @@
+{% extends "housekeeping/base.html" %}
+{% load housekeeping_display %}
+{% block title %}Thông báo buồng phòng | Bliss Home{% endblock %}
+{% block content %}
+<div class="toolbar"><div class="grow"><h1 style="margin:0">Thông báo</h1><span class="muted">{{ unread_count }} thông báo chưa đọc</span></div><a class="button secondary" href="?unread=true">Chỉ chưa đọc</a><a class="button secondary" href="{% url 'housekeeping:notification-center' %}">Tất cả</a></div>
+<div class="task-list">{% for row in notifications %}<article class="card{% if not row.read_at %} urgent{% endif %}"><div class="toolbar" style="margin:0"><div class="grow"><span class="label">{{ row.notification.notification_type|vi_label }} · {{ row.notification.created_at|date:"H:i d/m/Y" }}</span><h2 style="margin:4px 0">{{ row.notification.title|vi_text }}</h2><p style="margin:0">{{ row.notification.body|vi_text }}</p>{% if row.notification.task %}<p><a href="{% url 'housekeeping:task-detail' row.notification.task_id %}">Mở {{ row.notification.task.room.code }} · {{ row.notification.task.code }}</a></p>{% endif %}</div>{% if not row.read_at %}<form method="post" action="{% url 'housekeeping:notification-web-read' row.id %}">{% csrf_token %}<button class="secondary">Đánh dấu đã đọc</button></form>{% else %}<span class="pill">✓ Đã đọc</span>{% endif %}</div></article>{% empty %}<div class="card empty">Không có thông báo phù hợp.</div>{% endfor %}</div>
+{% endblock %}

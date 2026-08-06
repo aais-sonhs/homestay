@@ -1,0 +1,44 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Đổi ảnh đại diện | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Đổi ảnh đại diện</h1>
+        <p class="muted">Ảnh sẽ hiển thị tại menu tài khoản ở góc trên bên phải.</p>
+    </div>
+</div>
+<section class="card avatar-settings-card">
+    <div class="avatar-preview-row">
+        <div class="account-avatar avatar-preview">
+            {% if request.user.avatar %}
+            <img src="{{ request.user.avatar.url }}" alt="Ảnh đại diện của {{ request.user.username }}">
+            {% else %}
+            <span>{{ request.user.username|first|upper }}</span>
+            {% endif %}
+        </div>
+        <div>
+            <strong>{{ request.user.display_name }}</strong>
+            <div class="muted">@{{ request.user.username }}</div>
+        </div>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="stack-form avatar-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <label for="{{ form.avatar.id_for_label }}"><strong>{{ form.avatar.label }}</strong></label>
+        {{ form.avatar }}
+        <span class="muted">{{ form.avatar.help_text }}</span>
+        {{ form.avatar.errors }}
+        {% if request.user.avatar %}
+        <label class="remove-avatar-option" for="{{ form.remove_avatar.id_for_label }}">
+            {{ form.remove_avatar }}
+            <span>{{ form.remove_avatar.label }}</span>
+        </label>
+        {{ form.remove_avatar.errors }}
+        {% endif %}
+        <div class="actions">
+            <button type="submit">Lưu thay đổi</button>
+            <a class="button secondary" href="{% url 'housekeeping:task-list' %}">Quay lại danh sách công việc</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

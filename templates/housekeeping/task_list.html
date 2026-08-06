@@ -1,0 +1,67 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Danh sách công việc | Bliss Home{% endblock %}
+{% block content %}
+<div data-auto-refresh-seconds="30">
+<div class="page-heading">
+    <div class="grow"><h1 style="margin:0">Công việc buồng phòng</h1><span class="muted">Theo ca và chi nhánh được phân quyền</span></div>
+</div>
+<nav class="task-tabs" aria-label="Nhóm trạng thái công việc">
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}?tab=mine"{% if request.GET.tab == 'mine' %} aria-current="page"{% endif %}>Việc của tôi</a>
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}?tab=open"{% if request.GET.tab == 'open' %} aria-current="page"{% endif %}>Chờ nhận</a>
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}?tab=in-progress"{% if request.GET.tab == 'in-progress' %} aria-current="page"{% endif %}>Đang thực hiện</a>
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}?tab=support"{% if request.GET.tab == 'support' %} aria-current="page"{% endif %}>Chờ hỗ trợ</a>
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}?tab=waiting-qc"{% if request.GET.tab == 'waiting-qc' %} aria-current="page"{% endif %}>Chờ kiểm tra</a>
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}?tab=qc-rework"{% if request.GET.tab == 'qc-rework' %} aria-current="page"{% endif %}>Cần làm lại</a>
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}?tab=done"{% if request.GET.tab == 'done' %} aria-current="page"{% endif %}>Đã hoàn thành</a>
+</nav>
+
+<details class="card filter-panel" open>
+    <summary>Bộ lọc công việc</summary>
+    <form class="toolbar" method="get">
+        <label class="field grow"><span class="field-label">Tìm kiếm</span><input name="q" value="{{ request.GET.q }}" placeholder="Mã công việc, phòng hoặc đặt phòng"></label>
+        <label class="field"><span class="field-label">Ngày</span><input type="date" name="date" value="{{ selected_date }}"></label>
+        <label class="field"><span class="field-label">Ca làm việc</span><select name="shiftId"><option value="">Tất cả ca được cấp</option>{% for shift in shifts %}<option value="{{ shift.id }}"{% if request.GET.shiftId == shift.id|stringformat:'s' %} selected{% endif %}>{{ shift.branch.name }} · {{ shift.name }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if request.GET.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="">Trạng thái đang mở</option>{% for value,label in statuses %}<option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Loại công việc</span><select name="taskType"><option value="">Tất cả loại việc</option>{% for value,label in task_types %}<option value="{{ value }}"{% if request.GET.taskType == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Ưu tiên</span><select name="priority"><option value="">Mọi ưu tiên</option>{% for value,label in priorities %}<option value="{{ value }}"{% if request.GET.priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Khu vực</span><input name="area" value="{{ request.GET.area }}" placeholder="Ví dụ: Khu A"></label>
+        <label class="field"><span class="field-label">Tầng</span><input name="floor" value="{{ request.GET.floor }}" placeholder="Ví dụ: Tầng 2"></label>
+        <label class="field"><span class="field-label">Loại phòng</span><input name="roomType" value="{{ request.GET.roomType }}" placeholder="Ví dụ: Cao cấp"></label>
+        <label class="field"><span class="field-label">Người thực hiện</span><select name="assignee"><option value="">Mọi người thực hiện</option><option value="me"{% if request.GET.assignee == 'me' %} selected{% endif %}>Tôi</option><option value="unassigned"{% if request.GET.assignee == 'unassigned' %} selected{% endif %}>Chưa giao</option></select></label>
+        <label class="checkbox-field"><input type="checkbox" name="overdue" value="true"{% if request.GET.overdue == 'true' %} checked{% endif %}> Quá hạn</label>
+        <label class="checkbox-field"><input type="checkbox" name="checkinRisk" value="true"{% if request.GET.checkinRisk == 'true' %} checked{% endif %}> Nguy cơ trễ giờ nhận phòng</label>
+        <label class="checkbox-field"><input type="checkbox" name="qcRework" value="true"{% if request.GET.qcRework == 'true' %} checked{% endif %}> Cần làm lại</label>
+        <button type="submit">Áp dụng bộ lọc</button>
+        <a class="button secondary" href="{% url 'housekeeping:task-list' %}">Xóa lọc</a>
+    </form>
+</details>
+
+<div class="task-list" style="margin-top:16px">
+    {% for task in tasks %}
+    <a class="card task{% if task.is_overdue %} overdue{% endif %}{% if task.priority == 'URGENT' %} urgent{% endif %}" href="{% url 'housekeeping:task-detail' task.id %}">
+        <div>
+            <span class="task-title">{{ task.room.code }} · {{ task.code }}</span><br>
+            <span class="muted">{{ task.room.name }} · {{ task.room.floor }} · {{ task.room.area }} · {{ task.branch.name }}</span>
+            <div class="progress" role="progressbar" aria-label="Tiến độ danh sách kiểm tra" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ task.progress_percent }}"><span style="width:{{ task.progress_percent }}%"></span></div>
+            <small>{{ task.progress_percent }}% · {{ task.api_completed_required_count }}/{{ task.api_required_count }} mục bắt buộc · {{ task.api_photo_count }} ảnh</small>
+        </div>
+        <div><span class="label">Loại việc</span>{{ task.get_task_type_display }}</div>
+        <div><span class="label">Lịch thực hiện</span><span class="muted">Bắt đầu {{ task.scheduled_start_at|date:"H:i d/m" }}</span><br>Hạn {{ task.due_at|date:"H:i d/m/Y" }}{% if task.is_overdue %}<br><span class="pill danger">⚠ Quá hạn</span>{% endif %}{% if task.next_checkin_at %}<br><span class="muted">Nhận phòng {{ task.next_checkin_at|date:"H:i d/m" }}</span>{% endif %}</div>
+        <div><span class="label">Người nhận</span>{% if task.assignee %}{{ task.assignee.get_full_name|default:task.assignee.username }}{% else %}Chưa có{% endif %}</div>
+        <div><span class="pill{% if task.status == 'WAITING_SUPPORT' %} warn{% elif task.status == 'QC_REJECTED' %} danger{% endif %}">{{ task.get_status_display }}</span>{% if task.priority == 'URGENT' or task.priority == 'HIGH' %}<br><span class="pill warn">▲ {{ task.get_priority_display }}</span>{% endif %}{% if task.guest_in_room %}<br><span class="pill danger">⚠ Có khách</span>{% endif %}{% if task.special_request %}<br><span class="pill warn">★ Yêu cầu đặc biệt</span>{% endif %}<br><span class="muted">Phòng {{ task.get_room_status_display|default:task.room.get_status_display }}</span></div>
+    </a>
+    {% empty %}
+    <div class="card"><h2>Không có công việc phù hợp</h2><p class="muted">Thử bỏ bớt bộ lọc hoặc kiểm tra lại chi nhánh/ca được phân quyền.</p></div>
+    {% endfor %}
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    const filterPanel = document.querySelector(".filter-panel");
+    if (filterPanel && matchMedia("(max-width: 560px)").matches && !location.search) {
+        filterPanel.removeAttribute("open");
+    }
+</script>
+{% endblock %}

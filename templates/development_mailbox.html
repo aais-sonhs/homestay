@@ -1,0 +1,16 @@
+{% extends "registration/auth_base.html" %}
+{% block title %}Hộp thư nội bộ | Bliss Home{% endblock %}
+{% block content %}
+<h1>Hộp thư nội bộ</h1>
+<p class="hint"><strong>Chỉ dành cho môi trường phát triển.</strong> Môi trường vận hành thật gửi qua máy chủ thư và không mở trang này.</p>
+{% for message in email_messages %}
+<article style="margin-top:16px;padding:14px;border:1px solid #dce6dd;border-radius:10px">
+    <strong>{{ message.subject }}</strong>
+    <div style="font-size:13px;color:var(--muted)">Đến: {{ message.to }}{% if message.date %} · {{ message.date }}{% endif %}</div>
+    <pre style="white-space:pre-wrap;font:14px/1.5 system-ui,sans-serif">{{ message.body }}</pre>
+</article>
+{% empty %}
+<p>Chưa có thư nào. Hãy gửi yêu cầu mã xác thực trước.</p>
+{% endfor %}
+<div class="actions"><a href="{% url 'forgot-password-otp' %}">Quay lại nhập mã xác thực</a></div>
+{% endblock %}

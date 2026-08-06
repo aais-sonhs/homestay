@@ -1,0 +1,57 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Tạo công việc | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="grow"><h1>Tạo công việc buồng phòng</h1><p class="muted">Danh sách kiểm tra được sao chép từ phiên bản đã phát hành khi lưu công việc.</p></div>
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}">Quay lại danh sách</a>
+</div>
+<form class="card stack-form" method="post" id="task-create-form">
+    {% csrf_token %}
+    <div class="grid">
+        <label class="field span-4"><span class="field-label">Mã công việc</span><input name="code" maxlength="30" placeholder="Để trống để hệ thống tự tạo"></label>
+        <label class="field span-4"><span class="field-label">Chi nhánh</span><select name="branchId" id="branch" required><option value="">Chọn chi nhánh</option>{% for branch in branches %}<option value="{{ branch.id }}">{{ branch.name }}</option>{% endfor %}</select></label>
+        <label class="field span-4"><span class="field-label">Phòng</span><select name="roomId" required data-scoped><option value="">Chọn phòng</option>{% for room in rooms %}<option data-branch="{{ room.branch_id }}" value="{{ room.id }}">{{ room.branch.name }} · {{ room.code }} · {{ room.name }}</option>{% endfor %}</select></label>
+
+        <label class="field span-4"><span class="field-label">Loại công việc</span><select name="taskType" required>{% for value,label in task_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+        <label class="field span-4"><span class="field-label">Ưu tiên</span><select name="priority">{% for value,label in priorities %}<option value="{{ value }}"{% if value == 'NORMAL' %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field span-4"><span class="field-label">Đặt phòng</span><select name="bookingId" data-scoped><option value="">Không gắn đặt phòng</option>{% for booking in bookings %}<option data-branch="{{ booking.branch_id }}" value="{{ booking.id }}">{{ booking.branch.name }} · {{ booking.code }} · {{ booking.room.code }}</option>{% endfor %}</select></label>
+
+        <label class="field span-4"><span class="field-label">Bắt đầu dự kiến</span><input type="datetime-local" name="scheduledStartAt" value="{{ default_start }}" required></label>
+        <label class="field span-4"><span class="field-label">Hạn hoàn thành</span><input type="datetime-local" name="dueAt" value="{{ default_due }}" required></label>
+        <label class="field span-4"><span class="field-label">Giờ nhận phòng tiếp theo</span><input type="datetime-local" name="nextCheckinAt"></label>
+
+        <label class="field span-4"><span class="field-label">Ca</span><select name="shiftId" data-scoped><option value="">Không gắn ca</option>{% for shift in shifts %}<option data-branch="{{ shift.branch_id }}" value="{{ shift.id }}">{{ shift.branch.name }} · {{ shift.name }}</option>{% endfor %}</select></label>
+        <label class="field span-4"><span class="field-label">Khu vực</span><select name="areaId" data-scoped><option value="">Theo phòng</option>{% for area in areas %}<option data-branch="{{ area.branch_id }}" value="{{ area.id }}">{{ area.branch.name }} · {{ area.name }}</option>{% endfor %}</select></label>
+        <label class="field span-4"><span class="field-label">Nhóm</span><select name="teamId" data-scoped><option value="">Chưa chỉ định nhóm</option>{% for team in teams %}<option data-branch="{{ team.branch_id }}" value="{{ team.id }}">{{ team.branch.name }} · {{ team.name }}</option>{% endfor %}</select></label>
+
+        <label class="field span-4"><span class="field-label">Người được giao</span><select name="assigneeId"><option value="">Mở cho tự nhận</option>{% for user in assignees %}<option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>{% endfor %}</select></label>
+        <label class="field span-4"><span class="field-label">Danh sách kiểm tra đã phát hành</span><select name="checklistVersionId" data-scoped><option value="">Tự chọn theo loại công việc</option>{% for version in checklist_versions %}<option data-branch="{{ version.template.branch_id|default:'' }}" value="{{ version.id }}">{{ version.template.name }} · {{ version.version_label }}</option>{% endfor %}</select></label>
+        <label class="field span-4"><span class="field-label">Thời lượng chuẩn (phút)</span><input type="number" min="1" name="standardDurationMinutes" value="45"></label>
+
+        <label class="field span-12"><span class="field-label">Kỹ năng bắt buộc</span><select name="requiredSkillIds" multiple size="4" data-scoped>{% for skill in skills %}<option data-branch="{{ skill.branch_id|default:'' }}" value="{{ skill.id }}">{{ skill.name }}</option>{% endfor %}</select><span class="muted">Giữ Ctrl/Cmd để chọn nhiều kỹ năng.</span></label>
+        <label class="field span-12"><span class="field-label">Yêu cầu đặc biệt</span><textarea name="specialRequest"></textarea></label>
+        <label class="field span-12"><span class="field-label">Ghi chú ban đầu</span><textarea name="note"></textarea></label>
+    </div>
+    <div class="actions">
+        <label><input type="checkbox" name="requiresQc" checked> Yêu cầu kiểm tra chất lượng</label>
+        <label><input type="checkbox" name="guestInRoom"> Khách đang trong phòng</label>
+    </div>
+    <button type="submit">Tạo công việc</button>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+    const branch = document.getElementById("branch");
+    function scopeOptions() {
+        const selected = branch.value;
+        document.querySelectorAll("[data-scoped] option[data-branch]").forEach((option) => {
+            const visible = !selected || !option.dataset.branch || option.dataset.branch === selected;
+            option.hidden = !visible;
+            option.disabled = !visible;
+            if (!visible && option.selected) option.selected = false;
+        });
+    }
+    branch.addEventListener("change", scopeOptions);
+    scopeOptions();
+</script>
+{% endblock %}

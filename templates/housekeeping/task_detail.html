@@ -1,0 +1,176 @@
+{% extends "housekeeping/base.html" %}
+{% load housekeeping_display %}
+{% block title %}{{ task.code }} · {{ task.room.code }} | Bliss Home{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <a class="button secondary" href="{% url 'housekeeping:task-list' %}">← Danh sách</a>
+    <div class="grow"><h1 style="margin:0">{{ task.room.code }} · {{ task.code }}</h1><span class="muted">{{ task.get_task_type_display }} tại {{ task.branch.name }}</span></div>
+    <span class="pill{% if task.status == 'WAITING_SUPPORT' %} warn{% elif task.status == 'QC_REJECTED' %} danger{% endif %}">{{ task.get_status_display }}</span>
+    {% if task.is_overdue %}<span class="pill danger">⚠ Quá hạn</span>{% endif %}
+</div>
+
+{% if task.guest_in_room %}<div class="message error">⚠ Khách đang ở trong phòng. Chỉ vào phòng sau khi khách đồng ý.</div>{% endif %}
+{% if task.special_request %}<div class="message">Yêu cầu đặc biệt: {{ task.special_request }}</div>{% endif %}
+{% with last_qc=task.qc_rounds.last %}{% if task.status == 'QC_REJECTED' and last_qc %}<div class="message error"><strong>Kiểm tra chất lượng yêu cầu làm lại:</strong> {{ last_qc.reason }}{% if last_qc.note %}<br>{{ last_qc.note }}{% endif %}</div>{% endif %}{% endwith %}
+
+<div class="grid">
+    <section class="card span-8">
+        <h2>Thông tin công việc</h2>
+        <div class="kv">
+            <div><span class="label">Phòng</span><strong>{{ task.room.name }}</strong> · {{ task.room.floor }}<br><span class="muted">{{ task.room.get_status_display }}</span></div>
+            <div><span class="label">Ưu tiên</span>{{ task.get_priority_display }}</div>
+            <div><span class="label">Bắt đầu dự kiến</span>{{ task.scheduled_start_at|date:"H:i d/m/Y" }}</div>
+            <div><span class="label">Hạn hoàn thành</span>{{ task.due_at|date:"H:i d/m/Y" }}</div>
+            <div><span class="label">Người thực hiện</span>{% if task.assignee %}{{ task.assignee.get_full_name|default:task.assignee.username }}{% else %}Chưa nhận{% endif %}</div>
+            <div><span class="label">Ca</span>{{ task.shift.name|default:"Không ràng buộc ca" }}</div>
+            <div><span class="label">Kỹ năng bắt buộc</span>{% for skill in task.required_skills.all %}{{ skill.name }}{% if not forloop.last %}, {% endif %}{% empty %}Không yêu cầu{% endfor %}</div>
+        </div>
+        <div class="progress" role="progressbar" aria-label="Tiến độ công việc" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ task.progress_percent }}" style="height:12px;margin-top:16px"><span style="width:{{ task.progress_percent }}%"></span></div>
+        <p><strong>{{ task.progress_percent }}%</strong> tiến độ</p>
+
+        <div class="actions">
+            {% if task.status == 'UNASSIGNED' or task.status == 'PENDING_ACCEPTANCE' %}
+            <form method="post" action="{% url 'housekeeping:task-web-action' task.id 'accept' %}">{% csrf_token %}<input type="hidden" name="version" value="{{ task.version }}"><button>Nhận việc</button></form>
+            {% endif %}
+            {% if task.status == 'ACCEPTED' or task.status == 'QC_REJECTED' %}
+            <form method="post" action="{% url 'housekeeping:task-web-action' task.id 'start' %}">{% csrf_token %}<input type="hidden" name="version" value="{{ task.version }}"><button>Bắt đầu{% if task.status == 'QC_REJECTED' %} làm lại{% endif %}</button></form>
+            <form method="post" action="{% url 'housekeeping:task-web-action' task.id 'return' %}" data-confirm="Trả công việc về hàng chờ phân công?">{% csrf_token %}<input type="hidden" name="version" value="{{ task.version }}"><input name="reasonCode" value="OTHER" type="hidden"><button class="danger">Trả lại công việc</button></form>
+            {% endif %}
+            {% if task.status == 'PAUSED' or task.status == 'WAITING_SUPPORT' %}
+            <form method="post" action="{% url 'housekeeping:task-web-action' task.id 'resume' %}">{% csrf_token %}<input type="hidden" name="version" value="{{ task.version }}"><button>Tiếp tục</button></form>
+            {% endif %}
+        </div>
+    </section>
+
+    <aside class="card span-4">
+        <h2>Ghi chú</h2>
+        <p>{{ task.note|default:"Không có ghi chú." }}</p>
+        <p><span class="label">Đặt phòng</span>{{ task.booking_code|default:"—" }}</p>
+        <p><span class="label">Giờ nhận phòng tiếp theo</span>{{ task.next_checkin_at|date:"H:i d/m/Y"|default:"—" }}</p>
+        <p><span class="label">Phiên bản dữ liệu</span>{{ task.version }}</p>
+    </aside>
+
+    {% if is_management and task.status != 'QC_APPROVED' and task.status != 'CANCELLED' %}
+    <section class="card span-12">
+        <h2>Điều phối công việc</h2>
+        <div class="split">
+            <form class="stack-form" method="post" action="{% url 'housekeeping:task-web-action' task.id 'reassign' %}">{% csrf_token %}
+                <input type="hidden" name="version" value="{{ task.version }}">
+                <label><span class="label">Giao / chuyển người thực hiện</span><select name="assigneeId" required><option value="">Chọn nhân viên</option>{% for user in assignees %}<option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>{% endfor %}</select></label>
+                <label><span class="field-label">Lý do hoặc ghi chú bàn giao</span><input name="note" placeholder="Nhập nội dung bàn giao"></label>
+                <button>Phân công lại</button>
+            </form>
+            <form class="stack-form" method="post" action="{% url 'housekeeping:task-web-action' task.id 'priority' %}">{% csrf_token %}
+                <input type="hidden" name="version" value="{{ task.version }}">
+                <label><span class="label">Mức ưu tiên</span><select name="priority"><option value="NORMAL">Bình thường</option><option value="HIGH">Cao</option><option value="URGENT">Khẩn cấp</option></select></label>
+                <label><span class="field-label">Lý do đổi ưu tiên</span><input name="reason" placeholder="Nhập lý do đổi ưu tiên"></label>
+                <button class="warning">Đổi ưu tiên</button>
+            </form>
+            <form class="stack-form" method="post" action="{% url 'housekeeping:task-web-action' task.id 'note' %}">{% csrf_token %}
+                <input type="hidden" name="version" value="{{ task.version }}">
+                <label><span class="field-label">Ghi chú mới cho nhân viên</span><textarea name="note" required>{{ task.note }}</textarea></label>
+                <button>Gửi ghi chú và thông báo</button>
+            </form>
+        </div>
+        <form class="inline-form" method="post" action="{% url 'housekeeping:task-web-action' task.id 'cancel' %}" data-confirm="Hủy công việc này? Thao tác sẽ được ghi vào nhật ký hoạt động." style="margin-top:12px">{% csrf_token %}<input type="hidden" name="version" value="{{ task.version }}"><label class="field grow"><span class="field-label">Lý do hủy công việc</span><input name="reason" placeholder="Nhập lý do bắt buộc" required></label><button class="danger">Hủy công việc</button></form>
+    </section>
+    {% endif %}
+
+    <section class="card span-8">
+        <h2>Danh sách kiểm tra</h2>
+        {% for item in task.checklist_items.all %}
+        <div class="check-item">
+            <div>
+                <strong>{{ item.title }}</strong>{% if item.is_required %} <span class="pill">Bắt buộc</span>{% endif %}{% if item.requires_photo %} <span class="pill warn">Cần ảnh</span>{% endif %}<br>
+                <span class="muted">{{ item.group_name }}{% if item.completed_at %} · {{ item.completed_at|date:"H:i d/m" }}{% if item.completed_by %} bởi {{ item.completed_by.get_full_name|default:item.completed_by.username }}{% endif %}{% endif %}</span>
+                {% if item.note %}<br>{{ item.note }}{% endif %}
+            </div>
+            <div>
+                {% if item.status == 'COMPLETED' %}<span class="done">✓ Hoàn thành</span>
+                {% elif task.status == 'IN_PROGRESS' %}
+                <form class="offline-checklist" method="post" action="{% url 'housekeeping:task-web-action' task.id 'checklist' %}" data-api="{% url 'housekeeping:api-checklist-item' task.id item.id %}">{% csrf_token %}<input type="hidden" name="version" value="{{ task.version }}"><input type="hidden" name="itemId" value="{{ item.id }}"><input type="hidden" name="status" value="COMPLETED"><button type="submit">✓ Xong</button></form>
+                {% else %}<span class="muted">Chưa xử lý</span>{% endif %}
+            </div>
+        </div>
+        {% empty %}<p class="muted">Công việc chưa có danh sách kiểm tra.</p>{% endfor %}
+    </section>
+
+    <aside class="card span-4">
+        <h2>Ảnh công việc</h2>
+        <div class="photo-grid">{% for photo in task.photos.all %}<a href="{{ photo.image.url }}" target="_blank"><img src="{{ photo.image.url }}" alt="Ảnh {{ photo.get_category_display }}"></a>{% empty %}<p class="muted">Chưa có ảnh.</p>{% endfor %}</div>
+        {% if task.status == 'IN_PROGRESS' or task.status == 'WAITING_QC' and can_qc %}
+        <form method="post" enctype="multipart/form-data" action="{% url 'housekeeping:task-web-action' task.id 'photo' %}" style="margin-top:14px">{% csrf_token %}
+            <input type="hidden" name="version" value="{{ task.version }}">
+            <input type="hidden" name="source" value="CAMERA">
+            <label class="field"><span class="field-label">Loại ảnh</span><select name="category">{% if task.status == 'WAITING_QC' %}<option value="QC">Ảnh kiểm tra chất lượng</option>{% else %}<option value="AFTER">Ảnh sau khi dọn</option><option value="BEFORE">Ảnh trước khi dọn</option><option value="ISSUE">Ảnh sự cố</option>{% endif %}</select></label>
+            <label class="field"><span class="field-label">Hạng mục liên quan</span><select name="checklistItemId"><option value="">Không gắn danh sách kiểm tra</option>{% for item in task.checklist_items.all %}<option value="{{ item.id }}">{{ item.title }}</option>{% endfor %}</select></label>
+            <label class="field"><span class="field-label">Tệp ảnh</span><input type="file" name="image" accept="image/*" capture="environment" required></label>
+            <button type="submit">{% if task.status == 'WAITING_QC' %}Tải ảnh kiểm tra{% else %}Tải ảnh{% endif %}</button>
+        </form>
+        {% endif %}
+    </aside>
+
+    {% if task.status == 'IN_PROGRESS' %}
+    <section class="card span-4">
+        <h2>Tạm dừng</h2>
+        <form method="post" action="{% url 'housekeeping:task-web-action' task.id 'pause' %}">{% csrf_token %}
+            <input type="hidden" name="version" value="{{ task.version }}">
+            <label class="field"><span class="field-label">Lý do tạm dừng</span><select name="reasonCode" required><option value="">Chọn lý do</option><option value="WAITING_SUPPLIES">Chờ vật tư</option><option value="DEVICE_BROKEN">Thiết bị hỏng</option><option value="GUEST_IN_ROOM">Khách trong phòng</option><option value="OTHER">Lý do khác</option></select></label>
+            <label class="field"><span class="field-label">Ghi chú</span><textarea name="note" placeholder="Mô tả tình trạng"></textarea></label><button type="submit">Tạm dừng công việc</button>
+        </form>
+    </section>
+    <section class="card span-4">
+        <h2>Báo thiếu vật tư</h2>
+        <form method="post" action="{% url 'housekeeping:task-web-action' task.id 'supply' %}">{% csrf_token %}
+            <input type="hidden" name="version" value="{{ task.version }}">
+            <label class="field"><span class="field-label">Mã vật tư</span><input name="inventoryItemId" required></label><label class="field"><span class="field-label">Tên vật tư</span><input name="itemName"></label><label class="field"><span class="field-label">Số lượng</span><input name="quantity" type="number" min="0.01" step="0.01" value="1" required></label><label class="field"><span class="field-label">Đơn vị</span><input name="unit" value="Cái" required></label><input type="hidden" name="priority" value="HIGH"><label class="field"><span class="field-label">Ghi chú</span><textarea name="note"></textarea></label><button type="submit">Gửi yêu cầu kho</button>
+        </form>
+    </section>
+    <section class="card span-4">
+        <h2>Báo sự cố</h2>
+        <form method="post" action="{% url 'housekeeping:task-web-action' task.id 'issue' %}">{% csrf_token %}
+            <input type="hidden" name="version" value="{{ task.version }}">
+            <label class="field"><span class="field-label">Mã thiết bị</span><input name="deviceId"></label><label class="field"><span class="field-label">Loại sự cố</span><select name="issueType" required><option value="DEVICE_NOT_WORKING">Thiết bị không hoạt động</option><option value="DAMAGE">Hư hỏng</option><option value="SAFETY">An toàn</option><option value="OTHER">Sự cố khác</option></select></label><label class="field"><span class="field-label">Mức độ</span><select name="severity"><option value="NORMAL">Bình thường</option><option value="HIGH">Cao</option><option value="URGENT">Khẩn cấp</option></select></label><label class="field"><span class="field-label">Mô tả sự cố</span><textarea name="description" required></textarea></label><label><input style="min-height:auto;width:auto" type="checkbox" name="blocksRoomReady"> Sự cố chặn phòng sẵn sàng</label><br><button type="submit">Tạo phiếu sự cố</button>
+        </form>
+    </section>
+    <section class="card span-12">
+        <h2>Hoàn thành và gửi kiểm tra chất lượng</h2>
+        <form method="post" action="{% url 'housekeeping:task-web-action' task.id 'complete' %}" data-confirm="Xác nhận hoàn thành và gửi công việc sang kiểm tra chất lượng?">{% csrf_token %}<input type="hidden" name="version" value="{{ task.version }}"><label class="field"><span class="field-label">Ghi chú hoàn thành</span><textarea name="finalNote"></textarea></label><label><input style="min-height:auto;width:auto" type="checkbox" name="confirmFinalInspection" required> Tôi xác nhận đã kiểm tra cuối phòng</label><br><br><button type="submit">Hoàn thành và gửi kiểm tra</button></form>
+    </section>
+    {% endif %}
+
+    {% if task.status == 'WAITING_QC' and can_qc %}
+    <section class="card span-12">
+        <h2>Nghiệm thu chất lượng</h2>
+        <div class="split">
+            <form class="stack-form" method="post" action="{% url 'housekeeping:task-web-action' task.id 'qc-approve' %}">{% csrf_token %}<input type="hidden" name="version" value="{{ task.version }}"><label class="field"><span class="field-label">Ghi chú kiểm tra</span><input name="note"></label><button>✓ Kiểm tra đạt</button></form>
+            <form class="stack-form" method="post" action="{% url 'housekeeping:task-web-action' task.id 'qc-reject' %}" data-confirm="Xác nhận kiểm tra không đạt và yêu cầu làm lại?">{% csrf_token %}
+                <input type="hidden" name="version" value="{{ task.version }}">
+                <label class="field"><span class="field-label">Lý do tổng thể không đạt</span><input name="reason" required></label>
+                <label class="field"><span class="field-label">Ghi chú làm lại</span><input name="note"></label>
+                <label><span class="label">Hạn làm lại</span><input type="datetime-local" name="deadlineAt"></label>
+                <fieldset style="border:1px solid var(--line);border-radius:9px"><legend>Hạng mục không đạt</legend>{% for item in task.checklist_items.all %}<label style="display:block;padding:5px"><input style="min-height:auto;width:auto" type="checkbox" name="failedItemIds" value="{{ item.id }}"> {{ item.group_name }} · {{ item.title }}</label>{% endfor %}</fieldset>
+                <button class="danger">✕ Yêu cầu làm lại</button>
+            </form>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if task.qc_rounds.all %}
+    <section class="card span-12"><h2>Lịch sử kiểm tra và làm lại</h2>{% for round in task.qc_rounds.all %}<article class="inline-form"><div class="grow"><strong>Vòng kiểm tra {{ round.round_number }} · {{ round.get_status_display }}</strong><br><span class="muted">{{ round.created_at|date:"H:i d/m/Y" }}{% if round.reviewer %} · {{ round.reviewer.get_full_name|default:round.reviewer.username }}{% endif %}{% if round.deadline_at %} · hạn làm lại {{ round.deadline_at|date:"H:i d/m/Y" }}{% endif %}</span>{% if round.reason %}<br>{{ round.reason }}{% endif %}{% if round.note %}<br>{{ round.note }}{% endif %}{% for failed in round.failed_items.all %}<br><span class="pill danger">↻ {{ failed.checklist_item.title }}: {{ failed.reason }}</span>{% endfor %}</div></article>{% endfor %}</section>
+    {% endif %}
+
+    <section class="card span-12">
+        <h2>Lịch sử trạng thái</h2><div class="timeline">{% for event in task.status_history.all %}<div class="timeline-item"><strong>{{ event.from_status|vi_label|default:"Khởi tạo" }} → {{ event.to_status|vi_label }}</strong><br><span class="muted">{{ event.changed_at|date:"H:i:s d/m/Y" }} · {% if event.changed_by %}{{ event.changed_by.get_full_name|default:event.changed_by.username }}{% else %}Hệ thống{% endif %}</span>{% if event.reason_code %}<br>{{ event.reason_code|vi_label }}{% endif %}{% if event.note %}: {{ event.note }}{% endif %}</div>{% empty %}<p class="muted">Chưa có thay đổi trạng thái.</p>{% endfor %}</div>
+    </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    document.querySelectorAll(".offline-checklist").forEach(form => form.addEventListener("submit", event => {
+        if (navigator.onLine) return;
+        event.preventDefault();
+        alert("Trang quản trị không lưu dữ liệu nghiệp vụ khi ngoại tuyến. Vui lòng dùng ứng dụng buồng phòng hiện trường.");
+    }));
+</script>
+{% endblock %}
