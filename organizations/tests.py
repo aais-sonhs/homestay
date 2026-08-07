@@ -1,10 +1,11 @@
+import json
 from datetime import timedelta
 
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import User
+from accounts.models import AccessToken, User
 from common.access import Capability, decide_task_capability
 from housekeeping.models import (
     BranchMembership,
@@ -324,3 +325,173 @@ class BranchBackofficeTests(TestCase):
         decision = decide_task_capability(self.owner, task, Capability.CANCEL)
 
         self.assertFalse(decision.allowed)
+
+
+class BranchStaffApiTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="staff-owner",
+            role=User.Role.BRANCH_OWNER,
+        )
+        self.other_owner = User.objects.create_user(
+            username="other-staff-owner",
+            role=User.Role.BRANCH_OWNER,
+        )
+        self.manager = User.objects.create_user(
+            username="staff-manager",
+            role=User.Role.MANAGER,
+        )
+        self.housekeeper = User.objects.create_user(
+            username="existing-housekeeper",
+            first_name="Nhân viên hiện có",
+            email="existing@example.com",
+            role=User.Role.HOUSEKEEPING,
+        )
+        self.outsider = User.objects.create_user(
+            username="staff-outsider",
+            role=User.Role.HOUSEKEEPING,
+        )
+        self.founder = User.objects.create_user(
+            username="staff-founder",
+            role=User.Role.FOUNDER,
+        )
+        self.superadmin = User.objects.create_superuser(
+            username="staff-superadmin",
+            password="Current@2026Pass",
+        )
+        self.branch = Branch.objects.create(
+            code="STAFF-A",
+            name="Bliss Home A",
+            owner=self.owner,
+        )
+        self.other_branch = Branch.objects.create(
+            code="STAFF-B",
+            name="Bliss Home B",
+            owner=self.other_owner,
+        )
+        BranchMembership.objects.create(
+            user=self.owner,
+            branch=self.branch,
+            membership_role=BranchMembership.MembershipRole.MANAGER,
+            can_manage_team=True,
+        )
+        BranchMembership.objects.create(
+            user=self.manager,
+            branch=self.branch,
+            membership_role=BranchMembership.MembershipRole.MANAGER,
+            can_manage_team=True,
+        )
+        BranchMembership.objects.create(
+            user=self.housekeeper,
+            branch=self.branch,
+            membership_role=BranchMembership.MembershipRole.HOUSEKEEPER,
+        )
+        BranchMembership.objects.create(
+            user=self.outsider,
+            branch=self.other_branch,
+            membership_role=BranchMembership.MembershipRole.HOUSEKEEPER,
+        )
+        self.owner_token = AccessToken.objects.create(user=self.owner, label="Owner app")
+        self.manager_token = AccessToken.objects.create(user=self.manager, label="Manager app")
+        self.outsider_token = AccessToken.objects.create(user=self.outsider, label="Worker app")
+        self.founder_token = AccessToken.objects.create(user=self.founder, label="Founder app")
+        self.superadmin_token = AccessToken.objects.create(
+            user=self.superadmin,
+            label="Super Admin app",
+        )
+
+    def api_get(self, token, **query):
+        return self.client.get(
+            reverse("organizations:api-staff-collection"),
+            query,
+            HTTP_AUTHORIZATION=f"Bearer {token.key}",
+        )
+
+    def api_post(self, token, **overrides):
+        payload = {
+            "fullName": "Nguyễn Nhân Viên",
+            "email": "new.staff@example.com",
+            "phoneNumber": "0901234567",
+            "branchId": str(self.branch.id),
+            "roleKey": "housekeeping",
+            "password": "Welcome@2026Safe",
+            "confirmPassword": "Welcome@2026Safe",
+        }
+        payload.update(overrides)
+        return self.client.post(
+            reverse("organizations:api-staff-collection"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token.key}",
+        )
+
+    def test_owner_lists_only_staff_in_owned_branches(self):
+        response = self.api_get(self.owner_token)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()["data"]
+        self.assertEqual([row["id"] for row in data["branches"]], [str(self.branch.id)])
+        self.assertEqual(
+            {row["userId"] for row in data["items"]},
+            {self.manager.id, self.housekeeper.id},
+        )
+        self.assertNotIn(self.outsider.id, {row["userId"] for row in data["items"]})
+        self.assertTrue(data["branches"][0]["canCreateManager"])
+        self.assertIn("manager", {row["key"] for row in data["roleOptions"]})
+
+    def test_owner_creates_active_qc_account_and_branch_membership(self):
+        response = self.api_post(self.owner_token, roleKey="qc")
+
+        self.assertEqual(response.status_code, 201, response.content)
+        user = User.objects.get(email="new.staff@example.com")
+        self.assertEqual(user.role, User.Role.QC)
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.check_password("Welcome@2026Safe"))
+        membership = BranchMembership.objects.get(user=user, branch=self.branch)
+        self.assertEqual(membership.membership_role, BranchMembership.MembershipRole.QC)
+        self.assertEqual(response.json()["data"]["staff"]["branch"]["id"], str(self.branch.id))
+
+    def test_owner_cannot_create_staff_in_another_owners_branch(self):
+        response = self.api_post(
+            self.owner_token,
+            branchId=str(self.other_branch.id),
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "BRANCH_NOT_ALLOWED")
+        self.assertFalse(User.objects.filter(email="new.staff@example.com").exists())
+
+    def test_manager_creates_lower_role_but_cannot_create_manager(self):
+        created = self.api_post(self.manager_token, roleKey="housekeeping_lead")
+        forbidden = self.api_post(
+            self.manager_token,
+            email="another.staff@example.com",
+            phoneNumber="0912345678",
+            roleKey="manager",
+        )
+
+        self.assertEqual(created.status_code, 201, created.content)
+        membership = BranchMembership.objects.get(user__email="new.staff@example.com")
+        self.assertEqual(
+            membership.membership_role,
+            BranchMembership.MembershipRole.HOUSEKEEPING_LEAD,
+        )
+        self.assertTrue(membership.can_manage_team)
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertEqual(forbidden.json()["code"], "STAFF_ROLE_NOT_ALLOWED")
+
+    def test_field_staff_cannot_open_staff_management(self):
+        response = self.api_get(self.outsider_token)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "STAFF_MANAGEMENT_NOT_ALLOWED")
+
+    def test_superadmin_and_founder_do_not_create_subordinate_staff(self):
+        for token in (self.superadmin_token, self.founder_token):
+            listed = self.api_get(token)
+            created = self.api_post(token)
+
+            self.assertEqual(listed.status_code, 403)
+            self.assertEqual(created.status_code, 403)
+            self.assertEqual(created.json()["code"], "STAFF_MANAGEMENT_NOT_ALLOWED")
+        self.assertFalse(User.objects.filter(email="new.staff@example.com").exists())

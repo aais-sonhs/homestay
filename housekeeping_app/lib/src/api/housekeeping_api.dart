@@ -84,6 +84,38 @@ final class HousekeepingApi {
     },
   );
 
+  Future<Map<String, Object?>> staff({String? branchId, String? query}) =>
+      _jsonRequest(
+        'GET',
+        '/api/v1/organizations/staff',
+        query: {
+          if (branchId != null && branchId.isNotEmpty) 'branchId': branchId,
+          if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+        },
+      );
+
+  Future<Map<String, Object?>> createStaff({
+    required String fullName,
+    required String email,
+    required String phoneNumber,
+    required String branchId,
+    required String roleKey,
+    required String password,
+    required String confirmPassword,
+  }) => _jsonRequest(
+    'POST',
+    '/api/v1/organizations/staff',
+    body: {
+      'fullName': fullName,
+      'email': email,
+      'phoneNumber': phoneNumber,
+      'branchId': branchId,
+      'roleKey': roleKey,
+      'password': password,
+      'confirmPassword': confirmPassword,
+    },
+  );
+
   Future<Map<String, Object?>> slaDashboard({String? date, String? branchId}) =>
       _jsonRequest(
         'GET',

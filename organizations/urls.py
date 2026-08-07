@@ -1,11 +1,13 @@
 from django.urls import path
 
-from . import views
+from . import api, views
 
 
 app_name = "organizations"
 
 urlpatterns = [
+    path("api/v1/organizations/staff", api.staff_collection, name="api-staff-collection"),
+    path("api/v1/organizations/staff/", api.staff_collection),
     path("settings/branches/", views.branch_list, name="branch-list"),
     path("settings/branches/create/", views.branch_create, name="branch-create"),
     path("settings/branches/<uuid:branch_id>/edit/", views.branch_update, name="branch-update"),

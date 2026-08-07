@@ -9,6 +9,7 @@ import 'notification_screen.dart';
 import 'offline_task_detail_screen.dart';
 import 'online_task_list_screen.dart';
 import 'room_readiness_screen.dart';
+import 'staff_management_screen.dart';
 
 class InternalWorkspaceScreen extends StatelessWidget {
   const InternalWorkspaceScreen({
@@ -74,6 +75,12 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
     ),
   );
 
+  Future<void> _openStaff() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => StaffManagementScreen(api: widget.api),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -82,6 +89,7 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
         user: widget.user,
         onOpenTasks: () => setState(() => _index = 1),
         onOpenQc: () => setState(() => _index = 3),
+        onOpenStaff: _openStaff,
         onSignOut: widget.onSignOut,
       ),
       OnlineTaskListScreen(

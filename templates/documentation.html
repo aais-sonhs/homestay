@@ -122,6 +122,10 @@
                     <strong>Nguyên tắc tối thiểu</strong>
                     <p>Không dùng chung tài khoản. Không chuyển ảnh hoặc thông tin khách ra ngoài kênh được phê duyệt. Nếu cần thêm quyền, yêu cầu quản trị viên cập nhật thành viên chi nhánh.</p>
                 </div>
+                <div class="doc-callout doc-callout-info">
+                    <strong>Chủ chi nhánh tạo tài khoản cấp dưới trên ứng dụng</strong>
+                    <p>Super Admin chỉ tạo tài khoản <strong>Chủ chi nhánh</strong> trên web. Sau đó Chủ mở <strong>Tổng quan → Nhân sự</strong> trên ứng dụng để tạo Quản lý và nhân viên cấp dưới trong các chi nhánh mình sở hữu. Quản lý chỉ thấy chi nhánh được cấp quyền quản lý và không thể tạo Quản lý khác. Founder và Chủ chi nhánh không thể được cấp từ luồng nhân sự này.</p>
+                </div>
             </section>
 
             <section id="chi-nhanh" class="doc-section">
@@ -409,6 +413,7 @@
                         <h3>Nhóm API chính</h3>
                         <ul class="doc-code-list">
                             <li><code>/api/v1/auth/...</code><span>Đăng nhập, làm mới, đăng xuất, quên mật khẩu.</span></li>
+                            <li><code>/api/v1/organizations/staff</code><span>Chủ/Quản lý xem và tạo tài khoản nhân sự trong đúng phạm vi chi nhánh.</span></li>
                             <li><code>/api/v1/housekeeping/tasks</code><span>Danh sách và chi tiết công việc.</span></li>
                             <li><code>/api/v1/housekeeping/tasks/{id}/...</code><span>Nhận, bắt đầu, checklist, ảnh, hỗ trợ, hoàn thành và QC.</span></li>
                             <li><code>/api/v1/housekeeping/notifications</code><span>Thông báo của người dùng.</span></li>

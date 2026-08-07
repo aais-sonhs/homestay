@@ -14,6 +14,7 @@ class ManagementDashboardScreen extends StatefulWidget {
     required this.user,
     required this.onOpenTasks,
     required this.onOpenQc,
+    required this.onOpenStaff,
     required this.onSignOut,
     super.key,
   });
@@ -22,6 +23,7 @@ class ManagementDashboardScreen extends StatefulWidget {
   final AppUserProfile user;
   final VoidCallback onOpenTasks;
   final VoidCallback onOpenQc;
+  final VoidCallback onOpenStaff;
   final AsyncCallback onSignOut;
 
   @override
@@ -207,6 +209,10 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           _QuickActions(
             onOpenTasks: widget.onOpenTasks,
             onOpenQc: widget.onOpenQc,
+            onOpenStaff: widget.onOpenStaff,
+            showStaff:
+                widget.user.role == 'branch_owner' ||
+                widget.user.role == 'manager',
             waitingQc:
                 (_summary['byStatus'] as Map?)?['WAITING_QC'] as int? ?? 0,
           ),
@@ -416,10 +422,14 @@ class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.onOpenTasks,
     required this.onOpenQc,
+    required this.onOpenStaff,
+    required this.showStaff,
     required this.waitingQc,
   });
   final VoidCallback onOpenTasks;
   final VoidCallback onOpenQc;
+  final VoidCallback onOpenStaff;
+  final bool showStaff;
   final int waitingQc;
 
   @override
@@ -436,6 +446,17 @@ class _QuickActions extends StatelessWidget {
               onTap: onOpenTasks,
             ),
           ),
+          if (showStaff) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.groups_2_outlined,
+                label: 'Nhân sự',
+                color: const Color(0xff0d9488),
+                onTap: onOpenStaff,
+              ),
+            ),
+          ],
           const SizedBox(width: 12),
           Expanded(
             child: _ActionButton(
