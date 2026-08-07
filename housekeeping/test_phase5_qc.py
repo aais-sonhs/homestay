@@ -48,7 +48,13 @@ class QCMultiRoundIntegrationTests(TestCase):
             password="Test@2026",
             role=User.Role.QC,
         )
-        branch = Branch.objects.create(code="PHASE5", name="Phase 5 Branch")
+        self.branch_owner = User.objects.create_user(
+            username="phase5-owner",
+            role=User.Role.BRANCH_OWNER,
+        )
+        branch = Branch.objects.create(
+            code="PHASE5", name="Phase 5 Branch", owner=self.branch_owner
+        )
         BranchHousekeepingPolicy.objects.create(branch=branch, rework_failed_items_only=True)
         BranchMembership.objects.create(user=self.housekeeper, branch=branch)
         BranchMembership.objects.create(

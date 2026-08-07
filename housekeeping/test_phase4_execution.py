@@ -73,7 +73,9 @@ class TypedChecklistExecutionTests(TestCase):
             password="Test@2026",
             role=User.Role.TECHNICIAN,
         )
-        self.branch = Branch.objects.create(code="PHASE4", name="Phase 4 Branch")
+        self.branch = Branch.objects.create(
+            code="PHASE4", name="Phase 4 Branch", owner=self.manager
+        )
         self.policy = BranchHousekeepingPolicy.objects.create(branch=self.branch)
         BranchMembership.objects.create(user=self.housekeeper, branch=self.branch)
         BranchMembership.objects.create(

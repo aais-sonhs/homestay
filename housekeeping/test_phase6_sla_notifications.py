@@ -54,7 +54,9 @@ class SLANotificationDashboardTests(TestCase):
         self.technician = User.objects.create_user(
             username="phase6-technician", password="Test@2026", role=User.Role.TECHNICIAN
         )
-        self.branch = Branch.objects.create(code="PHASE6", name="Phase 6 Branch")
+        self.branch = Branch.objects.create(
+            code="PHASE6", name="Phase 6 Branch", owner=self.manager
+        )
         memberships = (
             (self.housekeeper, BranchMembership.MembershipRole.HOUSEKEEPER),
             (self.lead, BranchMembership.MembershipRole.HOUSEKEEPING_LEAD),

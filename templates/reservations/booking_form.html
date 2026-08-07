@@ -1,0 +1,130 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}{{ page_title }} | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>{{ page_title }}</h1>
+        <p class="muted">{{ page_description }}</p>
+    </div>
+    <a class="button secondary" href="{% url 'reservations:booking-list' %}">Quay lại danh sách</a>
+</div>
+
+<section class="card entity-form-card">
+    <div class="booking-automation-note">
+        {% if booking %}
+        <strong>Hai lịch dọn sẽ được đồng bộ trong cùng giao dịch</strong>
+        <span>Hệ thống cập nhật phòng, giờ thực hiện, SLA và yêu cầu khách. Booking sẽ không đổi được nếu một công việc liên quan đã bắt đầu hoặc hoàn tất.</span>
+        {% else %}
+        <strong>Hệ thống tự lên 2 lịch sau khi lưu</strong>
+        <span>Chuẩn bị phòng trước check-in 90 phút và dọn phòng ngay sau check-out. Hai lịch được gắn trực tiếp với booking để theo dõi trên Lịch vận hành.</span>
+        {% endif %}
+    </div>
+    <form method="post" class="entity-form" novalidate>
+        {% csrf_token %}
+        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+        {% if form.errors %}<div class="form-error-summary" role="alert"><strong>Chưa thể lưu booking</strong><span>Vui lòng kiểm tra thông tin được đánh dấu bên dưới.</span></div>{% endif %}
+        {{ form.non_field_errors }}
+        {% for field in form.visible_fields %}
+        <div class="field entity-form-row{% if field.errors %} has-error{% endif %}">
+            <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            {{ field.errors }}
+        </div>
+        {% endfor %}
+        <fieldset class="special-request-editor">
+            <legend>Yêu cầu đặc biệt của khách</legend>
+            <p class="muted">Tách từng yêu cầu theo loại và thời điểm áp dụng để đúng lịch chuẩn bị hoặc trả phòng nhận được thông tin cần thiết.</p>
+            {{ special_request_formset.management_form }}
+            {{ special_request_formset.non_form_errors }}
+            <div id="special-request-rows" class="special-request-rows">
+                {% for request_form in special_request_formset %}
+                <div class="special-request-row{% if request_form.errors %} has-error{% endif %}">
+                    <label class="field"><span class="field-label">{{ request_form.request_type.label }}</span>{{ request_form.request_type }}{{ request_form.request_type.errors }}</label>
+                    <label class="field"><span class="field-label">{{ request_form.applies_to.label }}</span>{{ request_form.applies_to }}{{ request_form.applies_to.errors }}</label>
+                    <label class="field"><span class="field-label">{{ request_form.priority.label }}</span>{{ request_form.priority }}{{ request_form.priority.errors }}</label>
+                    <label class="field special-request-description"><span class="field-label">{{ request_form.description.label }}</span>{{ request_form.description }}{{ request_form.description.errors }}</label>
+                    <label class="field special-request-quantity"><span class="field-label">{{ request_form.quantity.label }}</span>{{ request_form.quantity }}{{ request_form.quantity.errors }}</label>
+                    <label class="special-request-delete">{{ request_form.DELETE }} <span>Bỏ yêu cầu này</span></label>
+                </div>
+                {% endfor %}
+            </div>
+            <button class="button secondary" id="add-special-request" type="button">Thêm yêu cầu</button>
+        </fieldset>
+        <div class="actions entity-form-actions">
+            <button type="submit">{{ submit_label }}</button>
+            <a class="button secondary" href="{% url 'reservations:booking-list' %}">Hủy</a>
+        </div>
+    </form>
+</section>
+{% if booking %}
+<section class="card entity-form-card" style="margin-top:16px">
+    <h2>Hủy booking</h2>
+    <p class="muted">Hủy booking sẽ hủy cả hai công việc tự động liên quan và ghi đầy đủ vào lịch sử.</p>
+    <form class="inline-form" method="post" action="{% url 'reservations:booking-cancel' booking.id %}" data-confirm="Hủy booking {{ booking.code }} và các công việc liên quan?">
+        {% csrf_token %}
+        {{ cancel_form.version }}
+        <label class="field grow"><span class="field-label">{{ cancel_form.reason.label }}</span>{{ cancel_form.reason }}</label>
+        <button class="danger" type="submit">Hủy booking</button>
+    </form>
+</section>
+<section class="card entity-form-card" style="margin-top:16px">
+    <h2>Lịch sử booking</h2>
+    <div class="timeline">
+        {% for log in change_logs %}
+        <article class="timeline-item"><strong>{{ log.get_action_display }}</strong><span class="muted">Phiên bản {{ log.booking_version }} · {{ log.created_at|date:"H:i d/m/Y" }}{% if log.changed_by %} · {{ log.changed_by.display_name }}{% endif %}</span>{% if log.reason %}<p>{{ log.reason }}</p>{% endif %}</article>
+        {% empty %}<p class="empty">Booking chưa có lịch sử thay đổi.</p>{% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const branch = document.getElementById("id_branch");
+    const room = document.getElementById("id_room");
+    if (branch && room) {
+        function filterRooms(clearInvalid) {
+            const branchId = branch.value;
+            let selectedIsValid = !room.value;
+            Array.from(room.options).forEach(function (option) {
+                const optionBranch = option.dataset.branchId || "";
+                const visible = !option.value || !branchId || optionBranch === branchId;
+                option.hidden = !visible;
+                option.disabled = !visible;
+                if (option.selected && visible) selectedIsValid = true;
+            });
+            if (clearInvalid && !selectedIsValid) room.value = "";
+        }
+        branch.addEventListener("change", function () { filterRooms(true); });
+        filterRooms(false);
+    }
+
+    const addRequest = document.getElementById("add-special-request");
+    const requestRows = document.getElementById("special-request-rows");
+    const totalForms = document.getElementById("id_requests-TOTAL_FORMS");
+    const emptyRequest = document.getElementById("special-request-empty-form");
+    if (addRequest && requestRows && totalForms && emptyRequest) {
+        addRequest.addEventListener("click", function () {
+            const index = Number(totalForms.value);
+            if (index >= 20) return;
+            requestRows.insertAdjacentHTML(
+                "beforeend",
+                emptyRequest.innerHTML.replaceAll("__prefix__", String(index))
+            );
+            totalForms.value = String(index + 1);
+        });
+    }
+});
+</script>
+<template id="special-request-empty-form">
+    <div class="special-request-row">
+        <label class="field"><span class="field-label">{{ special_request_formset.empty_form.request_type.label }}</span>{{ special_request_formset.empty_form.request_type }}</label>
+        <label class="field"><span class="field-label">{{ special_request_formset.empty_form.applies_to.label }}</span>{{ special_request_formset.empty_form.applies_to }}</label>
+        <label class="field"><span class="field-label">{{ special_request_formset.empty_form.priority.label }}</span>{{ special_request_formset.empty_form.priority }}</label>
+        <label class="field special-request-description"><span class="field-label">{{ special_request_formset.empty_form.description.label }}</span>{{ special_request_formset.empty_form.description }}</label>
+        <label class="field special-request-quantity"><span class="field-label">{{ special_request_formset.empty_form.quantity.label }}</span>{{ special_request_formset.empty_form.quantity }}</label>
+        <label class="special-request-delete">{{ special_request_formset.empty_form.DELETE }} <span>Bỏ yêu cầu này</span></label>
+    </div>
+</template>
+{% endblock %}

@@ -48,7 +48,9 @@ class PermissionAndStateMachineTests(TestCase):
         self.hk_b = User.objects.create_user(username="policy-hk-b", password="Test@2026", role=User.Role.HOUSEKEEPING)
         self.lead = User.objects.create_user(username="policy-lead", password="Test@2026", role=User.Role.HOUSEKEEPING)
         self.manager = User.objects.create_user(username="policy-manager", password="Test@2026", role=User.Role.MANAGER)
-        self.branch = Branch.objects.create(code="POLICY", name="Policy Branch")
+        self.branch = Branch.objects.create(
+            code="POLICY", name="Policy Branch", owner=self.manager
+        )
         self.policy = BranchHousekeepingPolicy.objects.create(branch=self.branch)
         self.area_a = Area.objects.create(branch=self.branch, code="A", name="Khu A")
         self.area_b = Area.objects.create(branch=self.branch, code="B", name="Khu B")
@@ -273,7 +275,9 @@ class PermissionAndStateMachineTests(TestCase):
 class IdempotencyExecutionTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="idem-user", password="Test@2026")
-        branch = Branch.objects.create(code="IDEM", name="Idempotency")
+        branch = Branch.objects.create(
+            code="IDEM", name="Idempotency", owner=self.user
+        )
         room = Room.objects.create(branch=branch, code="I101", name="I101")
         self.task = HousekeepingTask.objects.create(
             code="IDEM-TASK",

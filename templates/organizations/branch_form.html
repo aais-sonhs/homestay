@@ -1,0 +1,49 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}{{ page_title }} | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>{{ page_title }}</h1><p class="muted">{{ page_description }}</p></div>
+    <a class="button secondary" href="{% url 'organizations:branch-list' %}">Quay lại danh sách</a>
+</div>
+
+<section class="card entity-form-card">
+    <form method="post" class="entity-form">
+        {% csrf_token %}
+        {% if form.errors %}<div class="form-error-summary" role="alert"><strong>Chưa thể lưu chi nhánh</strong><span>Vui lòng kiểm tra các trường được đánh dấu bên dưới.</span></div>{% endif %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+        <div class="field entity-form-row{% if field.errors %} has-error{% endif %}">
+            <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            {% if field.name == 'owner' %}<span class="helptext"><a href="{% url 'organizations:branch-owner-create' %}">Tạo tài khoản chủ chi nhánh mới</a></span>{% endif %}
+            {{ field.errors }}
+        </div>
+        {% endfor %}
+        {% if branch %}<div class="entity-current-status"><span class="field-label">Trạng thái hiện tại</span>{% if branch.is_active %}<span class="pill room-ready-pill">Đang hoạt động</span>{% else %}<span class="pill danger">Ngừng hoạt động</span>{% endif %}<small>Thay đổi trạng thái tại màn hình danh sách để hệ thống kiểm tra công việc và booking đang mở.</small></div>{% endif %}
+        <div class="actions entity-form-actions"><button type="submit">{{ submit_label }}</button><a class="button secondary" href="{% url 'organizations:branch-list' %}">Hủy</a></div>
+    </form>
+</section>
+{% if branch %}
+<section class="card entity-list-card">
+    <div class="section-heading">
+        <div><h2>Lịch sử chủ chi nhánh</h2><p class="muted">Bản ghi audit chỉ đọc cho các lần tạo và chuyển chủ gần nhất.</p></div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Thời điểm</th><th>Thay đổi</th><th>Người thực hiện</th><th>Nguồn</th></tr></thead>
+            <tbody>
+            {% for entry in ownership_history %}
+            <tr>
+                <td>{{ entry.created_at|date:"H:i d/m/Y" }}</td>
+                <td>{% if entry.previous_owner %}{{ entry.previous_owner.display_name }} → {% endif %}<strong>{{ entry.new_owner.display_name }}</strong></td>
+                <td>{{ entry.changed_by.display_name|default:"Migration hệ thống" }}</td>
+                <td><span class="pill">{{ entry.get_source_display }}</span></td>
+            </tr>
+            {% empty %}<tr><td colspan="4" class="empty">Chưa có bản ghi chuyển chủ.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

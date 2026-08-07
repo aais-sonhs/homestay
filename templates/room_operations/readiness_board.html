@@ -1,0 +1,46 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Trạng thái phòng | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Trạng thái phòng</h1><p class="muted">Nguồn xác nhận chung cho CSKH, vận hành và Sales.</p></div>
+    <div class="actions"><a class="button secondary" href="{% url 'room_operations:stop-sell-list' %}">Xem dừng bán</a><a class="button secondary" href="{% url 'room_operations:schedule' %}">Xem lịch vận hành</a></div>
+</div>
+
+<form class="card toolbar operations-filter" method="get">
+    <label class="field grow"><span class="field-label">Tìm phòng</span><input name="q" value="{{ request.GET.q }}" placeholder="Mã phòng, tên, tầng hoặc khu vực"></label>
+    <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh được cấp</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if selected_branch_id == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+    <label class="field"><span class="field-label">Trạng thái</span><select name="state">{% for value,label in state_choices %}<option value="{{ value }}"{% if request.GET.state == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Áp dụng</button><a class="button secondary" href="{% url 'room_operations:room-readiness' %}">Xóa lọc</a>
+</form>
+
+<div class="stat-grid readiness-summary">
+    <div class="stat"><span class="label">Tổng phòng</span><strong>{{ board.summary.total }}</strong></div>
+    <div class="stat" style="--stat-color:#059669;--stat-bg:rgba(5,150,105,.1)"><span class="label">Sẵn sàng</span><strong>{{ board.summary.ready }}</strong></div>
+    <div class="stat" style="--stat-color:#2563eb;--stat-bg:rgba(37,99,235,.1)"><span class="label">Đang có khách</span><strong>{{ board.summary.occupied }}</strong></div>
+    <div class="stat warning"><span class="label">Chưa sẵn sàng</span><strong>{{ board.summary.notReady }}</strong></div>
+    <div class="stat danger"><span class="label">Đang bị chặn</span><strong>{{ board.summary.blocked }}</strong></div>
+    <div class="stat danger"><span class="label">Rủi ro check-in</span><strong>{{ board.summary.checkinRisk }}</strong></div>
+    <div class="stat danger"><span class="label">Đang dừng bán</span><strong>{{ board.summary.stopSell }}</strong></div>
+</div>
+
+<div class="room-readiness-grid">
+{% for row in board.rows %}
+    <a class="room-readiness-card state-{{ row.state|lower }}" href="{% url 'room_operations:room-profile' row.room.id %}">
+        <div class="room-card-header"><div><span class="room-code">{{ row.room.code }}</span><span class="muted">{{ row.room.branch.name }}</span></div><span class="readiness-state">{{ row.stateLabel }}</span></div>
+        <div class="room-location">{{ row.room.name }}{% if row.room.floor %} · {{ row.room.floor }}{% endif %}{% if row.room.area %} · {{ row.room.area }}{% endif %}</div>
+        <div class="room-card-facts room-card-facts-four">
+            <div><span class="label">Vệ sinh</span><strong>{{ row.room.get_status_display }}</strong></div>
+            <div><span class="label">Công việc mở</span><strong>{{ row.activeTasks|length }}</strong></div>
+            <div><span class="label">Booking tiếp theo</span><strong>{% if row.nextBooking %}{{ row.nextBooking.checkin_at|date:"H:i d/m" }}{% else %}—{% endif %}</strong></div>
+            <div><span class="label">Khả năng bán</span><strong{% if row.salesStatus != 'OPEN' %} class="danger-text"{% endif %}>{{ row.salesStatusLabel }}</strong></div>
+        </div>
+        <div class="room-blockers">{% for blocker in row.blockers %}<span class="pill{% if blocker.level == 'danger' %} danger{% else %} warn{% endif %}">{{ blocker.label }}</span>{% empty %}<span class="pill room-ready-pill">✓ Không có blocker</span>{% endfor %}</div>
+        {% if row.checkinRisk %}<div><span class="pill danger">Nguy cơ trễ check-in trong 24 giờ</span></div>{% endif %}
+        {% for stop_sell in row.activeStopSells|slice:":1" %}<div class="room-issue-preview"><strong>Dừng bán đến dự kiến {{ stop_sell.planned_end_at|date:"H:i d/m/Y" }}</strong><br>{{ stop_sell.reason }}</div>{% endfor %}
+        {% if row.nextBookingStopSell and not row.activeStopSells %}<div class="room-issue-preview"><strong>Đã lên lịch dừng bán từ {{ row.nextBookingStopSell.starts_at|date:"H:i d/m/Y" }}</strong><br>{{ row.nextBookingStopSell.reason }}</div>{% endif %}
+        {% for issue in row.blockingIssues|slice:":1" %}<div class="room-issue-preview">{{ issue.description }}</div>{% endfor %}
+        {% if row.expectedReadyAt %}<div class="room-eta">Dự kiến hoàn tất: <strong>{{ row.expectedReadyAt|date:"H:i d/m/Y" }}</strong></div>{% endif %}
+    </a>
+{% empty %}<div class="card empty room-grid-empty">Không có phòng phù hợp với bộ lọc.</div>{% endfor %}
+</div>
+{% endblock %}

@@ -52,7 +52,9 @@ class Phase10GapClosureTests(TestCase):
             username="phase10-unskilled",
             role=User.Role.HOUSEKEEPING,
         )
-        self.branch = Branch.objects.create(code="P10", name="Phase 10")
+        self.branch = Branch.objects.create(
+            code="P10", name="Phase 10", owner=self.manager
+        )
         BranchMembership.objects.create(
             user=self.manager,
             branch=self.branch,

@@ -1,0 +1,55 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}{{ room.code }} · Hồ sơ phòng | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading room-profile-heading">
+    <div><a class="back-link" href="{% url 'room_operations:room-readiness' %}">← Trạng thái phòng</a><h1>{{ room.code }} · {{ room.name }}</h1><p class="muted">{{ room.branch.name }}{% if room.floor %} · {{ room.floor }}{% endif %}{% if room.area %} · {{ room.area }}{% endif %}</p></div>
+    <div class="actions">{% if canManageStopSell %}<a class="button" href="{% url 'room_operations:stop-sell-create' %}?branchId={{ room.branch_id }}&amp;roomId={{ room.id }}">Dừng bán phòng</a>{% endif %}<a class="button secondary" href="{% url 'room_operations:stop-sell-list' %}?q={{ room.code|urlencode }}">Lịch sử dừng bán</a><span class="readiness-hero state-{{ readiness.state|lower }}">{{ readiness.stateLabel }}</span></div>
+</div>
+
+<div class="grid room-profile-grid">
+    <section class="card span-8">
+        <h2>Khả năng sẵn sàng</h2>
+        <div class="profile-status-grid">
+            <div><span class="label">Vệ sinh</span><strong>{{ room.get_status_display }}</strong></div>
+            <div><span class="label">Khách hiện tại</span><strong>{% if room.is_guest_occupied %}Đang có khách{% else %}Phòng trống{% endif %}</strong></div>
+            <div><span class="label">Khóa vận hành</span><strong>{% if room.is_locked %}Đang khóa{% else %}Không khóa{% endif %}</strong></div>
+            <div><span class="label">Dự kiến sẵn sàng</span><strong>{{ readiness.expectedReadyAt|date:"H:i d/m/Y"|default:"—" }}</strong></div>
+            <div><span class="label">Khả năng bán</span><strong>{{ readiness.salesStatusLabel }}</strong></div>
+        </div>
+        <div class="room-blockers profile-blockers">{% for blocker in readiness.blockers %}<span class="pill{% if blocker.level == 'danger' %} danger{% else %} warn{% endif %}">{{ blocker.label }}</span>{% empty %}<span class="pill room-ready-pill">✓ Phòng không còn blocker</span>{% endfor %}</div>
+        {% if room.operational_note %}<div class="profile-note"><span class="label">Ghi chú vận hành</span>{{ room.operational_note }}</div>{% endif %}
+    </section>
+
+    <aside class="card span-4">
+        <h2>Booking gần nhất</h2>
+        {% for booking in bookings|slice:":3" %}<div class="booking-compact"><strong>{{ booking.code }}</strong><span>{{ booking.checkin_at|date:"H:i d/m"|default:"—" }} → {{ booking.checkout_at|date:"H:i d/m"|default:"—" }}</span>{% if canViewGuest and booking.guest_name %}<span>{{ booking.guest_name }} · {{ booking.guest_count }} khách</span>{% endif %}{% if booking.special_request_items.all or booking.special_requests %}<small>{% include "reservations/_special_request_items.html" with items=booking.special_request_items.all fallback_text=booking.special_requests %}</small>{% endif %}</div>{% empty %}<p class="empty">Chưa có booking.</p>{% endfor %}
+    </aside>
+
+    <section class="card span-6">
+        <h2>Blocker vận hành</h2>
+        {% for blocker in blockers %}<div class="issue-compact"><div><strong>{{ blocker.get_kind_display }}</strong><span class="pill{% if blocker.status == 'ACTIVE' %} danger{% elif blocker.status == 'CLEARANCE_PENDING' %} warn{% endif %}">{{ blocker.get_status_display }}</span></div><p>{{ blocker.reason }}</p><span class="muted">{{ blocker.starts_at|date:"H:i d/m/Y" }}{% if blocker.planned_end_at %} · dự kiến {{ blocker.planned_end_at|date:"H:i d/m/Y" }}{% endif %}</span></div>{% empty %}<p class="empty">Phòng chưa có blocker chính thức.</p>{% endfor %}
+    </section>
+    <section class="card span-6">
+        <h2>Lịch sử dừng bán</h2>
+        {% for item in stopSells %}<div class="issue-compact"><div><strong>{{ item.get_reason_code_display }}</strong><span class="pill{% if item.status == 'ACTIVE' %} danger{% elif item.status == 'REOPEN_REQUESTED' %} warn{% endif %}">{{ item.get_status_display }}</span></div><p>{{ item.reason }}</p><span class="muted">{{ item.starts_at|date:"H:i d/m/Y" }} → {{ item.planned_end_at|date:"H:i d/m/Y" }}</span></div>{% empty %}<p class="empty">Phòng chưa từng dừng bán.</p>{% endfor %}
+    </section>
+    <section class="card span-8">
+        <h2>Công việc của phòng</h2>
+        <div class="room-task-list">{% for task in tasks %}<a class="room-task-row" href="{% url 'housekeeping:task-detail' task.id %}"><span><strong>{{ task.code }}</strong><small>{{ task.get_task_type_display }}{% if task.assignee %} · {{ task.assignee.display_name }}{% endif %}</small></span><span>{{ task.updated_at|date:"H:i d/m" }}</span><span class="pill{% if task.status == 'QC_REJECTED' %} danger{% elif task.status == 'WAITING_SUPPORT' %} warn{% endif %}">{{ task.get_status_display }}</span></a>{% empty %}<p class="empty">Phòng chưa có công việc.</p>{% endfor %}</div>
+    </section>
+    <aside class="card span-4">
+        <h2>Sự cố</h2>
+        {% for issue in issues %}<div class="issue-compact"><div><strong>{{ issue.issue_type }}</strong>{% if issue.blocks_room_ready %}<span class="pill danger">Chặn phòng</span>{% endif %}</div><p>{{ issue.description }}</p><span class="muted">{{ issue.get_status_display }} · {{ issue.created_at|date:"H:i d/m/Y" }}</span></div>{% empty %}<p class="empty">Chưa ghi nhận sự cố.</p>{% endfor %}
+    </aside>
+
+    <section class="card span-12">
+        <div class="section-heading"><div><h2>Ảnh theo phòng</h2><p class="muted">Ảnh được gom từ các task thay vì phải dò trong nhóm chat.</p></div><span class="pill">{{ photos|length }} ảnh gần nhất</span></div>
+        <div class="operations-photo-grid">{% for photo in photos %}{% if photo.image %}<a href="{{ photo.image.url }}" target="_blank" class="operations-photo"><img src="{{ photo.image.url }}" alt="Ảnh {{ photo.get_category_display }} của phòng {{ room.code }}"><span><strong>{{ photo.get_category_display }}</strong><small>{% if photo.captured_at %}{{ photo.captured_at|date:"H:i d/m/Y" }}{% else %}{{ photo.created_at|date:"H:i d/m/Y" }}{% endif %} · {{ photo.task.code }}</small></span></a>{% endif %}{% empty %}<p class="empty">Chưa có ảnh của phòng.</p>{% endfor %}</div>
+    </section>
+
+    <section class="card span-12">
+        <h2>Dòng thời gian phòng</h2>
+        <div class="timeline operations-timeline">{% for item in timeline %}<div class="timeline-item timeline-{{ item.kind }}"><strong>{{ item.title }}</strong><br><span class="muted">{{ item.at|date:"H:i:s d/m/Y" }}</span>{% if item.description %}<p>{{ item.description }}</p>{% endif %}</div>{% empty %}<p class="empty">Chưa có hoạt động.</p>{% endfor %}</div>
+    </section>
+</div>
+{% endblock %}

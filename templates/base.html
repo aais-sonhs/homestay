@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
-    <link rel="icon" href="{% static 'branding/bliss-home-mark.svg' %}" type="image/svg+xml">
+    {% include "shared/favicon.html" %}
     <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}">
     <title>{% block title %}Buồng phòng | Bliss Home{% endblock %}</title>
     {% block extra_head %}{% endblock %}
@@ -18,8 +18,7 @@
     <button id="mobile-backdrop" class="mobile-backdrop" type="button" aria-label="Đóng menu"></button>
     <aside id="sidebar" class="sidebar" aria-label="Điều hướng chính">
         <a class="sidebar-brand" href="{% url 'housekeeping:task-list' %}" aria-label="Bliss Home - Buồng phòng">
-            <img src="{% static 'branding/bliss-home-mark.svg' %}" alt="" width="48" height="48">
-            <span class="brand-copy"><strong>Bliss Home</strong><small>Housekeeping</small></span>
+            <img src="{% static 'branding/bliss-homestay-logo.jpg' %}" alt="" width="96" height="96">
         </a>
 
         <nav id="nav-panel" class="nav-panel">
@@ -28,7 +27,7 @@
                 <svg class="nav-icon icon-indigo" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6m-7 3h8m-8 4h5m-7 8h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2.2A3 3 0 0 0 13 2h-2a3 3 0 0 0-2.8 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/></svg>
                 <span>Công việc</span>
             </a>
-            {% if request.user.role == 'founder' or request.user.role == 'manager' %}
+            {% if request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}
             <a class="nav-link" href="{% url 'housekeeping:task-create' %}"{% if request.resolver_match.url_name == 'task-create' %} aria-current="page"{% endif %} title="Tạo công việc">
                 <svg class="nav-icon icon-teal" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>
                 <span>Tạo công việc</span>
@@ -42,6 +41,38 @@
                 <svg class="nav-icon icon-orange" viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6.5 3-3 3 3-3 3m-1-2-8.8 8.8a2.4 2.4 0 1 1-3.4-3.4L13.1 4"/><path d="m14 14 6 6M3 3l7 7"/></svg>
                 <span>Kho và Kỹ thuật</span>
             </a>
+
+            <span class="nav-section-label">Điều hành phòng</span>
+            {% if request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' or request.user.role == 'sales' or request.user.role == 'customer_service' %}
+            <a class="nav-link" href="{% url 'reservations:booking-list' %}"{% if request.resolver_match.namespace == 'reservations' %} aria-current="page"{% endif %} title="Booking">
+                <svg class="nav-icon icon-indigo" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M8 2v4M16 2v4M3 9h18M8 13h3M8 17h6"/></svg>
+                <span>Booking</span>
+            </a>
+            {% endif %}
+            <a class="nav-link" href="{% url 'room_operations:schedule' %}"{% if request.resolver_match.namespace == 'room_operations' and request.resolver_match.url_name == 'schedule' %} aria-current="page"{% endif %} title="Lịch vận hành">
+                <svg class="nav-icon icon-teal" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h2M14 14h2M8 18h2"/></svg>
+                <span>Lịch vận hành</span>
+            </a>
+            <a class="nav-link" href="{% url 'room_operations:room-readiness' %}"{% if request.resolver_match.url_name == 'room-readiness' or request.resolver_match.url_name == 'room-profile' %} aria-current="page"{% endif %} title="Trạng thái phòng">
+                <svg class="nav-icon icon-blue" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 20V7l7-4 7 4v13M9 20v-5h6v5M8 9h2M14 9h2"/></svg>
+                <span>Trạng thái phòng</span>
+            </a>
+            <a class="nav-link" href="{% url 'room_operations:stop-sell-list' %}"{% if request.resolver_match.url_name == 'stop-sell-list' or request.resolver_match.url_name == 'stop-sell-create' %} aria-current="page"{% endif %} title="Dừng bán phòng">
+                <svg class="nav-icon icon-rose" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 8.5 7 7m0-7-7 7"/></svg>
+                <span>Dừng bán phòng</span>
+            </a>
+
+            {% if request.user.is_superuser %}
+            <span class="nav-section-label">Bliss Home</span>
+            <a class="nav-link" href="{% url 'organizations:branch-list' %}"{% if request.resolver_match.namespace == 'organizations' and request.resolver_match.url_name != 'branch-owner-list' and request.resolver_match.url_name != 'branch-owner-create' and request.resolver_match.url_name != 'branch-owner-update' %} aria-current="page"{% endif %} title="Chi nhánh">
+                <svg class="nav-icon icon-slate" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 20V7l7-4 7 4v13M9 20v-5h6v5M8 9h2M14 9h2"/></svg>
+                <span>Chi nhánh</span>
+            </a>
+            <a class="nav-link" href="{% url 'organizations:branch-owner-list' %}"{% if request.resolver_match.url_name == 'branch-owner-list' or request.resolver_match.url_name == 'branch-owner-create' or request.resolver_match.url_name == 'branch-owner-update' %} aria-current="page"{% endif %} title="Chủ chi nhánh">
+                <svg class="nav-icon icon-slate" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0M18 5l1.5 1.5L22 4"/></svg>
+                <span>Chủ chi nhánh</span>
+            </a>
+            {% endif %}
 
             <span class="nav-section-label">Theo dõi</span>
             <a class="nav-link" href="{% url 'housekeeping:activity-log' %}"{% if request.resolver_match.url_name == 'activity-log' %} aria-current="page"{% endif %} title="Nhật ký hoạt động">
@@ -68,7 +99,11 @@
                 </button>
             </div>
             <div class="topbar-title">
-                {% if request.resolver_match.url_name == 'operations-dashboard' %}TRUNG TÂM ĐIỀU PHỐI
+                {% if request.resolver_match.url_name == 'branch-owner-list' or request.resolver_match.url_name == 'branch-owner-create' or request.resolver_match.url_name == 'branch-owner-update' %}TÀI KHOẢN CHỦ CHI NHÁNH
+                {% elif request.resolver_match.namespace == 'organizations' %}QUẢN LÝ CHI NHÁNH
+                {% elif request.resolver_match.namespace == 'reservations' %}QUẢN LÝ BOOKING
+                {% elif request.resolver_match.namespace == 'room_operations' %}TRUNG TÂM VẬN HÀNH PHÒNG
+                {% elif request.resolver_match.url_name == 'operations-dashboard' %}TRUNG TÂM ĐIỀU PHỐI
                 {% elif request.resolver_match.url_name == 'support-queue' %}KHO VÀ KỸ THUẬT
                 {% elif request.resolver_match.url_name == 'activity-log' %}NHẬT KÝ VẬN HÀNH
                 {% elif request.resolver_match.url_name == 'notification-center' %}TRUNG TÂM THÔNG BÁO

@@ -44,7 +44,9 @@ class NearRealtimeProgressIntegrationTests(TestCase):
             first_name="Lan",
             role=User.Role.HOUSEKEEPING,
         )
-        self.branch = Branch.objects.create(code="P9", name="Phase 9")
+        self.branch = Branch.objects.create(
+            code="P9", name="Phase 9", owner=self.user
+        )
         BranchMembership.objects.create(
             user=self.user,
             branch=self.branch,

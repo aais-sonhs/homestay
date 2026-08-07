@@ -1,0 +1,62 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Lịch vận hành | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Lịch vận hành</h1>
+        <p class="muted">Booking, lịch dọn và nguy cơ trễ nhận phòng trên cùng một màn hình.</p>
+    </div>
+    <div class="actions">
+        {% if can_create_booking %}<a class="button" href="{% url 'reservations:booking-create' %}">Tạo booking</a>{% endif %}
+        <a class="button secondary" href="{% url 'reservations:booking-list' %}">Danh sách booking</a>
+        <a class="button secondary" href="{% url 'room_operations:room-readiness' %}">Xem trạng thái phòng</a>
+    </div>
+</div>
+
+<form class="card toolbar operations-filter" method="get">
+    <label class="field"><span class="field-label">Ngày vận hành</span><input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}"></label>
+    <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh được cấp</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if selected_branch_id == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+    <button type="submit">Cập nhật lịch</button>
+</form>
+
+<div class="stat-grid operations-summary">
+    <div class="stat"><span class="label">Booking trong ngày</span><strong>{{ schedule.summary.bookingCount }}</strong></div>
+    <div class="stat" style="--stat-color:#0d9488;--stat-bg:rgba(13,148,136,.1)"><span class="label">Khách nhận phòng</span><strong>{{ schedule.summary.checkinCount }}</strong></div>
+    <div class="stat" style="--stat-color:#2563eb;--stat-bg:rgba(37,99,235,.1)"><span class="label">Khách trả phòng</span><strong>{{ schedule.summary.checkoutCount }}</strong></div>
+    <div class="stat warning"><span class="label">Thiếu lịch dọn</span><strong>{{ schedule.summary.missingCleaningCount }}</strong></div>
+    <div class="stat danger"><span class="label">Nguy cơ trễ check-in</span><strong>{{ schedule.summary.checkinRiskCount }}</strong></div>
+    <div class="stat" style="--stat-color:#8b5cf6;--stat-bg:rgba(139,92,246,.1)"><span class="label">Việc không gắn booking</span><strong>{{ schedule.summary.standaloneTaskCount }}</strong></div>
+</div>
+
+<section class="card operations-section">
+    <div class="section-heading">
+        <div><h2>Booking ngày {{ selected_date|date:"d/m/Y" }}</h2><p class="muted">Ưu tiên các dòng có cảnh báo thiếu lịch dọn hoặc phòng chưa sẵn sàng.</p></div>
+    </div>
+    <div class="table-wrap">
+        <table class="operations-table">
+            <thead><tr><th>Phòng / booking</th><th>Trả phòng</th><th>Nhận phòng</th><th>Yêu cầu khách</th><th>Lịch dọn liên quan</th><th>Cảnh báo</th></tr></thead>
+            <tbody>
+            {% for row in schedule.rows %}
+            <tr{% if row.checkinRisk or row.missingCleaning %} class="risk-row"{% endif %}>
+                <td><a href="{% url 'room_operations:room-profile' row.booking.room_id %}"><strong>{{ row.booking.room.code }}</strong></a> · {{ row.booking.code }}<br><span class="muted">{{ row.booking.branch.name }}{% if row.canViewGuest and row.booking.guest_name %} · {{ row.booking.guest_name }}{% endif %}</span></td>
+                <td>{% if row.isCheckout %}<strong>{{ row.booking.checkout_at|date:"H:i" }}</strong><br><span class="pill">Trả phòng</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td>{% if row.isCheckin %}<strong>{{ row.booking.checkin_at|date:"H:i" }}</strong><br><span class="pill">Nhận phòng</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td class="wrap">{% include "reservations/_special_request_items.html" with items=row.booking.special_request_items.all fallback_text=row.booking.special_requests %}</td>
+                <td class="wrap">{% for task in row.tasks %}<a href="{% url 'housekeeping:task-detail' task.id %}"><strong>{{ task.code }}</strong></a> · {{ task.get_status_display }}{% if task.assignee %}<br><span class="muted">{{ task.assignee.display_name }}</span>{% endif %}{% if not forloop.last %}<hr class="compact-divider">{% endif %}{% empty %}<span class="muted">Chưa có công việc</span>{% endfor %}</td>
+                <td>{% if row.missingCleaning %}<span class="pill warn">Thiếu lịch dọn</span><br>{% endif %}{% if row.stopSell %}<span class="pill danger">Dừng bán: {{ row.stopSell.reason }}</span><br>{% endif %}{% if row.checkinRisk %}<span class="pill danger">Nguy cơ trễ check-in</span>{% endif %}{% if not row.missingCleaning and not row.checkinRisk and not row.stopSell %}<span class="pill">Đang theo kế hoạch</span>{% endif %}</td>
+            </tr>
+            {% empty %}<tr><td colspan="6" class="empty">Không có booking nhận hoặc trả phòng trong ngày đã chọn.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if schedule.standaloneTasks %}
+<section class="card operations-section">
+    <div class="section-heading"><div><h2>Công việc không gắn booking</h2><p class="muted">Bao gồm tổng vệ sinh, vệ sinh định kỳ và công việc quản lý tạo thủ công.</p></div></div>
+    <div class="room-task-list">
+        {% for task in schedule.standaloneTasks %}<a class="room-task-row" href="{% url 'housekeeping:task-detail' task.id %}"><span><strong>{{ task.room.code }} · {{ task.code }}</strong><small>{{ task.get_task_type_display }} · {{ task.branch.name }}</small></span><span>{{ task.scheduled_start_at|date:"H:i" }}</span><span class="pill">{{ task.get_status_display }}</span></a>{% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

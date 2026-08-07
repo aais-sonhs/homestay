@@ -21,15 +21,19 @@ from organizations.models import (
     Shift,
     Skill,
 )
+from reservations.special_requests import special_request_summary, task_special_request_items
 
 from .checklist_validation import ChecklistValueError, validate_checklist_value
 from .models import (
     Booking,
+    ChecklistItemDefinition,
+    ChecklistTemplate,
     ChecklistVersion,
     HousekeepingActivityLog,
     HousekeepingTask,
     IssueTicket,
     OfflineMutationReceipt,
+    OutboxEvent,
     QCFailedItem,
     QCTask,
     ReworkRound,
@@ -95,6 +99,24 @@ SUPPORT_PAUSE_REASONS = {
     "DEVICE_BROKEN",
     "WAITING_TECHNICIAN",
     "WAITING_MANAGER",
+}
+
+
+BOOKING_AUTOMATION_CHECKLISTS = {
+    HousekeepingTask.TaskType.CHECKIN_PREPARATION: (
+        ("ROOM_CLEAN", "Phòng sạch, không còn rác hoặc mùi bất thường", "Phòng ngủ"),
+        ("LINEN_READY", "Ga, gối, khăn sạch đã được bố trí", "Vải và đồ dùng"),
+        ("AMENITIES_READY", "Đủ nước uống và đồ dùng đón khách", "Vật tư"),
+        ("DEVICE_CHECK", "Điện, nước, điều hòa và thiết bị hoạt động", "Thiết bị"),
+        ("SPECIAL_REQUEST", "Đã kiểm tra yêu cầu đặc biệt của booking", "Yêu cầu khách"),
+    ),
+    HousekeepingTask.TaskType.CHECKOUT_CLEANING: (
+        ("COLLECT_WASTE", "Thu gom rác và đồ khách bỏ lại", "Thu gom"),
+        ("BATHROOM_CLEAN", "Vệ sinh và khử khuẩn phòng tắm", "Phòng tắm"),
+        ("BED_LINEN", "Thay ga, gối, khăn và kiểm tra đồ vải", "Phòng ngủ"),
+        ("FLOOR_SURFACE", "Làm sạch sàn và các bề mặt", "Vệ sinh"),
+        ("RESTOCK", "Bổ sung đủ nước uống và vật tư phòng", "Vật tư"),
+    ),
 }
 
 
@@ -211,6 +233,570 @@ def _creation_positive_int(value, label):
     if parsed < 1:
         raise HousekeepingError("TASK_INVALID_STATUS", f"{label} phải lớn hơn 0.")
     return parsed
+
+
+def _published_checklist_for_booking_task(branch, task_type):
+    base = ChecklistVersion.objects.select_related("template").filter(
+        status=ChecklistVersion.Status.PUBLISHED,
+        template__is_active=True,
+    )
+    for branch_value, type_value in (
+        (branch, task_type),
+        (None, task_type),
+        (branch, ""),
+        (None, ""),
+    ):
+        version = (
+            base.filter(template__branch=branch_value, template__task_type=type_value)
+            .order_by("-version_number", "id")
+            .first()
+        )
+        if version is not None:
+            return version
+    return None
+
+
+def _default_checklist_for_booking_task(branch, task_type, actor):
+    """Return a published branch checklist, bootstrapping a safe default when absent."""
+    version = _published_checklist_for_booking_task(branch, task_type)
+    if version is not None:
+        return version
+
+    code_suffix = "CHECKIN" if task_type == HousekeepingTask.TaskType.CHECKIN_PREPARATION else "CHECKOUT"
+    name = (
+        "Chuẩn bị phòng đón khách"
+        if task_type == HousekeepingTask.TaskType.CHECKIN_PREPARATION
+        else "Dọn phòng sau khi khách trả phòng"
+    )
+    template, _ = ChecklistTemplate.objects.get_or_create(
+        branch=branch,
+        code=f"AUTO-BOOKING-{code_suffix}",
+        defaults={"name": name, "task_type": task_type, "is_active": True},
+    )
+    template_updates = []
+    if not template.is_active:
+        template.is_active = True
+        template_updates.append("is_active")
+    if template.task_type != task_type:
+        template.task_type = task_type
+        template_updates.append("task_type")
+    if template_updates:
+        template.save(update_fields=template_updates)
+
+    version, _ = ChecklistVersion.objects.get_or_create(
+        template=template,
+        version_number=1,
+        defaults={
+            "version_label": "v1",
+            "status": ChecklistVersion.Status.PUBLISHED,
+            "published_at": timezone.now(),
+            "created_by": actor,
+            "policy_snapshot": {"source": "BOOKING_AUTOMATION"},
+        },
+    )
+    if version.status != ChecklistVersion.Status.PUBLISHED:
+        version.status = ChecklistVersion.Status.PUBLISHED
+        version.published_at = version.published_at or timezone.now()
+        version.save(update_fields=["status", "published_at"])
+
+    if not version.item_definitions.exists():
+        ChecklistItemDefinition.objects.bulk_create(
+            [
+                ChecklistItemDefinition(
+                    version=version,
+                    key=key,
+                    group_name=group_name,
+                    title=title,
+                    item_type=TaskChecklistItem.ItemType.CHECKBOX,
+                    is_required=True,
+                    sort_order=sort_order,
+                )
+                for sort_order, (key, title, group_name) in enumerate(
+                    BOOKING_AUTOMATION_CHECKLISTS[task_type],
+                    start=1,
+                )
+            ]
+        )
+    return version
+
+
+def _booking_task_deadlines(scheduled_start_at, due_at, now):
+    acceptance_due_at = max(now + timedelta(minutes=5), scheduled_start_at - timedelta(minutes=60))
+    start_due_at = min(due_at, scheduled_start_at + timedelta(minutes=15))
+    return acceptance_due_at, start_due_at
+
+
+def _booking_task_schedule(booking, now):
+    preparation_start = max(now, booking.checkin_at - timedelta(minutes=90))
+    preparation_due = max(
+        preparation_start + timedelta(minutes=15),
+        booking.checkin_at - timedelta(minutes=30),
+    )
+    checkout_start = max(now, booking.checkout_at)
+    checkout_due = checkout_start + timedelta(minutes=60)
+    next_booking = (
+        Booking.objects.filter(
+            room=booking.room,
+            checkin_at__gte=booking.checkout_at,
+        )
+        .exclude(pk=booking.pk)
+        .exclude(status=Booking.Status.CANCELLED)
+        .order_by("checkin_at", "id")
+        .first()
+    )
+    return {
+        HousekeepingTask.TaskType.CHECKIN_PREPARATION: {
+            "scheduled_start_at": preparation_start,
+            "due_at": preparation_due,
+            "next_checkin_at": booking.checkin_at,
+            "requires_qc": False,
+        },
+        HousekeepingTask.TaskType.CHECKOUT_CLEANING: {
+            "scheduled_start_at": checkout_start,
+            "due_at": checkout_due,
+            "next_checkin_at": next_booking.checkin_at if next_booking else None,
+            "requires_qc": True,
+        },
+    }
+
+
+def _ensure_booking_task(
+    *,
+    booking,
+    actor,
+    context,
+    task_type,
+    scheduled_start_at,
+    due_at,
+    next_checkin_at,
+    requires_qc,
+):
+    existing = (
+        HousekeepingTask.objects.filter(booking=booking, task_type=task_type)
+        .order_by("created_at", "id")
+        .first()
+    )
+    if existing is not None:
+        return existing, False
+
+    checklist_version = _default_checklist_for_booking_task(booking.branch, task_type, actor)
+    now = timezone.now()
+    acceptance_due_at, start_due_at = _booking_task_deadlines(scheduled_start_at, due_at, now)
+    code_prefix = "BKI" if task_type == HousekeepingTask.TaskType.CHECKIN_PREPARATION else "BKO"
+    special_request_items = task_special_request_items(booking, task_type)
+    task = HousekeepingTask.objects.create(
+        code=f"{code_prefix}-{booking.id.hex[:26].upper()}",
+        branch=booking.branch,
+        room=booking.room,
+        booking=booking,
+        booking_code=booking.code,
+        task_type=task_type,
+        priority=HousekeepingTask.Priority.NORMAL,
+        status=HousekeepingTask.Status.UNASSIGNED,
+        area=booking.room.area_ref,
+        checklist_version=checklist_version.version_label,
+        checklist_template_version=checklist_version,
+        scheduled_start_at=scheduled_start_at,
+        acceptance_due_at=acceptance_due_at,
+        start_due_at=start_due_at,
+        due_at=due_at,
+        standard_duration_minutes=max(
+            1,
+            int((due_at - scheduled_start_at).total_seconds() // 60),
+        ),
+        next_checkin_at=next_checkin_at,
+        requires_qc=requires_qc,
+        special_request=special_request_summary(special_request_items),
+        special_request_items=special_request_items,
+        note=f"Tự động tạo từ booking {booking.code}.",
+        created_by=actor,
+    )
+    TaskChecklistItem.objects.bulk_create(
+        [
+            TaskChecklistItem(
+                task=task,
+                definition=definition,
+                definition_key=definition.key,
+                group_name=definition.group_name,
+                title=definition.title,
+                item_type=definition.item_type,
+                is_required=definition.is_required,
+                requires_photo=definition.required_photo_count > 0,
+                options_snapshot=definition.options,
+                validation_snapshot={
+                    **definition.validation_rules,
+                    "requiredPhotoCount": definition.required_photo_count,
+                },
+                sort_order=definition.sort_order,
+            )
+            for definition in checklist_version.item_definitions.all()
+        ]
+    )
+    TaskStatusHistory.objects.create(
+        task=task,
+        from_status="",
+        to_status=task.status,
+        reason_code="BOOKING_AUTOMATION",
+        task_version=task.version,
+        changed_by=actor,
+        metadata={"bookingId": str(booking.id), "bookingCode": booking.code},
+    )
+    _log(
+        task,
+        actor,
+        "TASK_CREATED",
+        context,
+        to_status=task.status,
+        changes={"source": "BOOKING_AUTOMATION", "bookingId": str(booking.id)},
+    )
+    from .sla import ensure_sla_state
+
+    ensure_sla_state(task)
+    OutboxEvent.objects.get_or_create(
+        deduplication_key=f"booking:{booking.id}:task:{task_type}"[:120],
+        defaults={
+            "event_type": "CLEANING_TASK_GENERATED",
+            "aggregate_type": "HOUSEKEEPING_TASK",
+            "aggregate_id": str(task.id),
+            "payload": {
+                "bookingId": str(booking.id),
+                "bookingCode": booking.code,
+                "taskId": str(task.id),
+                "taskCode": task.code,
+                "taskType": task.task_type,
+                "branchId": str(booking.branch_id),
+                "roomId": str(booking.room_id),
+                "scheduledStartAt": task.scheduled_start_at.isoformat(),
+                "dueAt": task.due_at.isoformat(),
+                "specialRequestItems": task.special_request_items,
+            },
+        },
+    )
+    return task, True
+
+
+def _sync_checkout_task_next_checkins(room):
+    bookings = list(
+        Booking.objects.filter(room=room, checkin_at__isnull=False, checkout_at__isnull=False)
+        .exclude(status=Booking.Status.CANCELLED)
+        .order_by("checkin_at", "checkout_at", "id")
+    )
+    for index, current in enumerate(bookings):
+        next_checkin_at = next(
+            (
+                candidate.checkin_at
+                for candidate in bookings[index + 1 :]
+                if candidate.checkin_at >= current.checkout_at
+            ),
+            None,
+        )
+        HousekeepingTask.objects.filter(
+            booking=current,
+            task_type=HousekeepingTask.TaskType.CHECKOUT_CLEANING,
+        ).update(next_checkin_at=next_checkin_at)
+
+
+@transaction.atomic
+def ensure_booking_housekeeping_tasks(actor, booking, context=None):
+    """Idempotently create check-in preparation and post-checkout cleaning tasks."""
+    context = context or {}
+    branch = Branch.objects.select_for_update().get(pk=booking.branch_id)
+    booking = (
+        Booking.objects.select_for_update(of=("self",))
+        .select_related("branch", "room", "room__area_ref")
+        .get(pk=booking.pk, branch=branch)
+    )
+    if booking.status == Booking.Status.CANCELLED:
+        return []
+    if not booking.checkin_at or not booking.checkout_at:
+        raise HousekeepingError(
+            "BOOKING_TIME_REQUIRED",
+            "Booking phải có đủ thời gian nhận và trả phòng để tạo lịch dọn.",
+        )
+
+    schedule = _booking_task_schedule(booking, timezone.now())
+    preparation_schedule = schedule[HousekeepingTask.TaskType.CHECKIN_PREPARATION]
+    checkout_schedule = schedule[HousekeepingTask.TaskType.CHECKOUT_CLEANING]
+
+    preparation_task, _ = _ensure_booking_task(
+        booking=booking,
+        actor=actor,
+        context=context,
+        task_type=HousekeepingTask.TaskType.CHECKIN_PREPARATION,
+        **preparation_schedule,
+    )
+    checkout_task, _ = _ensure_booking_task(
+        booking=booking,
+        actor=actor,
+        context=context,
+        task_type=HousekeepingTask.TaskType.CHECKOUT_CLEANING,
+        **checkout_schedule,
+    )
+    _sync_checkout_task_next_checkins(booking.room)
+    preparation_task.refresh_from_db()
+    checkout_task.refresh_from_db()
+    return [preparation_task, checkout_task]
+
+
+BOOKING_RESCHEDULABLE_TASK_STATUSES = {
+    HousekeepingTask.Status.UNASSIGNED,
+    HousekeepingTask.Status.ASSIGNED,
+    HousekeepingTask.Status.PENDING_ACCEPTANCE,
+    HousekeepingTask.Status.ACCEPTED,
+}
+
+
+def _sync_task_sla_deadlines(task):
+    from .sla import ensure_sla_state
+
+    state = ensure_sla_state(task)
+    policy_snapshot = dict(state.policy_snapshot or {})
+    policy_snapshot["standardDurationMinutes"] = task.standard_duration_minutes
+    state.policy_snapshot = policy_snapshot
+    state.acceptance_due_at = task.acceptance_due_at
+    state.start_due_at = task.start_due_at
+    state.completion_due_at = task.due_at
+    state.save(
+        update_fields=[
+            "policy_snapshot",
+            "acceptance_due_at",
+            "start_due_at",
+            "completion_due_at",
+            "updated_at",
+        ]
+    )
+
+
+@transaction.atomic
+def reschedule_booking_housekeeping_tasks(actor, booking, context=None, *, previous_room=None):
+    """Synchronize future automated tasks after booking room/time/request changes."""
+    context = context or {}
+    ensure_booking_housekeeping_tasks(actor, booking, context)
+    tasks = list(
+        HousekeepingTask.objects.select_for_update()
+        .filter(
+            booking=booking,
+            task_type__in={
+                HousekeepingTask.TaskType.CHECKIN_PREPARATION,
+                HousekeepingTask.TaskType.CHECKOUT_CLEANING,
+            },
+        )
+        .order_by("task_type", "id")
+    )
+    blocked_tasks = [
+        task
+        for task in tasks
+        if task.status not in BOOKING_RESCHEDULABLE_TASK_STATUSES
+    ]
+    if blocked_tasks:
+        codes = ", ".join(task.code for task in blocked_tasks)
+        raise HousekeepingError(
+            "BOOKING_TASK_ALREADY_STARTED",
+            f"Không thể đổi booking vì công việc {codes} đã bắt đầu, hoàn tất hoặc bị hủy.",
+            status=409,
+        )
+
+    schedule = _booking_task_schedule(booking, timezone.now())
+    updated_tasks = []
+    for task in tasks:
+        task_schedule = schedule[task.task_type]
+        acceptance_due_at, start_due_at = _booking_task_deadlines(
+            task_schedule["scheduled_start_at"],
+            task_schedule["due_at"],
+            timezone.now(),
+        )
+        special_request_items = task_special_request_items(booking, task.task_type)
+        special_request_text = special_request_summary(special_request_items)
+        before = {
+            "roomId": str(task.room_id),
+            "scheduledStartAt": task.scheduled_start_at.isoformat(),
+            "dueAt": task.due_at.isoformat(),
+            "nextCheckinAt": task.next_checkin_at.isoformat() if task.next_checkin_at else None,
+            "specialRequest": task.special_request,
+            "specialRequestItems": task.special_request_items,
+        }
+        after = {
+            "roomId": str(booking.room_id),
+            "scheduledStartAt": task_schedule["scheduled_start_at"].isoformat(),
+            "dueAt": task_schedule["due_at"].isoformat(),
+            "nextCheckinAt": (
+                task_schedule["next_checkin_at"].isoformat()
+                if task_schedule["next_checkin_at"]
+                else None
+            ),
+            "specialRequest": special_request_text,
+            "specialRequestItems": special_request_items,
+        }
+        if before == after and task.booking_code == booking.code:
+            updated_tasks.append(task)
+            continue
+
+        task.room = booking.room
+        task.area = booking.room.area_ref
+        task.booking_code = booking.code
+        task.scheduled_start_at = task_schedule["scheduled_start_at"]
+        task.acceptance_due_at = acceptance_due_at
+        task.start_due_at = start_due_at
+        task.due_at = task_schedule["due_at"]
+        task.standard_duration_minutes = max(
+            1,
+            int((task.due_at - task.scheduled_start_at).total_seconds() // 60),
+        )
+        task.next_checkin_at = task_schedule["next_checkin_at"]
+        task.special_request = special_request_text
+        task.special_request_items = special_request_items
+        task.updated_by = actor
+        task.version += 1
+        task.save(
+            update_fields=[
+                "room",
+                "area",
+                "booking_code",
+                "scheduled_start_at",
+                "acceptance_due_at",
+                "start_due_at",
+                "due_at",
+                "standard_duration_minutes",
+                "next_checkin_at",
+                "special_request",
+                "special_request_items",
+                "updated_by",
+                "version",
+                "updated_at",
+            ]
+        )
+        _sync_task_sla_deadlines(task)
+        _log(
+            task,
+            actor,
+            "TASK_RESCHEDULED",
+            context,
+            from_status=task.status,
+            to_status=task.status,
+            changes={"bookingId": str(booking.id), "before": before, "after": after},
+        )
+        notify_task(
+            task,
+            "TASK_RESCHEDULED",
+            f"Lịch công việc {task.code} đã thay đổi",
+            f"Booking {booking.code} đã đổi lịch hoặc phòng. Vui lòng kiểm tra lại công việc.",
+            deduplication_key=f"task:{task.id}:booking-rescheduled:v{booking.version}",
+            users=[task.assignee] if task.assignee else None,
+            roles={"housekeeping_lead"},
+            payload={"taskId": str(task.id), "bookingId": str(booking.id), "taskVersion": task.version},
+        )
+        OutboxEvent.objects.get_or_create(
+            deduplication_key=(
+                f"booking:{booking.id}:task:{task.task_type}:rescheduled:v{booking.version}"
+            )[:120],
+            defaults={
+                "event_type": "CLEANING_TASK_RESCHEDULED",
+                "aggregate_type": "HOUSEKEEPING_TASK",
+                "aggregate_id": str(task.id),
+                "payload": {
+                    "bookingId": str(booking.id),
+                    "bookingCode": booking.code,
+                    "taskId": str(task.id),
+                    "taskCode": task.code,
+                    "taskType": task.task_type,
+                    "branchId": str(booking.branch_id),
+                    **after,
+                },
+            },
+        )
+        updated_tasks.append(task)
+
+    if previous_room is not None and previous_room.pk != booking.room_id:
+        _sync_checkout_task_next_checkins(previous_room)
+    _sync_checkout_task_next_checkins(booking.room)
+    return updated_tasks
+
+
+@transaction.atomic
+def cancel_booking_housekeeping_tasks(actor, booking, reason, context=None):
+    """Cancel every non-final automated task linked to a cancelled booking."""
+    context = context or {}
+    tasks = list(
+        HousekeepingTask.objects.select_for_update()
+        .filter(
+            booking=booking,
+            task_type__in={
+                HousekeepingTask.TaskType.CHECKIN_PREPARATION,
+                HousekeepingTask.TaskType.CHECKOUT_CLEANING,
+            },
+        )
+        .order_by("task_type", "id")
+    )
+    finalized = [task.code for task in tasks if task.status == HousekeepingTask.Status.QC_APPROVED]
+    if finalized:
+        raise HousekeepingError(
+            "BOOKING_TASK_FINALIZED",
+            "Không thể hủy booking vì công việc đã được duyệt QC: " + ", ".join(finalized),
+            status=409,
+        )
+
+    cancelled_tasks = []
+    for task in tasks:
+        if task.status == HousekeepingTask.Status.CANCELLED:
+            cancelled_tasks.append(task)
+            continue
+        cancelled_at = timezone.now()
+        task.cancelled_at = cancelled_at
+        task.cancelled_by = actor
+        task.cancellation_reason = reason
+        task.assignments.select_for_update().filter(is_current=True).update(
+            status=TaskAssignment.Status.ENDED,
+            is_current=False,
+            reason_code="BOOKING_CANCELLED",
+            note=reason,
+            ended_at=cancelled_at,
+        )
+        _transition(
+            task,
+            actor,
+            HousekeepingTask.Status.CANCELLED,
+            "TASK_CANCELLED",
+            context,
+            transition_action=Action.CANCEL,
+            reason_code="BOOKING_CANCELLED",
+            note=reason,
+            changes={"bookingId": str(booking.id), "bookingCode": booking.code},
+            update_fields=["cancelled_at", "cancelled_by", "cancellation_reason"],
+        )
+        notify_task(
+            task,
+            "TASK_CANCELLED",
+            f"Công việc {task.code} đã bị hủy",
+            f"Booking {booking.code} đã hủy: {reason}",
+            deduplication_key=f"task:{task.id}:booking-cancelled:v{booking.version}",
+            users=[task.assignee] if task.assignee else None,
+            roles={"housekeeping_lead"},
+            payload={"taskId": str(task.id), "bookingId": str(booking.id), "reason": reason},
+        )
+        OutboxEvent.objects.get_or_create(
+            deduplication_key=(
+                f"booking:{booking.id}:task:{task.task_type}:cancelled:v{booking.version}"
+            )[:120],
+            defaults={
+                "event_type": "CLEANING_TASK_CANCELLED",
+                "aggregate_type": "HOUSEKEEPING_TASK",
+                "aggregate_id": str(task.id),
+                "payload": {
+                    "bookingId": str(booking.id),
+                    "bookingCode": booking.code,
+                    "taskId": str(task.id),
+                    "taskCode": task.code,
+                    "taskType": task.task_type,
+                    "branchId": str(booking.branch_id),
+                    "roomId": str(booking.room_id),
+                    "reason": reason,
+                },
+            },
+        )
+        cancelled_tasks.append(task)
+
+    _sync_checkout_task_next_checkins(booking.room)
+    return cancelled_tasks
 
 
 @transaction.atomic
@@ -1371,6 +1957,10 @@ def report_issue(user, task_id, payload, context):
         blocks_room_ready=bool(payload.get("blocksRoomReady")),
         client_request_id=client_id,
     )
+    if issue.blocks_room_ready:
+        from room_operations.services import ensure_issue_blocker
+
+        ensure_issue_blocker(issue, user, context)
     attachment_ids = payload.get("attachmentIds") or []
     if not isinstance(attachment_ids, list):
         raise HousekeepingError("TASK_INVALID_STATUS", "Danh sách ảnh sự cố không hợp lệ.")
@@ -2307,6 +2897,10 @@ def update_issue_status(user, issue_id, version, status, note, context, *, assig
         issue.resolution_note = str(note or "")
         fields.extend(["resolved_by", "resolved_at", "resolution_note"])
     issue.save(update_fields=fields)
+    if status in {IssueTicket.Status.RESOLVED, IssueTicket.Status.CANCELLED} and issue.blocks_room_ready:
+        from room_operations.services import request_issue_blocker_clearance
+
+        request_issue_blocker_clearance(issue, user, note, context)
     _touch_task_for_support(
         issue.task,
         user,

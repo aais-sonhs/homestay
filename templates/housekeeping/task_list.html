@@ -4,7 +4,7 @@
 <div data-auto-refresh-seconds="30">
 <div class="page-heading">
     <div class="grow"><h1 style="margin:0">Công việc buồng phòng</h1><span class="muted">Theo ca và chi nhánh được phân quyền · {{ tasks|length }} công việc phù hợp</span></div>
-    {% if request.user.role == 'founder' or request.user.role == 'manager' %}<a class="button" href="{% url 'housekeeping:task-create' %}">＋ Tạo công việc</a>{% endif %}
+    {% if request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}<a class="button" href="{% url 'housekeeping:task-create' %}">＋ Tạo công việc</a>{% endif %}
 </div>
 <nav class="task-tabs" aria-label="Nhóm trạng thái công việc">
     <a class="button secondary" href="{% url 'housekeeping:task-list' %}?tab=mine"{% if request.GET.tab == 'mine' %} aria-current="page"{% endif %}>Việc của tôi</a>

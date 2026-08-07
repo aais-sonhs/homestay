@@ -13,7 +13,7 @@ DATABASES = {
         "NAME": "homestay",
         "USER": "postgres",
         "PASSWORD": "TuanHai2508",
-        "HOST": "127.0.0.1",
+        "HOST": "14.224.220.54",
         "PORT": "5432",
         "TEST": {"NAME": "test_homestay"},
     }

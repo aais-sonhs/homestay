@@ -1,0 +1,57 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Tạo dừng bán | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Tạo khoảng dừng bán</h1><p class="muted">Khóa khả năng bán theo phòng và khoảng thời gian, có blocker nguồn và quy trình xác nhận mở lại.</p></div>
+    <a class="button secondary" href="{% url 'room_operations:stop-sell-list' %}">Quay lại</a>
+</div>
+<section class="card entity-form-card">
+    <div class="booking-automation-note">
+        <strong>Mốc kết thúc chỉ là dự kiến</strong>
+        <span>Phòng vẫn bị dừng bán sau mốc dự kiến nếu chưa có yêu cầu và xác nhận mở lại. Booking mới hoặc đổi lịch vào khoảng bị chặn sẽ bị từ chối ở máy chủ.</span>
+    </div>
+    <form method="post" class="entity-form" novalidate>
+        {% csrf_token %}
+        {% if form.errors %}<div class="form-error-summary" role="alert"><strong>Chưa thể tạo khoảng dừng bán</strong><span>Vui lòng kiểm tra thông tin bên dưới.</span></div>{% endif %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+        <div class="field entity-form-row{% if field.errors %} has-error{% endif %}">
+            <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            {{ field.errors }}
+        </div>
+        {% endfor %}
+        <div class="actions"><button type="submit">Xác nhận dừng bán</button><a class="button secondary" href="{% url 'room_operations:stop-sell-list' %}">Hủy</a></div>
+    </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const branch = document.getElementById("id_branch");
+    const room = document.getElementById("id_room");
+    const blocker = document.getElementById("id_blocker");
+    if (!branch || !room || !blocker) return;
+    function filterOptions(select, clearInvalid) {
+        let valid = !select.value;
+        Array.from(select.options).forEach(function (option) {
+            const matchesBranch = !option.value || !branch.value || option.dataset.branchId === branch.value;
+            const matchesRoom = select !== blocker || !option.value || !room.value || option.dataset.roomId === room.value;
+            const visible = matchesBranch && matchesRoom;
+            option.hidden = !visible;
+            option.disabled = !visible;
+            if (option.selected && visible) valid = true;
+        });
+        if (clearInvalid && !valid) select.value = "";
+    }
+    function refresh(clearInvalid) {
+        filterOptions(room, clearInvalid);
+        filterOptions(blocker, clearInvalid);
+    }
+    branch.addEventListener("change", function () { refresh(true); });
+    room.addEventListener("change", function () { filterOptions(blocker, true); });
+    refresh(false);
+});
+</script>
+{% endblock %}

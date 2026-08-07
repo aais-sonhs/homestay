@@ -21,6 +21,7 @@ DEMO_USERS = (
         False,
     ),
     ("viewer", "viewer@blisshome.test", "0901000010", User.Role.CUSTOMER_SERVICE, False),
+    ("sales", "sales@blisshome.test", "0901000011", User.Role.SALES, False),
 )
 
 RETIRED_DEMO_USERS = (("founder", "founder@blisshome.test"),)
@@ -82,6 +83,27 @@ class Command(BaseCommand):
                 user.locked_due_to_failed_logins = False
                 user.set_password(DEMO_PASSWORD)
                 user.save()
+            elif is_admin:
+                # Tài khoản admin là Super Admin nền tảng kể cả khi đã tồn tại
+                # trước lần chạy seed hiện tại. Không đổi mật khẩu ở nhánh này.
+                user.role = User.Role.FOUNDER
+                user.is_active = True
+                user.is_staff = True
+                user.is_superuser = True
+                user.is_deleted = False
+                user.is_permanently_disabled = False
+                user.disabled_by_admin = False
+                user.save(
+                    update_fields=[
+                        "role",
+                        "is_active",
+                        "is_staff",
+                        "is_superuser",
+                        "is_deleted",
+                        "is_permanently_disabled",
+                        "disabled_by_admin",
+                    ]
+                )
             created_count += int(created)
             state = "đã tạo" if created else "đã có"
             self.stdout.write(f"- {username:<18} {email:<30} {state}")

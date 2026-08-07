@@ -56,8 +56,12 @@ class OfflineSyncIntegrationTests(TestCase):
             password="Test@2026",
             role=User.Role.HOUSEKEEPING,
         )
-        self.branch = Branch.objects.create(code="PHASE7", name="Phase 7 Branch")
-        self.other_branch = Branch.objects.create(code="PHASE7-OTHER", name="Phase 7 Other")
+        self.branch = Branch.objects.create(
+            code="PHASE7", name="Phase 7 Branch", owner=self.user
+        )
+        self.other_branch = Branch.objects.create(
+            code="PHASE7-OTHER", name="Phase 7 Other", owner=self.outsider
+        )
         BranchMembership.objects.create(user=self.user, branch=self.branch)
         BranchMembership.objects.create(user=self.outsider, branch=self.other_branch)
         now = timezone.now()

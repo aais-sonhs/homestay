@@ -1,7 +1,13 @@
 # KẾ HOẠCH TRIỂN KHAI HOUSEKEEPING VÀ TÀI LIỆU BÀN GIAO CODEX
 
-> Cập nhật: 06/08/2026 — Asia/Ho_Chi_Minh
-> Trạng thái: Giai đoạn 0–9 đã hoàn tất; Phase 10 đã đóng các gap tìm thấy khi audit lại PLAN: tạo task, skill enforcement, TASK_VIEWED/manager note/notification, SLA worker, mobile device evidence/filter/QC media và offline camera dependency. Migration `0006` đã áp dụng. Android build/device E2E vẫn hoãn; production deploy vẫn chờ domain/TLS và production security settings. Không tự quản lý tiến trình người dùng đang chạy tại cổng `8020`; cần người dùng restart để nạp source mới.
+> Phạm vi mở rộng sau Housekeeping được ghi tại
+> `docs/product/operations-platform-requirements.md`. Từ 07/08/2026, roadmap sản phẩm
+> tiếp tục với trung tâm vận hành phòng: lịch Booking, readiness, phòng 360°, bảo trì,
+> kho, stop-sell và dashboard đa vai trò. Yêu cầu Housekeeping trong tài liệu này vẫn
+> là nền tảng bắt buộc và không bị thay thế.
+
+> Cập nhật: 07/08/2026 — Asia/Ho_Chi_Minh
+> Trạng thái: Giai đoạn 0–10 của Housekeeping và Phase 1–2 trung tâm vận hành phòng đã hoàn tất. Ngoài lịch Booking, readiness, phòng 360°, ownership đa chi nhánh và lifecycle Booking, hệ thống đã có yêu cầu khách dạng item, blocker chính thức, stop-sell theo khoảng thời gian và quy trình hai bước xác nhận mở lại phòng. Sales chỉ đọc trạng thái bán/blocker trong đúng chi nhánh; Booking bị chặn ở service khi stop-sell còn hiệu lực, kể cả đã qua ETA nhưng chưa được xác nhận mở lại. SQLite phát hiện 164 test: 159 pass và 5 PostgreSQL-only skip; 5/5 race test pass trên PostgreSQL thật. PostgreSQL đã áp dụng đến `accounts.0010`, `housekeeping.0014` và `room_operations.0001`; không tự quản lý tiến trình người dùng đang chạy tại cổng `8020`.
 
 ## 1. Mục đích tài liệu
 
@@ -59,6 +65,10 @@ Không được sao chép các điểm yếu sau của Fasthub:
 
 ## 3. Yêu cầu người dùng đã chốt
 
+- Bliss Home là hệ thống đa chi nhánh; mỗi chi nhánh có đúng một chủ tại một thời điểm.
+- Chủ chi nhánh quản trị tài chính và vận hành độc lập trong chi nhánh mình, không có quyền xem chéo chi nhánh.
+- Founder/quản trị nền tảng tạo chi nhánh và chỉ định/chuyển chủ; ownership phải là quan hệ theo chi nhánh, không dùng global role.
+- Tất cả dữ liệu nghiệp vụ và tài chính mới phải có `branch_id`, được scope ở server và có test chống truy cập chéo chi nhánh.
 - Database PostgreSQL dùng database `homestay`.
 - Cấu hình database và secret được cố định riêng trong Django settings để không nhận nhầm biến môi trường của dự án khác trên server.
 - Conda environment: `env`.
@@ -128,6 +138,7 @@ Mật khẩu demo hiện tại: `Demo@2026Safe`
 - `warehouse`
 - `customer_service`
 - `viewer`
+- `sales`
 
 ### Lưu ý cổng triển khai
 
@@ -741,4 +752,12 @@ Ma trận chi tiết từng requirement phải được tạo trong giai đoạn
 
 ## 11. Việc Codex mới cần làm ngay
 
-Không còn hạng mục code/test/migration bắt buộc nào trong phạm vi MVP hiện tại sau Phase 10 gap closure. Việc vận hành ngay tiếp theo là người dùng restart các worker `8020` để nạp source mới, sau đó chạy lại browser smoke test. Dịch vụ `8020` vẫn là cấu hình development; trước production phải chốt domain/TLS và tách production security settings, không tự quản lý tiến trình đang chạy. Chỉ quay lại Android build/device E2E khi người dùng bỏ trạng thái hoãn. Trước mọi thay đổi tiếp theo phải đọc báo cáo phase liên quan và chạy regression tương ứng.
+Phạm vi MVP Housekeeping không còn hạng mục bắt buộc. Trong roadmap vận hành phòng,
+ownership, tạo Booking, lifecycle reschedule/cancel và yêu cầu đặc biệt có cấu trúc đã
+hoàn tất; migrations production đã áp dụng đến `housekeeping.0014`. Việc code tiếp theo
+là triển khai blocker/stop-sell theo khoảng ngày và quy trình xác nhận mở lại. `HCM` hiện
+vẫn thuộc tài khoản `manager`; cần người dùng xác nhận có chuyển sang tài khoản chủ riêng
+hay đây là ownership mong muốn. Việc vận hành còn lại là người dùng restart worker `8020`
+để nạp source mới rồi browser smoke test; Codex không tự restart/stop tiến trình này.
+Dịch vụ vẫn dùng cấu hình development, nên trước production phải chốt domain/TLS và tách
+security settings. Android build/device E2E vẫn hoãn theo yêu cầu cũ.

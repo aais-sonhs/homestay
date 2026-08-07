@@ -11,12 +11,14 @@ from .identifiers import normalize_email, normalize_phone
 class User(AbstractUser):
     class Role(models.TextChoices):
         FOUNDER = "founder", "Nhà sáng lập / Quản trị viên"
+        BRANCH_OWNER = "branch_owner", "Chủ chi nhánh"
         MANAGER = "manager", "Quản lý"
         HOUSEKEEPING = "housekeeping", "Nhân viên buồng phòng"
         QC = "qc", "Kiểm tra chất lượng"
         TECHNICIAN = "technician", "Kỹ thuật"
         WAREHOUSE = "warehouse", "Kho"
         CUSTOMER_SERVICE = "customer_service", "CSKH"
+        SALES = "sales", "Kinh doanh"
 
     role = models.CharField(max_length=32, choices=Role.choices, default=Role.HOUSEKEEPING)
     phone_number = models.CharField(max_length=20, blank=True)

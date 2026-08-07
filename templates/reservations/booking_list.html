@@ -1,0 +1,41 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Booking | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Booking</h1><p class="muted">Booking do Kinh doanh tạo hộ khách và các mốc nhận/trả phòng.</p></div>
+    <div class="actions">
+        {% if can_create_booking %}<a class="button" href="{% url 'reservations:booking-create' %}">Tạo booking</a>{% endif %}
+        <a class="button secondary" href="{% url 'room_operations:schedule' %}">Lịch vận hành</a>
+    </div>
+</div>
+
+<form class="card toolbar operations-filter" method="get">
+    <label class="field"><span class="field-label">Tìm kiếm</span><input type="search" name="q" value="{{ filters.q }}" placeholder="Mã booking, phòng, tên hoặc SĐT"></label>
+    <label class="field"><span class="field-label">Ngày nhận/trả</span><input type="date" name="date" value="{{ filters.date }}"></label>
+    <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if filters.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+    <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="">Mọi trạng thái</option>{% for value, label in statuses %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Lọc booking</button>
+</form>
+
+<section class="card entity-list-card">
+    <div class="table-wrap">
+        <table class="operations-table">
+            <thead><tr><th>Booking / phòng</th><th>Khách</th><th>Nhận phòng</th><th>Trả phòng</th><th>Trạng thái</th><th>Người tạo</th><th>Thao tác</th></tr></thead>
+            <tbody>
+            {% for row in booking_rows %}
+            <tr>
+                <td><strong>{{ row.booking.code }}</strong><br><span class="muted">{{ row.booking.branch.name }} · phòng {{ row.booking.room.code }}</span></td>
+                <td>{% if row.canViewGuest %}<strong>{{ row.booking.guest_name }}</strong><br><span class="muted">{{ row.booking.guest_phone }} · {{ row.booking.guest_count }} khách</span>{% else %}<span class="muted">Thông tin khách được bảo vệ</span>{% endif %}</td>
+                <td>{{ row.booking.checkin_at|date:"H:i d/m/Y" }}</td>
+                <td>{{ row.booking.checkout_at|date:"H:i d/m/Y" }}</td>
+                <td><span class="pill">{{ row.booking.get_status_display }}</span></td>
+                <td>{{ row.booking.created_by.display_name|default:"Dữ liệu cũ" }}</td>
+                <td>{% if row.canManage %}<a class="button secondary" href="{% url 'reservations:booking-update' row.booking.id %}">Sửa lịch</a>{% else %}<span class="muted">Chỉ đọc</span>{% endif %}</td>
+            </tr>
+            {% empty %}<tr><td colspan="7" class="empty">Chưa có booking phù hợp bộ lọc.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

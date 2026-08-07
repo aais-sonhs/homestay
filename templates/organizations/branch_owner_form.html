@@ -1,0 +1,32 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}{{ page_title }} | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>{{ page_title }}</h1><p class="muted">{{ page_description }}</p></div>
+    <a class="button secondary" href="{% url 'organizations:branch-owner-list' %}">Quay lại danh sách</a>
+</div>
+
+<section class="card entity-form-card">
+    <form method="post" class="entity-form">
+        {% csrf_token %}
+        {% if form.errors %}<div class="form-error-summary" role="alert"><strong>Chưa thể lưu tài khoản</strong><span>Vui lòng kiểm tra các trường được đánh dấu bên dưới.</span></div>{% endif %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+        <div class="field entity-form-row{% if field.errors %} has-error{% endif %}">
+            <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            {{ field.errors }}
+        </div>
+        {% endfor %}
+        {% if owner %}
+        <div class="entity-current-status">
+            <span class="field-label">Chi nhánh đang được quyền quản lý</span>
+            {% for branch in owner.owned_branches.all %}<span class="pill">{{ branch.code }} — {{ branch.name }}</span>{% empty %}<span class="muted">Chưa được gán chi nhánh.</span>{% endfor %}
+            <small>Muốn chuyển một chi nhánh khỏi tài khoản này, mở tài khoản chủ mới và chọn chi nhánh đó tại trường “Gán hoặc chuyển chi nhánh”.</small>
+        </div>
+        {% endif %}
+        <div class="actions entity-form-actions"><button type="submit">{{ submit_label }}</button><a class="button secondary" href="{% url 'organizations:branch-owner-list' %}">Hủy</a></div>
+    </form>
+</section>
+{% endblock %}

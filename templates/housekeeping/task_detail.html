@@ -10,7 +10,7 @@
 </div>
 
 {% if task.guest_in_room %}<div class="message error">⚠ Khách đang ở trong phòng. Chỉ vào phòng sau khi khách đồng ý.</div>{% endif %}
-{% if task.special_request %}<div class="message">Yêu cầu đặc biệt: {{ task.special_request }}</div>{% endif %}
+{% if task.special_request_items or task.special_request %}<div class="message"><div><strong>Yêu cầu đặc biệt</strong>{% include "reservations/_special_request_items.html" with items=task.special_request_items fallback_text=task.special_request %}</div></div>{% endif %}
 {% with last_qc=task.qc_rounds.last %}{% if task.status == 'QC_REJECTED' and last_qc %}<div class="message error"><strong>Kiểm tra chất lượng yêu cầu làm lại:</strong> {{ last_qc.reason }}{% if last_qc.note %}<br>{{ last_qc.note }}{% endif %}</div>{% endif %}{% endwith %}
 
 <div class="grid">

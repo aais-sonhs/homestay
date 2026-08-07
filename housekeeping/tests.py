@@ -44,11 +44,29 @@ class HousekeepingWorkflowTests(TestCase):
         self.hk2 = User.objects.create_user(username="hk2", password="Test@2026", role=User.Role.HOUSEKEEPING)
         self.qc = User.objects.create_user(username="qc-test", password="Test@2026", role=User.Role.QC)
         self.manager = User.objects.create_user(username="manager-test", password="Test@2026", role=User.Role.MANAGER)
-        self.branch_a = Branch.objects.create(code="A", name="Chi nhánh A")
-        self.branch_b = Branch.objects.create(code="B", name="Chi nhánh B")
-        for user in (self.hk1, self.hk2, self.qc, self.manager):
+        self.branch_a = Branch.objects.create(
+            code="A", name="Chi nhánh A", owner=self.manager
+        )
+        self.branch_b = Branch.objects.create(
+            code="B", name="Chi nhánh B", owner=self.manager
+        )
+        for user in (self.hk1, self.hk2):
             BranchMembership.objects.create(user=user, branch=self.branch_a)
-        BranchMembership.objects.create(user=self.manager, branch=self.branch_b)
+        BranchMembership.objects.create(
+            user=self.qc,
+            branch=self.branch_a,
+            membership_role=BranchMembership.MembershipRole.QC,
+        )
+        BranchMembership.objects.create(
+            user=self.manager,
+            branch=self.branch_a,
+            membership_role=BranchMembership.MembershipRole.MANAGER,
+        )
+        BranchMembership.objects.create(
+            user=self.manager,
+            branch=self.branch_b,
+            membership_role=BranchMembership.MembershipRole.MANAGER,
+        )
         now = timezone.now()
         self.shift = Shift.objects.create(
             branch=self.branch_a,

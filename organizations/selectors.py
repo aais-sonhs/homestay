@@ -1,5 +1,7 @@
 """Read-only query helpers for organizational scope."""
 
+from django.db.models import Q
+
 from common.access import GLOBAL_ROLES, active_memberships, is_active_user
 
 from .models import Branch, Room
@@ -11,7 +13,7 @@ def branch_queryset_for_user(user):
         return queryset.none()
     if user.role in GLOBAL_ROLES:
         return queryset
-    return queryset.filter(memberships__in=active_memberships(user)).distinct()
+    return queryset.filter(Q(owner=user) | Q(memberships__in=active_memberships(user))).distinct()
 
 
 def room_queryset_for_user(user):
@@ -20,5 +22,6 @@ def room_queryset_for_user(user):
         return queryset.none()
     if user.role in GLOBAL_ROLES:
         return queryset
-    return queryset.filter(branch__memberships__in=active_memberships(user)).distinct()
-
+    return queryset.filter(
+        Q(branch__owner=user) | Q(branch__memberships__in=active_memberships(user))
+    ).distinct()

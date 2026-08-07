@@ -1,0 +1,36 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Chủ chi nhánh | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Chủ chi nhánh</h1><p class="muted">Quản lý tài khoản chủ chi nhánh trên giao diện chính của Bliss Home.</p></div>
+    <a class="button" href="{% url 'organizations:branch-owner-create' %}">＋ Thêm chủ chi nhánh</a>
+</div>
+
+<form class="card toolbar entity-filter" method="get">
+    <label class="field grow"><span class="field-label">Tìm kiếm</span><input name="q" value="{{ filters.q }}" placeholder="Tên, tài khoản, email, số điện thoại hoặc chi nhánh"></label>
+    <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="active"{% if filters.status == 'active' %} selected{% endif %}>Đang hoạt động</option><option value="inactive"{% if filters.status == 'inactive' %} selected{% endif %}>Đã khóa</option><option value="unassigned"{% if filters.status == 'unassigned' %} selected{% endif %}>Chưa có chi nhánh</option><option value="all"{% if filters.status == 'all' %} selected{% endif %}>Tất cả</option></select></label>
+    <button type="submit">Lọc dữ liệu</button><a class="button secondary" href="{% url 'organizations:branch-owner-list' %}">Xóa lọc</a>
+</form>
+
+<section class="card entity-list-card">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Chủ chi nhánh</th><th>Liên hệ</th><th>Chi nhánh sở hữu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody>
+            {% for owner in owners %}
+            <tr>
+                <td><strong>{{ owner.display_name }}</strong><br><span class="muted">@{{ owner.username }}</span></td>
+                <td>{{ owner.email }}{% if owner.phone_number %}<br><span class="muted">{{ owner.phone_number }}</span>{% endif %}</td>
+                <td class="wrap">
+                    {% for branch in owner.owned_branches.all %}<span class="pill{% if not branch.is_active %} warning{% endif %}">{{ branch.code }}</span>{% empty %}<span class="muted">Chưa được gán</span>{% endfor %}
+                </td>
+                <td>{% if owner.is_active %}<span class="pill room-ready-pill">Được đăng nhập</span>{% else %}<span class="pill danger">Đã khóa</span>{% endif %}</td>
+                <td><a class="button secondary permission-button" href="{% url 'organizations:branch-owner-update' owner.id %}" aria-label="Sửa tài khoản và phân quyền chi nhánh cho {{ owner.username }}">Phân quyền</a></td>
+            </tr>
+            {% empty %}<tr><td colspan="5" class="empty">Chưa có tài khoản chủ chi nhánh phù hợp.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

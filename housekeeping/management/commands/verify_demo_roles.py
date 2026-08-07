@@ -37,6 +37,7 @@ TASK_READER_USERS = {
     "qc",
     "customer_service",
     "viewer",
+    "sales",
 }
 
 

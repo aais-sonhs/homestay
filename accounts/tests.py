@@ -357,6 +357,8 @@ class ForgotPasswordWebTests(TestCase):
         done = self.client.get(reverse("forgot-password-done"))
 
         self.assertContains(login, reverse("forgot-password"))
+        self.assertContains(login, "branding/bliss-homestay-logo.jpg?v=20260807-1")
+        self.assertNotContains(login, "branding/bliss-home-mark.svg")
         self.assertEqual(public_login.status_code, 200)
         self.assertContains(request_page, "Gửi mã xác thực")
         self.assertContains(done, "Đăng nhập ngay")
@@ -396,7 +398,7 @@ class ForgotPasswordWebTests(TestCase):
         self.assertNotContains(response, "Quản trị hệ thống")
         self.assertNotContains(response, ">Trang chủ</a>")
 
-    def test_superuser_account_menu_shows_system_admin(self):
+    def test_superuser_keeps_system_admin_submenu_and_main_sidebar(self):
         user = User.objects.create_superuser(
             username="root-menu-user",
             password="Current@2026Pass",
@@ -407,6 +409,11 @@ class ForgotPasswordWebTests(TestCase):
 
         self.assertContains(response, "Quản trị hệ thống")
         self.assertContains(response, reverse("admin:index"))
+        self.assertContains(response, reverse("organizations:branch-list"))
+        self.assertContains(response, reverse("organizations:branch-owner-list"))
+        self.assertContains(response, "branding/bliss-homestay-logo.jpg?v=20260807-1")
+        admin_page = self.client.get(reverse("admin:index"))
+        self.assertContains(admin_page, "branding/bliss-homestay-logo.jpg?v=20260807-1")
 
     def test_avatar_update_uploads_and_removes_image(self):
         user = User.objects.create_user(
@@ -430,8 +437,12 @@ class ForgotPasswordWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(user.avatar.name.startswith("avatars/"))
         self.assertContains(response, "Ảnh đại diện đã được cập nhật.")
+        self.assertContains(response, f'src="{user.avatar.url}"')
         uploaded_name = user.avatar.name
         self.assertTrue(user.avatar.storage.exists(user.avatar.name))
+        avatar_response = self.client.get(user.avatar.url)
+        self.assertEqual(avatar_response.status_code, 200)
+        self.assertEqual(avatar_response["Content-Type"], "image/gif")
 
         response = self.client.post(reverse("avatar-update"), {"remove_avatar": "on"}, follow=True)
 

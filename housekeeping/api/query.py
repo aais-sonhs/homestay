@@ -169,6 +169,10 @@ def filtered_task_queryset(user, params, *, apply_defaults=True):
         )
         if user.role in {User.Role.FOUNDER, User.Role.MANAGER, User.Role.CUSTOMER_SERVICE}:
             search |= Q(booking__guest_name__icontains=query) | Q(booking__guest_phone__icontains=query)
+        elif user.role == User.Role.BRANCH_OWNER:
+            search |= Q(branch__owner=user) & (
+                Q(booking__guest_name__icontains=query) | Q(booking__guest_phone__icontains=query)
+            )
         queryset = queryset.filter(search)
 
     return queryset.annotate(

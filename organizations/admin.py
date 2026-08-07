@@ -5,6 +5,7 @@ from .models import (
     Branch,
     BranchHousekeepingPolicy,
     BranchMembership,
+    BranchOwnershipHistory,
     HousekeepingTeam,
     Room,
     Shift,
@@ -26,6 +27,6 @@ admin.site.register(Area)
 admin.site.register(Skill)
 admin.site.register(HousekeepingTeam)
 admin.site.register(BranchMembership)
+admin.site.register(BranchOwnershipHistory)
 admin.site.register(Shift)
 admin.site.register(ShiftAssignment)
-

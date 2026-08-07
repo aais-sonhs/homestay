@@ -64,7 +64,7 @@ from .services import (
 )
 
 
-MANAGEMENT_ROLES = {User.Role.FOUNDER, User.Role.MANAGER}
+MANAGEMENT_ROLES = {User.Role.FOUNDER, User.Role.BRANCH_OWNER, User.Role.MANAGER}
 
 
 def _allowed_branches(user):
@@ -187,8 +187,8 @@ def task_detail(request, task_id):
         "housekeeping/task_detail.html",
         {
             "task": task,
-            "is_management": request.user.role in {User.Role.FOUNDER, User.Role.MANAGER},
-            "can_qc": request.user.role in {User.Role.FOUNDER, User.Role.MANAGER, User.Role.QC},
+            "is_management": request.user.role in {User.Role.FOUNDER, User.Role.BRANCH_OWNER, User.Role.MANAGER},
+            "can_qc": request.user.role in {User.Role.FOUNDER, User.Role.BRANCH_OWNER, User.Role.MANAGER, User.Role.QC},
             "assignees": User.objects.filter(
                 role=User.Role.HOUSEKEEPING,
                 is_active=True,

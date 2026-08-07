@@ -1,9 +1,9 @@
 from django.utils import timezone
 
 from accounts.models import User
+from common.access import Capability, can_view_booking_guest, decide_task_capability
 from common.display import localized_system_text
 from housekeeping.models import HousekeepingTask, TaskChecklistItem
-from common.access import Capability, decide_task_capability
 
 
 def iso_datetime(value):
@@ -176,6 +176,7 @@ def task_data(task, user, *, detail=False, request=None):
         "isCheckinRisk": bool(task.next_checkin_at and task.due_at >= task.next_checkin_at),
         "guestInRoom": task.guest_in_room or task.room.is_guest_occupied,
         "specialRequest": task.special_request,
+        "specialRequestItems": task.special_request_items,
         "note": task.note,
         "checklistSummary": _checklist_summary(task),
         "photoCount": getattr(task, "api_photo_count", None)
@@ -197,7 +198,7 @@ def task_data(task, user, *, detail=False, request=None):
             "checkoutAt": iso_datetime(task.booking.checkout_at),
             "guestCount": task.booking.guest_count,
         }
-        if user.role in {User.Role.FOUNDER, User.Role.MANAGER, User.Role.CUSTOMER_SERVICE}:
+        if can_view_booking_guest(user, task.branch):
             booking["guestName"] = task.booking.guest_name
             booking["guestPhone"] = task.booking.guest_phone
 

@@ -85,8 +85,12 @@ class Phase8BackofficeUITests(TestCase):
             username="phase8-outsider",
             role=User.Role.HOUSEKEEPING,
         )
-        self.branch = Branch.objects.create(code="P8-A", name="Phase 8 Đà Lạt")
-        self.other_branch = Branch.objects.create(code="P8-B", name="Phase 8 Hà Nội")
+        self.branch = Branch.objects.create(
+            code="P8-A", name="Phase 8 Đà Lạt", owner=self.manager
+        )
+        self.other_branch = Branch.objects.create(
+            code="P8-B", name="Phase 8 Hà Nội", owner=self.outsider
+        )
         for user, role in (
             (self.manager, BranchMembership.MembershipRole.MANAGER),
             (self.housekeeper, BranchMembership.MembershipRole.HOUSEKEEPER),

@@ -1,6 +1,12 @@
 {% extends "admin/base.html" %}
+{% load static %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | Quản trị Bliss Home{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+{% include "shared/favicon.html" %}
+{% endblock %}
 
 {% block branding %}
 <h1 id="site-name"><a href="{% url 'admin:index' %}">Quản trị hệ thống Bliss Home</a></h1>

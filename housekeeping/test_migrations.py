@@ -51,11 +51,22 @@ class DomainFoundationMigrationTests(TransactionTestCase):
             role="housekeeping",
             is_active=True,
         ).id
+        manager_id = User.objects.create(
+            username="legacy-manager",
+            role="manager",
+            is_active=True,
+        ).id
         branch = Branch.objects.create(code="LEGACY", name="Chi nhánh legacy")
         Membership.objects.create(
             user_id=self.user_id,
             branch_id=branch.id,
             area="Khu A",
+            is_active=True,
+        )
+        Membership.objects.create(
+            user_id=manager_id,
+            branch_id=branch.id,
+            can_manage_team=True,
             is_active=True,
         )
         now = timezone.now()
@@ -252,3 +263,170 @@ class OfflineReceiptMigrationTests(TransactionTestCase):
         self.assertEqual(receipt.conflict_payload, {})
         self.assertEqual(receipt.resolution, "")
         self.assertIsNone(receipt.resolved_at)
+
+
+class BookingLifecycleMigrationTests(TransactionTestCase):
+    """Phase 1: adding booking audit/version fields preserves booking-task links."""
+
+    migrate_from = ("housekeeping", "0012_sales_booking_automation")
+    migrate_to = ("housekeeping", "0013_booking_lifecycle_audit")
+    accounts_state = ("accounts", "0010_add_sales_role")
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from, self.accounts_state])
+        old_apps = executor.loader.project_state([self.migrate_from, self.accounts_state]).apps
+        User = old_apps.get_model("accounts", "User")
+        Branch = old_apps.get_model("housekeeping", "Branch")
+        Room = old_apps.get_model("housekeeping", "Room")
+        Booking = old_apps.get_model("housekeeping", "Booking")
+        Task = old_apps.get_model("housekeeping", "HousekeepingTask")
+
+        owner = User.objects.create(username="booking-migration-owner", is_active=True)
+        branch = Branch.objects.create(code="BOOKING-MIGRATION", name="Booking migration", owner_id=owner.id)
+        room = Room.objects.create(branch_id=branch.id, code="M101", name="Phòng M101")
+        now = timezone.now()
+        booking = Booking.objects.create(
+            branch_id=branch.id,
+            room_id=room.id,
+            code="MIGRATION-BOOKING",
+            status="BOOKED",
+            checkin_at=now + timedelta(days=1),
+            checkout_at=now + timedelta(days=2),
+            guest_name="Khách migration",
+            source="LEGACY",
+        )
+        task = Task.objects.create(
+            branch_id=branch.id,
+            room_id=room.id,
+            booking_id=booking.id,
+            booking_code=booking.code,
+            code="MIGRATION-TASK",
+            task_type="CHECKOUT_CLEANING",
+            status="UNASSIGNED",
+            scheduled_start_at=booking.checkout_at,
+            due_at=booking.checkout_at + timedelta(minutes=60),
+        )
+        self.booking_id = booking.id
+        self.task_id = task.id
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to, self.accounts_state])
+        self.apps = executor.loader.project_state([self.migrate_to, self.accounts_state]).apps
+
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+    def test_booking_and_task_survive_lifecycle_audit_migration(self):
+        Booking = self.apps.get_model("housekeeping", "Booking")
+        Task = self.apps.get_model("housekeeping", "HousekeepingTask")
+        BookingChangeLog = self.apps.get_model("housekeeping", "BookingChangeLog")
+
+        booking = Booking.objects.get(pk=self.booking_id)
+        task = Task.objects.get(pk=self.task_id)
+        self.assertEqual(booking.version, 1)
+        self.assertEqual(booking.status, "BOOKED")
+        self.assertIsNone(booking.cancelled_at)
+        self.assertEqual(task.booking_id, booking.id)
+        self.assertEqual(task.booking_code, booking.code)
+        self.assertFalse(BookingChangeLog.objects.filter(booking_id=booking.id).exists())
+
+
+class StructuredBookingRequestMigrationTests(TransactionTestCase):
+    """Phase 1: free-text requests survive as branch-scoped items and task snapshots."""
+
+    migrate_from = ("housekeeping", "0013_booking_lifecycle_audit")
+    migrate_to = ("housekeeping", "0014_structured_booking_requests")
+    accounts_state = ("accounts", "0010_add_sales_role")
+
+    def setUp(self):
+        super().setUp()
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from, self.accounts_state])
+        old_apps = executor.loader.project_state([self.migrate_from, self.accounts_state]).apps
+        User = old_apps.get_model("accounts", "User")
+        Branch = old_apps.get_model("housekeeping", "Branch")
+        Room = old_apps.get_model("housekeeping", "Room")
+        Booking = old_apps.get_model("housekeeping", "Booking")
+        Task = old_apps.get_model("housekeeping", "HousekeepingTask")
+
+        owner = User.objects.create(username="request-migration-owner", is_active=True)
+        branch = Branch.objects.create(
+            code="REQUEST-MIGRATION",
+            name="Request migration",
+            owner_id=owner.id,
+        )
+        room = Room.objects.create(branch_id=branch.id, code="R101", name="Phòng R101")
+        now = timezone.now()
+        booking = Booking.objects.create(
+            branch_id=branch.id,
+            room_id=room.id,
+            code="REQUEST-BOOKING",
+            status="BOOKED",
+            checkin_at=now + timedelta(days=1),
+            checkout_at=now + timedelta(days=2),
+            special_requests="Chuẩn bị hai gối và không xịt phòng",
+            created_by_id=owner.id,
+        )
+        linked_task = Task.objects.create(
+            branch_id=branch.id,
+            room_id=room.id,
+            booking_id=booking.id,
+            booking_code=booking.code,
+            code="REQUEST-LINKED-TASK",
+            task_type="CHECKIN_PREPARATION",
+            status="UNASSIGNED",
+            scheduled_start_at=booking.checkin_at - timedelta(minutes=90),
+            due_at=booking.checkin_at - timedelta(minutes=30),
+            special_request=booking.special_requests,
+        )
+        standalone_task = Task.objects.create(
+            branch_id=branch.id,
+            room_id=room.id,
+            code="REQUEST-STANDALONE-TASK",
+            task_type="DEEP_CLEANING",
+            status="UNASSIGNED",
+            scheduled_start_at=now + timedelta(hours=1),
+            due_at=now + timedelta(hours=3),
+            special_request="Không dùng hóa chất có mùi",
+        )
+        self.branch_id = branch.id
+        self.booking_id = booking.id
+        self.linked_task_id = linked_task.id
+        self.standalone_task_id = standalone_task.id
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to, self.accounts_state])
+        self.apps = executor.loader.project_state([self.migrate_to, self.accounts_state]).apps
+
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
+    def test_free_text_is_backfilled_without_losing_task_visibility(self):
+        BookingSpecialRequest = self.apps.get_model(
+            "housekeeping", "BookingSpecialRequest"
+        )
+        Task = self.apps.get_model("housekeeping", "HousekeepingTask")
+
+        item = BookingSpecialRequest.objects.get(booking_id=self.booking_id)
+        self.assertEqual(item.branch_id, self.branch_id)
+        self.assertEqual(item.request_type, "OTHER")
+        self.assertEqual(item.applies_to, "ALL")
+        self.assertEqual(item.description, "Chuẩn bị hai gối và không xịt phòng")
+        linked = Task.objects.get(pk=self.linked_task_id)
+        self.assertEqual(linked.special_request_items[0]["sourceRequestId"], str(item.id))
+        self.assertEqual(
+            linked.special_request_items[0]["description"],
+            "Chuẩn bị hai gối và không xịt phòng",
+        )
+        standalone = Task.objects.get(pk=self.standalone_task_id)
+        self.assertIsNone(standalone.special_request_items[0]["sourceRequestId"])
+        self.assertEqual(
+            standalone.special_request_items[0]["description"],
+            "Không dùng hóa chất có mùi",
+        )

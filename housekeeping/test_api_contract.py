@@ -45,8 +45,12 @@ class HousekeepingAPIContractTests(TestCase):
             password="Test@2026",
             role=User.Role.HOUSEKEEPING,
         )
-        self.branch = Branch.objects.create(code="API", name="API Branch")
-        self.other_branch = Branch.objects.create(code="OTHER-API", name="Other API Branch")
+        self.branch = Branch.objects.create(
+            code="API", name="API Branch", owner=self.manager
+        )
+        self.other_branch = Branch.objects.create(
+            code="OTHER-API", name="Other API Branch", owner=self.outsider
+        )
         self.area = Area.objects.create(branch=self.branch, code="A", name="Khu A")
         self.team = HousekeepingTeam.objects.create(branch=self.branch, code="TEAM", name="Đội API")
         self.team.areas.add(self.area)

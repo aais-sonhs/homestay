@@ -14,6 +14,11 @@ class Branch(models.Model):
     code = models.CharField(max_length=30, unique=True)
     name = models.CharField(max_length=200)
     address = models.CharField(max_length=500, blank=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="owned_branches",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -22,6 +27,41 @@ class Branch(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+
+class BranchOwnershipHistory(models.Model):
+    class Source(models.TextChoices):
+        CREATED = "CREATED", "Tạo chi nhánh"
+        TRANSFERRED = "TRANSFERRED", "Chuyển chủ"
+        LEGACY_BACKFILL = "LEGACY_BACKFILL", "Chuẩn hóa dữ liệu cũ"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name="ownership_history")
+    previous_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="previous_branch_ownership_records",
+    )
+    new_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="new_branch_ownership_records",
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="branch_ownership_changes",
+    )
+    source = models.CharField(max_length=24, choices=Source.choices)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "branch_ownership_history"
+        ordering = ["-created_at", "-id"]
 
 
 class BranchHousekeepingPolicy(models.Model):
@@ -113,6 +153,7 @@ class BranchMembership(models.Model):
         QC = "QC", "Kiểm tra chất lượng"
         WAREHOUSE = "WAREHOUSE", "Kho"
         TECHNICIAN = "TECHNICIAN", "Kỹ thuật"
+        SALES = "SALES", "Kinh doanh"
         VIEWER = "VIEWER", "Chỉ xem"
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="branch_memberships")
@@ -230,6 +271,12 @@ class Booking(models.Model):
         CHECKED_OUT = "CHECKED_OUT", "Đã trả phòng"
         CANCELLED = "CANCELLED", "Đã hủy"
 
+    class Source(models.TextChoices):
+        MANUAL_SALES = "MANUAL_SALES", "Nhân viên kinh doanh nhập"
+        IMPORT = "IMPORT", "Nhập từ tệp"
+        PMS = "PMS", "Đồng bộ PMS"
+        LEGACY = "LEGACY", "Dữ liệu cũ"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="bookings")
     room = models.ForeignKey(Room, on_delete=models.PROTECT, related_name="bookings")
@@ -241,6 +288,36 @@ class Booking(models.Model):
     guest_phone = models.CharField(max_length=30, blank=True)
     guest_count = models.PositiveSmallIntegerField(default=1)
     special_requests = models.TextField(blank=True)
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        default=Source.MANUAL_SALES,
+        db_index=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_bookings",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_bookings",
+    )
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cancelled_bookings",
+    )
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True)
+    version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -251,6 +328,117 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.room}"
+
+
+class BookingSpecialRequest(models.Model):
+    class RequestType(models.TextChoices):
+        BEDDING = "BEDDING", "Giường và đồ vải"
+        AMENITY = "AMENITY", "Tiện nghi và vật tư"
+        ARRIVAL = "ARRIVAL", "Nhận phòng và đón khách"
+        ACCESSIBILITY = "ACCESSIBILITY", "Hỗ trợ tiếp cận"
+        HOUSEKEEPING = "HOUSEKEEPING", "Vệ sinh và buồng phòng"
+        CELEBRATION = "CELEBRATION", "Trang trí và dịp đặc biệt"
+        OTHER = "OTHER", "Yêu cầu khác"
+
+    class AppliesTo(models.TextChoices):
+        CHECKIN = "CHECKIN", "Trước khi nhận phòng"
+        STAY = "STAY", "Trong thời gian lưu trú"
+        CHECKOUT = "CHECKOUT", "Khi trả phòng"
+        ALL = "ALL", "Toàn bộ kỳ ở"
+
+    class Priority(models.TextChoices):
+        NORMAL = "NORMAL", "Bình thường"
+        HIGH = "HIGH", "Ưu tiên cao"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.PROTECT,
+        related_name="booking_special_requests",
+    )
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name="special_request_items",
+    )
+    request_type = models.CharField(
+        max_length=24,
+        choices=RequestType.choices,
+        default=RequestType.OTHER,
+        db_index=True,
+    )
+    applies_to = models.CharField(
+        max_length=16,
+        choices=AppliesTo.choices,
+        default=AppliesTo.CHECKIN,
+        db_index=True,
+    )
+    priority = models.CharField(
+        max_length=12,
+        choices=Priority.choices,
+        default=Priority.NORMAL,
+        db_index=True,
+    )
+    description = models.CharField(max_length=500)
+    quantity = models.PositiveSmallIntegerField(null=True, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_booking_special_requests",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "housekeeping_booking_special_requests"
+        ordering = ["sort_order", "created_at", "id"]
+        indexes = [
+            models.Index(
+                fields=("branch", "booking", "applies_to"),
+                name="hk_booking_req_scope_idx",
+            )
+        ]
+
+    def __str__(self):
+        return self.description
+
+
+class BookingChangeLog(models.Model):
+    class Action(models.TextChoices):
+        CREATED = "CREATED", "Tạo booking"
+        CHANGED = "CHANGED", "Thay đổi booking"
+        CANCELLED = "CANCELLED", "Hủy booking"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name="change_logs")
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="booking_change_logs")
+    action = models.CharField(max_length=20, choices=Action.choices, db_index=True)
+    booking_version = models.PositiveIntegerField()
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="booking_changes",
+    )
+    reason = models.TextField(blank=True)
+    before_snapshot = models.JSONField(default=dict, blank=True)
+    after_snapshot = models.JSONField(default=dict, blank=True)
+    correlation_id = models.CharField(max_length=64, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "housekeeping_booking_change_logs"
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("booking", "booking_version", "action"),
+                name="unique_booking_version_action",
+            )
+        ]
 
 
 class ChecklistTemplate(models.Model):
@@ -415,6 +603,7 @@ class HousekeepingTask(models.Model):
     locked_by_manager = models.BooleanField(default=False)
     guest_in_room = models.BooleanField(default=False)
     special_request = models.TextField(blank=True)
+    special_request_items = models.JSONField(default=list, blank=True)
     note = models.TextField(blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancelled_by = models.ForeignKey(

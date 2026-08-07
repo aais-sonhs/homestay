@@ -1,0 +1,47 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Dừng bán phòng | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Dừng bán phòng</h1><p class="muted">Sales đọc cùng một trạng thái bán; vận hành yêu cầu và xác nhận mở lại với audit đầy đủ.</p></div>
+    <div class="actions">{% if can_manage_stop_sell %}<a class="button" href="{% url 'room_operations:stop-sell-create' %}">Tạo dừng bán</a>{% endif %}<a class="button secondary" href="{% url 'room_operations:room-readiness' %}">Trạng thái phòng</a></div>
+</div>
+{% if not can_manage_stop_sell %}<div class="message"><div><strong>Chế độ chỉ đọc</strong><br><span>Sales và nhân sự hiện trường xem lý do, khoảng thời gian và dự kiến mở lại nhưng không thể thay đổi trạng thái.</span></div></div>{% endif %}
+
+<form class="card toolbar operations-filter" method="get">
+    <label class="field grow"><span class="field-label">Tìm kiếm</span><input type="search" name="q" value="{{ filters.q }}" placeholder="Phòng hoặc lý do"></label>
+    <label class="field"><span class="field-label">Ngày áp dụng</span><input type="date" name="date" value="{{ filters.date }}"></label>
+    <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh được cấp</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if filters.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+    <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="">Mọi trạng thái</option>{% for value,label in statuses %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Lọc</button><a class="button secondary" href="{% url 'room_operations:stop-sell-list' %}">Xóa lọc</a>
+</form>
+
+{% if pending_blockers %}
+<section class="card operations-section">
+    <div class="section-heading"><div><h2>Blocker chờ xác nhận gỡ</h2><p class="muted">Nguồn sự cố đã báo xử lý xong nhưng readiness chưa được mở tự động.</p></div><span class="pill warn">{{ pending_blockers|length }} blocker</span></div>
+    <div class="stop-sell-grid">
+        {% for row in pending_blocker_rows %}{% with blocker=row.blocker %}<article class="stop-sell-card"><div class="stop-sell-card-head"><div><strong>{{ blocker.room.code }} · {{ blocker.get_kind_display }}</strong><span>{{ blocker.branch.name }}</span></div><span class="pill warn">{{ blocker.get_status_display }}</span></div><p>{{ blocker.reason }}</p>{% if blocker.clearance_note %}<small>Kết quả xử lý: {{ blocker.clearance_note }}</small>{% endif %}{% if row.canManage %}<form method="post" action="{% url 'room_operations:blocker-confirm-clearance' blocker.id %}" class="stop-sell-action-form" data-confirm="Xác nhận gỡ blocker phòng {{ blocker.room.code }}?">{% csrf_token %}<input type="hidden" name="version" value="{{ blocker.version }}"><label class="field grow"><span class="field-label">Ghi chú xác nhận</span><textarea name="note" rows="2" required placeholder="Đã kiểm tra thực tế..."></textarea></label><button type="submit">Xác nhận gỡ blocker</button></form>{% endif %}</article>{% endwith %}{% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section class="card entity-list-card operations-section">
+    <div class="table-wrap">
+        <table class="operations-table stop-sell-table">
+            <thead><tr><th>Phòng / nguồn</th><th>Khoảng dừng bán</th><th>Lý do</th><th>Trạng thái</th><th>Audit gần nhất</th><th>Thao tác</th></tr></thead>
+            <tbody>
+            {% for row in stop_sell_rows %}{% with item=row.stopSell %}
+            <tr>
+                <td><a href="{% url 'room_operations:room-profile' item.room_id %}"><strong>{{ item.room.code }}</strong></a><br><span class="muted">{{ item.branch.name }}</span><br><span class="pill">{{ item.blocker.get_kind_display }}</span></td>
+                <td><strong>{{ item.starts_at|date:"H:i d/m/Y" }}</strong><br><span class="muted">đến dự kiến {{ item.planned_end_at|date:"H:i d/m/Y" }}</span>{% if item.status == 'ACTIVE' and not row.isFuture %}<br><small>Chỉ mở sau xác nhận</small>{% endif %}</td>
+                <td class="wrap"><span class="pill">{{ item.get_reason_code_display }}</span><p>{{ item.reason }}</p></td>
+                <td><span class="pill{% if item.status == 'ACTIVE' %} danger{% elif item.status == 'REOPEN_REQUESTED' %} warn{% endif %}">{{ item.get_status_display }}</span><br><span class="muted">Phiên bản {{ item.version }}</span></td>
+                <td class="wrap">{% with latest=item.history.all|first %}{% if latest %}<strong>{{ latest.get_action_display }}</strong><br><span class="muted">{{ latest.created_at|date:"H:i d/m/Y" }}{% if latest.actor %} · {{ latest.actor.display_name }}{% endif %}</span>{% else %}<span class="muted">Dữ liệu backfill</span>{% endif %}{% endwith %}</td>
+                <td class="wrap">{% if row.canManage and item.status == 'ACTIVE' %}<form method="post" action="{% if row.isFuture %}{% url 'room_operations:stop-sell-cancel' item.id %}{% else %}{% url 'room_operations:stop-sell-request-reopen' item.id %}{% endif %}" class="stop-sell-action-form" data-confirm="{% if row.isFuture %}Hủy lịch dừng bán{% else %}Gửi yêu cầu mở lại{% endif %} phòng {{ item.room.code }}?">{% csrf_token %}<input type="hidden" name="version" value="{{ item.version }}"><label class="field"><span class="field-label">Ghi chú</span><textarea name="note" rows="2" required></textarea></label><button type="submit"{% if row.isFuture %} class="danger"{% endif %}>{% if row.isFuture %}Hủy lịch{% else %}Yêu cầu mở lại{% endif %}</button></form>{% elif row.canManage and item.status == 'REOPEN_REQUESTED' %}<form method="post" action="{% url 'room_operations:stop-sell-confirm-reopen' item.id %}" class="stop-sell-action-form" data-confirm="Xác nhận mở bán lại phòng {{ item.room.code }}?">{% csrf_token %}<input type="hidden" name="version" value="{{ item.version }}"><label class="field"><span class="field-label">Ghi chú kiểm tra</span><textarea name="note" rows="2" required></textarea></label><button type="submit">Xác nhận mở lại</button></form>{% else %}<span class="muted">Chỉ đọc</span>{% endif %}</td>
+            </tr>
+            {% endwith %}{% empty %}<tr><td colspan="6" class="empty">Chưa có khoảng dừng bán phù hợp.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

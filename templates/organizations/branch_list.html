@@ -1,0 +1,42 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Quản lý chi nhánh | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Chi nhánh</h1><p class="muted">Quản lý các cơ sở lưu trú ngay trong nền tảng vận hành.</p></div>
+    <a class="button" href="{% url 'organizations:branch-create' %}">＋ Thêm chi nhánh</a>
+</div>
+
+<form class="card toolbar entity-filter" method="get">
+    <label class="field grow"><span class="field-label">Tìm kiếm</span><input name="q" value="{{ filters.q }}" placeholder="Mã, tên hoặc địa chỉ chi nhánh"></label>
+    <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="active"{% if filters.status == 'active' %} selected{% endif %}>Đang hoạt động</option><option value="inactive"{% if filters.status == 'inactive' %} selected{% endif %}>Ngừng hoạt động</option><option value="all"{% if filters.status == 'all' %} selected{% endif %}>Tất cả</option></select></label>
+    <button type="submit">Lọc dữ liệu</button><a class="button secondary" href="{% url 'organizations:branch-list' %}">Xóa lọc</a>
+</form>
+
+<section class="card entity-list-card">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Chi nhánh</th><th>Chủ chi nhánh</th><th>Địa chỉ</th><th>Phòng</th><th>Thành viên</th><th>Việc đang mở</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody>
+            {% for branch in branches %}
+            <tr>
+                <td><strong>{{ branch.name }}</strong><br><span class="muted">{{ branch.code }}</span></td>
+                <td>{% if branch.owner %}<strong>{{ branch.owner.display_name }}</strong><br><span class="muted">@{{ branch.owner.username }}</span>{% else %}<span class="pill warning">Chưa chỉ định</span>{% endif %}</td>
+                <td class="wrap">{{ branch.address|default:"Chưa cập nhật địa chỉ" }}</td>
+                <td>{{ branch.room_count }}</td>
+                <td>{{ branch.member_count }}</td>
+                <td>{{ branch.open_task_count }}</td>
+                <td>{% if branch.is_active %}<span class="pill room-ready-pill">Đang hoạt động</span>{% else %}<span class="pill danger">Ngừng hoạt động</span>{% endif %}</td>
+                <td>
+                    <div class="entity-actions">
+                        <a class="icon-button" href="{% url 'organizations:branch-update' branch.id %}" aria-label="Sửa chi nhánh {{ branch.name }}" title="Chỉnh sửa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"/><path d="m13.5 7.5 3 3"/></svg></a>
+                        <form method="post" action="{% url 'organizations:branch-toggle-active' branch.id %}" data-confirm="{% if branch.is_active %}Ngừng hoạt động chi nhánh {{ branch.name }}?{% else %}Kích hoạt lại chi nhánh {{ branch.name }}?{% endif %}">{% csrf_token %}<input type="hidden" name="active" value="{% if branch.is_active %}false{% else %}true{% endif %}"><button class="icon-button{% if branch.is_active %} danger{% endif %}" type="submit" aria-label="{% if branch.is_active %}Ngừng hoạt động{% else %}Kích hoạt lại{% endif %} chi nhánh {{ branch.name }}" title="{% if branch.is_active %}Ngừng hoạt động{% else %}Kích hoạt lại{% endif %}">{% if branch.is_active %}<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m7 17 10-10"/></svg>{% else %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>{% endif %}</button></form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}<tr><td colspan="8" class="empty">Chưa có chi nhánh phù hợp.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

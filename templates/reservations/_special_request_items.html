@@ -1,0 +1,15 @@
+{% if items %}
+<ul class="special-request-list">
+    {% for item in items %}
+    <li class="special-request-item">
+        <span class="pill{% if item.priority == 'HIGH' %} warn{% endif %}">{% firstof item.requestTypeLabel item.get_request_type_display %}</span>
+        <span class="pill">{% firstof item.appliesToLabel item.get_applies_to_display %}</span>
+        <span class="request-description">{% if item.quantity %}<strong>{{ item.quantity }} ×</strong> {% endif %}{{ item.description }}</span>
+    </li>
+    {% endfor %}
+</ul>
+{% elif fallback_text %}
+{{ fallback_text }}
+{% else %}
+<span class="muted">Không có yêu cầu đặc biệt</span>
+{% endif %}

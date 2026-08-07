@@ -54,16 +54,25 @@ class Command(BaseCommand):
             customer_service = User.objects.get(username="customer_service")
             housekeeping_lead = User.objects.get(username="housekeeping_lead")
             viewer = User.objects.get(username="viewer")
+            sales = User.objects.get(username="sales")
         except User.DoesNotExist as error:
             raise CommandError("Hãy chạy lệnh tạo dữ liệu tài khoản mẫu trước.") from error
 
         dalat, _ = Branch.objects.get_or_create(
             code="DALAT",
-            defaults={"name": "Bliss Home Đà Lạt", "address": "Đà Lạt, Lâm Đồng"},
+            defaults={
+                "name": "Bliss Home Đà Lạt",
+                "address": "Đà Lạt, Lâm Đồng",
+                "owner": manager,
+            },
         )
         hcm, _ = Branch.objects.get_or_create(
             code="HCM",
-            defaults={"name": "Bliss Home TP. Hồ Chí Minh", "address": "TP. Hồ Chí Minh"},
+            defaults={
+                "name": "Bliss Home TP. Hồ Chí Minh",
+                "address": "TP. Hồ Chí Minh",
+                "owner": manager,
+            },
         )
         for branch in (dalat, hcm):
             BranchHousekeepingPolicy.objects.get_or_create(branch=branch)
@@ -94,6 +103,7 @@ class Command(BaseCommand):
             customer_service.id: BranchMembership.MembershipRole.VIEWER,
             housekeeping_lead.id: BranchMembership.MembershipRole.HOUSEKEEPING_LEAD,
             viewer.id: BranchMembership.MembershipRole.VIEWER,
+            sales.id: BranchMembership.MembershipRole.SALES,
         }
         for user in (
             manager,
@@ -103,6 +113,7 @@ class Command(BaseCommand):
             customer_service,
             housekeeping_lead,
             viewer,
+            sales,
         ):
             for branch in (dalat, hcm):
                 is_team_manager = user in {manager, housekeeping_lead}

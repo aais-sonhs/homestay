@@ -11,6 +11,7 @@ from housekeeping.models import (
     Branch,
     BranchHousekeepingPolicy,
     BranchMembership,
+    BranchOwnershipHistory,
     HousekeepingTeam,
     Room,
     Shift,
@@ -23,10 +24,10 @@ __all__ = [
     "Branch",
     "BranchHousekeepingPolicy",
     "BranchMembership",
+    "BranchOwnershipHistory",
     "HousekeepingTeam",
     "Room",
     "Shift",
     "ShiftAssignment",
     "Skill",
 ]
-

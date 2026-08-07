@@ -35,7 +35,9 @@ class DomainFoundationModelTests(TestCase):
             password="Test@2026",
             role=User.Role.HOUSEKEEPING,
         )
-        self.branch = Branch.objects.create(code="DOMAIN", name="Domain Branch")
+        self.branch = Branch.objects.create(
+            code="DOMAIN", name="Domain Branch", owner=self.user
+        )
         self.room = Room.objects.create(
             branch=self.branch,
             code="D101",
@@ -164,7 +166,7 @@ class HousekeepingSeedDomainTests(TestCase):
 
         self.assertEqual(BranchHousekeepingPolicy.objects.count(), 2)
         self.assertEqual(HousekeepingTeam.objects.count(), 2)
-        self.assertEqual(User.objects.count(), 9)
+        self.assertEqual(User.objects.count(), 10)
         self.assertEqual(
             User.objects.filter(username="housekeeping_lead", role=User.Role.HOUSEKEEPING).count(),
             1,
@@ -184,6 +186,14 @@ class HousekeepingSeedDomainTests(TestCase):
                 is_active=True,
             ).count(),
             4,
+        )
+        self.assertEqual(
+            BranchMembership.objects.filter(
+                user__username="sales",
+                membership_role=BranchMembership.MembershipRole.SALES,
+                is_active=True,
+            ).count(),
+            2,
         )
         self.assertTrue(HousekeepingTask.objects.exclude(booking=None).exists())
         self.assertFalse(HousekeepingTask.objects.filter(checklist_template_version=None).exists())

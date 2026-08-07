@@ -10,7 +10,7 @@ from organizations.models import BranchMembership
 
 
 GLOBAL_ROLES = {User.Role.FOUNDER}
-MANAGEMENT_ROLES = GLOBAL_ROLES | {User.Role.MANAGER}
+MANAGEMENT_ROLES = GLOBAL_ROLES | {User.Role.BRANCH_OWNER, User.Role.MANAGER}
 FIELD_ROLES = MANAGEMENT_ROLES | {User.Role.HOUSEKEEPING}
 QC_ROLES = MANAGEMENT_ROLES | {User.Role.QC}
 
@@ -58,6 +58,33 @@ def membership_for(user, branch_id):
     return active_memberships(user).filter(branch_id=branch_id).first()
 
 
+def is_branch_owner(user, branch):
+    """Ownership comes from the branch relation, never from the account role alone."""
+    return bool(is_active_user(user) and getattr(branch, "owner_id", None) == user.id)
+
+
+def can_view_booking_guest(user, branch):
+    if not is_active_user(user):
+        return False
+    if user.role in GLOBAL_ROLES or is_branch_owner(user, branch):
+        return True
+    membership = membership_for(user, branch.id)
+    if membership is None:
+        return False
+    return bool(
+        membership.membership_role
+        in {
+            BranchMembership.MembershipRole.MANAGER,
+            BranchMembership.MembershipRole.SALES,
+        }
+        or user.role in {
+            User.Role.MANAGER,
+            User.Role.CUSTOMER_SERVICE,
+            User.Role.SALES,
+        }
+    )
+
+
 def allowed_branch_ids(user):
     if not is_active_user(user):
         return []
@@ -80,6 +107,7 @@ def membership_covers_task(membership, task):
         BranchMembership.MembershipRole.QC,
         BranchMembership.MembershipRole.WAREHOUSE,
         BranchMembership.MembershipRole.TECHNICIAN,
+        BranchMembership.MembershipRole.SALES,
         BranchMembership.MembershipRole.VIEWER,
     }:
         return True
@@ -186,13 +214,14 @@ def decide_task_capability(user, task, capability):
     if not membership_covers_task(membership, task):
         return PermissionDecision(False)
 
-    is_manager = user.role == User.Role.MANAGER or _management_membership(membership)
+    is_manager = is_branch_owner(user, task.branch) or _management_membership(membership)
     is_lead = _lead_membership(membership)
     is_qc = user.role == User.Role.QC or _qc_membership(membership)
+    is_sales = membership.membership_role == BranchMembership.MembershipRole.SALES
     is_owner = task.assignee_id == user.id
 
     if capability == Capability.VIEW:
-        if is_manager or is_lead or is_qc:
+        if is_manager or is_lead or is_qc or is_sales:
             return PermissionDecision(True)
         if user.role == User.Role.HOUSEKEEPING:
             is_open = task.assignee_id is None and task.status == HousekeepingTask.Status.UNASSIGNED
@@ -238,11 +267,10 @@ def decide_task_capability(user, task, capability):
 def open_task_scope_q(membership, user):
     scope = Q(branch_id=membership.branch_id)
     role = membership.membership_role
-    if user.role in {User.Role.MANAGER, User.Role.QC}:
-        return scope
     if role in {
         BranchMembership.MembershipRole.MANAGER,
         BranchMembership.MembershipRole.QC,
+        BranchMembership.MembershipRole.SALES,
     }:
         return scope
     if role == BranchMembership.MembershipRole.HOUSEKEEPING_LEAD:

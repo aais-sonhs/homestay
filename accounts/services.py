@@ -50,7 +50,7 @@ def change_authenticated_password(*, user, current_password, new_password, confi
             "PASSWORD_NOT_MATCH",
             "Xác nhận mật khẩu không khớp.",
         )
-    policy_errors = _password_policy_errors(str(new_password or ""), locked_user)
+    policy_errors = password_policy_errors(str(new_password or ""), locked_user)
     if policy_errors:
         raise PasswordResetError(
             "PASSWORD_POLICY_FAILED",
@@ -436,7 +436,7 @@ def resend_otp(*, request_id, context):
     return reset_request
 
 
-def _password_policy_errors(password, user):
+def password_policy_errors(password, user):
     errors = []
     if len(password) < 8:
         errors.append("Mật khẩu phải có tối thiểu 8 ký tự.")
@@ -532,7 +532,7 @@ def _reset_password_atomic(*, request_id, secret, new_password, confirm_password
             "ACCOUNT_DISABLED",
             "Không thể xử lý yêu cầu. Vui lòng liên hệ quản trị viên.",
         )
-    policy_errors = _password_policy_errors(str(new_password or ""), user)
+    policy_errors = password_policy_errors(str(new_password or ""), user)
     if policy_errors:
         raise PasswordResetError(
             "PASSWORD_POLICY_FAILED",
