@@ -1,0 +1,554 @@
+{% extends "base.html" %}
+
+{% block title %}Tài liệu hệ thống | Bliss Home{% endblock %}
+
+{% block content %}
+<div class="docs-page">
+    <header id="doc-start" class="docs-hero">
+        <div class="docs-hero-copy">
+            <span class="docs-eyebrow">BLISS HOME · OPERATIONS MANUAL</span>
+            <h1>Tài liệu hệ thống Bliss Home</h1>
+            <p>
+                Hướng dẫn vận hành thống nhất cho chủ chi nhánh, quản lý, kinh doanh,
+                buồng phòng, QC, kho, kỹ thuật và CSKH — từ lúc tạo booking đến khi phòng
+                được xác nhận sẵn sàng.
+            </p>
+            <div class="docs-meta" aria-label="Thông tin tài liệu">
+                <span>Phiên bản 07/08/2026</span>
+                <span>Một trang · Cuộn liên tục</span>
+                <span>Web + Mobile API</span>
+            </div>
+        </div>
+        <div class="docs-hero-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64"><path d="M17 8h25l8 8v40H17a6 6 0 0 1-6-6V14a6 6 0 0 1 6-6Z"/><path d="M40 8v11h10M22 29h17M22 38h20M22 47h13"/></svg>
+        </div>
+    </header>
+
+    <div class="docs-layout">
+        <aside class="docs-toc" aria-label="Mục lục tài liệu">
+            <div class="docs-toc-head">
+                <span>Mục lục</span>
+                <a href="#doc-start">Lên đầu trang ↑</a>
+            </div>
+            <nav>
+                <a href="#tong-quan"><span>01</span>Tổng quan &amp; bắt đầu</a>
+                <a href="#vai-tro"><span>02</span>Vai trò &amp; phạm vi</a>
+                <a href="#chi-nhanh"><span>03</span>Chi nhánh &amp; tổ chức</a>
+                <a href="#booking"><span>04</span>Booking</a>
+                <a href="#cong-viec"><span>05</span>Công việc buồng phòng</a>
+                <a href="#qc-ho-tro"><span>06</span>QC, kho &amp; kỹ thuật</a>
+                <a href="#phong"><span>07</span>Lịch &amp; trạng thái phòng</a>
+                <a href="#stop-sell"><span>08</span>Blocker &amp; dừng bán</a>
+                <a href="#man-hinh-web"><span>09</span>Các màn hình web</a>
+                <a href="#mobile-api"><span>10</span>Mobile &amp; API</a>
+                <a href="#bao-mat"><span>11</span>Bảo mật &amp; dữ liệu</a>
+                <a href="#trang-thai"><span>12</span>Tra cứu trạng thái</a>
+                <a href="#xu-ly-loi"><span>13</span>Xử lý tình huống</a>
+            </nav>
+        </aside>
+
+        <article class="docs-content">
+            <section id="tong-quan" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">01</span>
+                    <div>
+                        <p class="doc-kicker">Nền tảng vận hành</p>
+                        <h2>Tổng quan và cách bắt đầu</h2>
+                    </div>
+                </div>
+                <p class="doc-lead">
+                    Bliss Home kết nối booking, lịch phòng và công việc hiện trường trong một luồng dữ liệu.
+                    Mỗi người chỉ thao tác trên chi nhánh, phòng và nhiệm vụ thuộc phạm vi được giao.
+                </p>
+                <div class="doc-flow doc-flow-five" aria-label="Luồng vận hành tổng quát">
+                    <div><b>1</b><strong>Tạo booking</strong><small>Phòng, lịch ở, khách và yêu cầu đặc biệt</small></div>
+                    <div><b>2</b><strong>Sinh công việc</strong><small>Chuẩn bị check-in và dọn sau checkout</small></div>
+                    <div><b>3</b><strong>Thực hiện</strong><small>Nhận việc, xác minh phòng, checklist và ảnh</small></div>
+                    <div><b>4</b><strong>QC kiểm tra</strong><small>Duyệt đạt hoặc trả lại hạng mục chưa đạt</small></div>
+                    <div><b>5</b><strong>Phòng sẵn sàng</strong><small>Cập nhật điều phối và tiếp tục bán phòng</small></div>
+                </div>
+                <div class="doc-grid doc-grid-three">
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-indigo">✓</span>
+                        <h3>Dùng trên web</h3>
+                        <p>Điều phối, booking, quản trị chi nhánh, QC, kho, kỹ thuật và theo dõi tổng thể.</p>
+                    </div>
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-teal">↗</span>
+                        <h3>Dùng trên mobile</h3>
+                        <p>Đăng nhập và thao tác công việc trực tiếp qua API của máy chủ Bliss Home.</p>
+                    </div>
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-orange">◎</span>
+                        <h3>Một nguồn dữ liệu</h3>
+                        <p>Web và ứng dụng cùng đọc dữ liệu vận hành trên máy chủ; mobile không có database nghiệp vụ riêng.</p>
+                    </div>
+                </div>
+                <div class="doc-callout doc-callout-info">
+                    <strong>Bắt đầu nhanh</strong>
+                    <p>Đăng nhập → kiểm tra đúng chi nhánh → mở màn hình theo vai trò → đọc thông báo hoặc công việc đến hạn trước khi thao tác.</p>
+                </div>
+            </section>
+
+            <section id="vai-tro" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">02</span>
+                    <div>
+                        <p class="doc-kicker">Phân quyền</p>
+                        <h2>Vai trò và phạm vi dữ liệu</h2>
+                    </div>
+                </div>
+                <p>
+                    Quyền truy cập được ghép từ <strong>vai trò tài khoản</strong> và <strong>thành viên chi nhánh</strong>.
+                    Có tên vai trò phù hợp nhưng chưa được gán vào chi nhánh thì danh sách có thể trống hoặc thao tác bị từ chối.
+                </p>
+                <div class="doc-table-wrap">
+                    <table class="doc-table">
+                        <thead><tr><th>Vai trò</th><th>Phạm vi</th><th>Nghiệp vụ chính</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>Nhà sáng lập / Quản trị viên</strong></td><td>Toàn hệ thống</td><td>Chi nhánh, chủ chi nhánh, cấu hình, giám sát và toàn bộ nghiệp vụ.</td></tr>
+                            <tr><td><strong>Chủ chi nhánh</strong></td><td>Các chi nhánh sở hữu</td><td>Điều hành booking, phòng, đội ngũ, hiệu suất và các tình huống vận hành.</td></tr>
+                            <tr><td><strong>Quản lý</strong></td><td>Chi nhánh được gán</td><td>Tạo/phân công việc, điều phối, xử lý ngoại lệ, xác nhận mở lại phòng.</td></tr>
+                            <tr><td><strong>Kinh doanh</strong></td><td>Chi nhánh được gán</td><td>Tạo, sửa, hủy booking và ghi nhận yêu cầu đặc biệt của khách.</td></tr>
+                            <tr><td><strong>CSKH</strong></td><td>Phạm vi được cấp</td><td>Theo dõi booking và yêu cầu khách cần phối hợp với vận hành.</td></tr>
+                            <tr><td><strong>Nhân viên buồng phòng</strong></td><td>Việc/ca/khu vực được giao</td><td>Nhận việc, xác minh phòng, checklist, ảnh, yêu cầu vật tư và báo sự cố.</td></tr>
+                            <tr><td><strong>Kiểm tra chất lượng</strong></td><td>Hàng chờ QC được gán</td><td>Kiểm tra kết quả, duyệt đạt hoặc yêu cầu làm lại theo từng vòng.</td></tr>
+                            <tr><td><strong>Kho</strong></td><td>Chi nhánh/điểm kho được gán</td><td>Tiếp nhận, cấp hoặc từ chối yêu cầu vật tư và ghi chú xử lý.</td></tr>
+                            <tr><td><strong>Kỹ thuật</strong></td><td>Chi nhánh/sự cố được gán</td><td>Tiếp nhận, xử lý sự cố; phối hợp gỡ blocker khi phòng an toàn.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="doc-callout doc-callout-warning">
+                    <strong>Nguyên tắc tối thiểu</strong>
+                    <p>Không dùng chung tài khoản. Không chuyển ảnh hoặc thông tin khách ra ngoài kênh được phê duyệt. Nếu cần thêm quyền, yêu cầu quản trị viên cập nhật thành viên chi nhánh.</p>
+                </div>
+            </section>
+
+            <section id="chi-nhanh" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">03</span>
+                    <div>
+                        <p class="doc-kicker">Cấu trúc tổ chức</p>
+                        <h2>Chi nhánh, khu vực, đội và ca</h2>
+                    </div>
+                </div>
+                <div class="doc-grid doc-grid-two">
+                    <div>
+                        <h3>Dữ liệu nền cần có</h3>
+                        <ul class="doc-list">
+                            <li><strong>Chi nhánh:</strong> mã, tên, địa chỉ, chủ sở hữu và trạng thái hoạt động.</li>
+                            <li><strong>Phòng:</strong> mã duy nhất trong chi nhánh, tầng, khu vực, loại phòng và chính sách xác minh.</li>
+                            <li><strong>Khu vực:</strong> gom phòng theo tầng/khu để phân công đúng người.</li>
+                            <li><strong>Đội và trưởng nhóm:</strong> tập hợp nhân sự có cùng vùng phụ trách.</li>
+                            <li><strong>Ca làm:</strong> khung giờ và danh sách nhân sự tham gia.</li>
+                            <li><strong>Kỹ năng:</strong> đối chiếu yêu cầu công việc với năng lực người nhận.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Chính sách buồng phòng</h3>
+                        <ul class="doc-list">
+                            <li>Cho phép hoặc chặn làm ngoài ca.</li>
+                            <li>Giới hạn số công việc đồng thời.</li>
+                            <li>Quy định QR, GPS, Wi-Fi hoặc camera khi xác minh phòng.</li>
+                            <li>Quy định ảnh chụp trực tiếp cho bằng chứng.</li>
+                            <li>Chặn hoàn thành khi còn vật tư hoặc đồng bộ đang chờ.</li>
+                            <li>Thiết lập thời gian đệm cảnh báo rủi ro check-in.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="doc-note">
+                    <strong>Thứ tự cấu hình khuyến nghị:</strong> tạo chủ chi nhánh → tạo chi nhánh → phòng/khu vực → đội/ca/kỹ năng → gán thành viên → kiểm tra quyền bằng tài khoản thật.
+                </div>
+                {% if request.user.is_superuser %}
+                <div class="doc-actions">
+                    <a class="button secondary" href="{% url 'organizations:branch-list' %}">Mở quản lý chi nhánh</a>
+                    <a class="button secondary" href="{% url 'organizations:branch-owner-list' %}">Mở danh sách chủ chi nhánh</a>
+                </div>
+                {% endif %}
+            </section>
+
+            <section id="booking" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">04</span>
+                    <div>
+                        <p class="doc-kicker">Đầu vào vận hành</p>
+                        <h2>Booking và yêu cầu đặc biệt</h2>
+                    </div>
+                </div>
+                <h3>Tạo booking đúng cách</h3>
+                <ol class="doc-steps">
+                    <li><b>1</b><div><strong>Chọn chi nhánh và phòng</strong><p>Chỉ chọn phòng thuộc đúng chi nhánh. Hệ thống kiểm tra lịch trùng và khoảng dừng bán có hiệu lực.</p></div></li>
+                    <li><b>2</b><div><strong>Nhập thời gian lưu trú</strong><p>Check-in phải trước checkout. Thời gian này được dùng để lập lịch chuẩn bị và dọn phòng.</p></div></li>
+                    <li><b>3</b><div><strong>Nhập thông tin khách cần thiết</strong><p>Tên, số điện thoại và số khách chỉ hiển thị cho vai trò có quyền xem dữ liệu khách.</p></div></li>
+                    <li><b>4</b><div><strong>Thêm yêu cầu có cấu trúc</strong><p>Chọn loại, giai đoạn áp dụng, ưu tiên, mô tả và số lượng nếu có.</p></div></li>
+                    <li><b>5</b><div><strong>Lưu và kiểm tra công việc liên kết</strong><p>Hệ thống tạo việc chuẩn bị check-in và dọn sau checkout, sau đó đưa vào lịch điều phối.</p></div></li>
+                </ol>
+                <div class="doc-grid doc-grid-two">
+                    <div class="doc-subcard">
+                        <h3>Khi sửa booking</h3>
+                        <p>Phòng và lịch của các công việc liên kết được cập nhật nếu công việc chưa bắt đầu. Nếu dữ liệu đã được người khác thay đổi, hệ thống dùng phiên bản để ngăn ghi đè.</p>
+                    </div>
+                    <div class="doc-subcard">
+                        <h3>Khi hủy booking</h3>
+                        <p>Phải nhập lý do. Các công việc còn đủ điều kiện sẽ được đồng bộ sang hủy; công việc đã tiến hành cần quản lý xử lý theo tình trạng thực tế.</p>
+                    </div>
+                </div>
+                <h3>Yêu cầu đặc biệt</h3>
+                <div class="doc-tags">
+                    <span>Giường &amp; đồ vải</span><span>Tiện nghi &amp; vật tư</span><span>Đón khách</span>
+                    <span>Hỗ trợ tiếp cận</span><span>Buồng phòng</span><span>Trang trí</span><span>Khác</span>
+                </div>
+                <p class="doc-muted">Yêu cầu có thể áp dụng trước check-in, trong kỳ ở, khi checkout hoặc toàn bộ kỳ ở. Bản chụp yêu cầu được gắn vào công việc để nhân viên luôn thấy đúng yêu cầu tại thời điểm vận hành.</p>
+                <div class="doc-actions"><a class="button secondary" href="{% url 'reservations:booking-list' %}">Mở danh sách booking</a></div>
+            </section>
+
+            <section id="cong-viec" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">05</span>
+                    <div>
+                        <p class="doc-kicker">Housekeeping</p>
+                        <h2>Vòng đời công việc buồng phòng</h2>
+                    </div>
+                </div>
+                <div class="doc-workflow">
+                    <span>Chờ phân công</span><i>→</i><span>Đã phân công</span><i>→</i><span>Đã nhận việc</span><i>→</i><span>Đang thực hiện</span><i>→</i><span>Chờ QC</span><i>→</i><span>QC đạt</span>
+                </div>
+                <h3>Thao tác của nhân viên</h3>
+                <ol class="doc-steps">
+                    <li><b>1</b><div><strong>Nhận công việc</strong><p>Kiểm tra phòng, loại việc, độ ưu tiên, hạn xử lý và yêu cầu đặc biệt trước khi chấp nhận.</p></div></li>
+                    <li><b>2</b><div><strong>Xác minh đúng phòng</strong><p>Thực hiện QR, GPS, Wi-Fi hoặc camera nếu chính sách chi nhánh yêu cầu.</p></div></li>
+                    <li><b>3</b><div><strong>Bắt đầu và cập nhật checklist</strong><p>Hoàn tất từng hạng mục; thêm ghi chú hoặc ảnh đúng vị trí và đúng yêu cầu bằng chứng.</p></div></li>
+                    <li><b>4</b><div><strong>Báo trở ngại ngay</strong><p>Tạm dừng đúng lý do, yêu cầu vật tư hoặc tạo sự cố kỹ thuật. Không đánh dấu hoàn thành để bỏ qua vấn đề.</p></div></li>
+                    <li><b>5</b><div><strong>Hoàn thành</strong><p>Hệ thống kiểm tra checklist, ảnh, yêu cầu đang chờ và chính sách rồi chuyển việc sang hàng QC.</p></div></li>
+                </ol>
+                <div class="doc-grid doc-grid-three">
+                    <div class="doc-subcard"><h3>Checklist có phiên bản</h3><p>Mỗi việc giữ đúng phiên bản checklist đã nhận; thay đổi mẫu sau đó không làm sai bằng chứng cũ.</p></div>
+                    <div class="doc-subcard"><h3>Ảnh và ghi chú</h3><p>Ảnh gắn với công việc/hạng mục, có thời điểm và người thực hiện để phục vụ QC, hỗ trợ và đối soát.</p></div>
+                    <div class="doc-subcard"><h3>SLA và quá hạn</h3><p>Hệ thống theo dõi hạn nhận, hạn bắt đầu và hạn hoàn thành. “Quá hạn” là cảnh báo được tính từ thời gian, không phải trạng thái riêng.</p></div>
+                </div>
+                <div class="doc-callout doc-callout-danger">
+                    <strong>Không thể hoàn thành?</strong>
+                    <p>Kiểm tra các hạng mục bắt buộc, số ảnh yêu cầu, sự cố chặn phòng, yêu cầu vật tư chưa xử lý và dữ liệu mới nhất của công việc.</p>
+                </div>
+                <div class="doc-actions">
+                    <a class="button secondary" href="{% url 'housekeeping:task-list' %}">Mở danh sách công việc</a>
+                    {% if request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}
+                    <a class="button secondary" href="{% url 'housekeeping:task-create' %}">Tạo công việc</a>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section id="qc-ho-tro" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">06</span>
+                    <div>
+                        <p class="doc-kicker">Phối hợp hiện trường</p>
+                        <h2>QC, kho và kỹ thuật</h2>
+                    </div>
+                </div>
+                <div class="doc-grid doc-grid-three">
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-indigo">Q</span>
+                        <h3>QC</h3>
+                        <p>Mở việc chờ kiểm tra, xem checklist và ảnh. Duyệt đạt nếu đầy đủ; nếu không đạt phải ghi lý do và chỉ rõ hạng mục cần làm lại.</p>
+                    </div>
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-orange">K</span>
+                        <h3>Kho</h3>
+                        <p>Tiếp nhận yêu cầu vật tư, xác nhận đã nhận, cấp đủ hoặc từ chối kèm lý do. Ghi đúng số lượng và điểm cấp.</p>
+                    </div>
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-teal">T</span>
+                        <h3>Kỹ thuật</h3>
+                        <p>Nhận sự cố, chuyển đang xử lý, cập nhật kết quả. Sự cố ảnh hưởng khả năng bán phòng phải được liên kết blocker.</p>
+                    </div>
+                </div>
+                <h3>Vòng làm lại sau QC</h3>
+                <div class="doc-flow">
+                    <div><b>1</b><strong>QC từ chối</strong><small>Lý do và bằng chứng được lưu</small></div>
+                    <div><b>2</b><strong>Nhân viên làm lại</strong><small>Mặc định tập trung hạng mục lỗi</small></div>
+                    <div><b>3</b><strong>Gửi lại QC</strong><small>Tạo vòng kiểm tra mới</small></div>
+                    <div><b>4</b><strong>QC duyệt</strong><small>Đóng vòng và cập nhật phòng</small></div>
+                </div>
+                <p class="doc-muted">Mỗi vòng QC và làm lại có bản chụp kết quả riêng; không sửa xóa kết quả vòng trước. Việc điều chuyển hoặc bàn giao cũng lưu người cũ, người mới, thời gian và lý do.</p>
+                <div class="doc-actions"><a class="button secondary" href="{% url 'housekeeping:support-queue' %}">Mở Kho và Kỹ thuật</a></div>
+            </section>
+
+            <section id="phong" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">07</span>
+                    <div>
+                        <p class="doc-kicker">Room operations</p>
+                        <h2>Lịch vận hành và trạng thái phòng</h2>
+                    </div>
+                </div>
+                <div class="doc-grid doc-grid-two">
+                    <div>
+                        <h3>Lịch vận hành</h3>
+                        <p>Xem theo ngày và chi nhánh để ghép lượt check-in, checkout với công việc buồng phòng. Ưu tiên xử lý các phòng:</p>
+                        <ul class="doc-list">
+                            <li>Sắp check-in nhưng chưa có lịch dọn/chuẩn bị.</li>
+                            <li>Công việc dự kiến hoàn thành sát giờ khách đến.</li>
+                            <li>Đang có blocker hoặc dừng bán.</li>
+                            <li>Đã checkout nhưng phòng chưa vào luồng dọn.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Hồ sơ phòng 360°</h3>
+                        <p>Một màn hình tổng hợp tình hình phòng:</p>
+                        <ul class="doc-list">
+                            <li>Trạng thái vệ sinh và việc khách đang ở.</li>
+                            <li>Booking hiện tại/sắp tới và công việc liên quan.</li>
+                            <li>Sự cố, blocker và lịch dừng bán.</li>
+                            <li>Ảnh vận hành và dòng thời gian thay đổi.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="doc-callout doc-callout-info">
+                    <strong>Phân biệt hai khái niệm</strong>
+                    <p><strong>Trạng thái vệ sinh</strong> mô tả tiến độ buồng phòng. <strong>Khả năng sẵn sàng để bán/đón khách</strong> còn phụ thuộc booking, khách đang ở, blocker và stop-sell.</p>
+                </div>
+                <div class="doc-actions">
+                    <a class="button secondary" href="{% url 'room_operations:schedule' %}">Mở lịch vận hành</a>
+                    <a class="button secondary" href="{% url 'room_operations:room-readiness' %}">Mở trạng thái phòng</a>
+                </div>
+            </section>
+
+            <section id="stop-sell" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">08</span>
+                    <div>
+                        <p class="doc-kicker">Kiểm soát rủi ro</p>
+                        <h2>Blocker và dừng bán phòng</h2>
+                    </div>
+                </div>
+                <div class="doc-grid doc-grid-two">
+                    <div class="doc-subcard">
+                        <h3>Room blocker</h3>
+                        <p>Dùng khi phòng chưa đủ điều kiện vận hành do sự cố, bảo trì, vệ sinh, an toàn hoặc quyết định quản lý.</p>
+                        <div class="doc-workflow compact"><span>Đang chặn</span><i>→</i><span>Chờ xác nhận gỡ</span><i>→</i><span>Đã gỡ</span></div>
+                    </div>
+                    <div class="doc-subcard">
+                        <h3>Stop-sell</h3>
+                        <p>Dùng để ngăn tạo booking trong một khoảng thời gian xác định và phải liên kết với blocker của phòng.</p>
+                        <div class="doc-workflow compact"><span>Đang dừng bán</span><i>→</i><span>Chờ mở lại</span><i>→</i><span>Đã mở lại</span></div>
+                    </div>
+                </div>
+                <h3>Quy trình mở lại an toàn</h3>
+                <ol class="doc-steps">
+                    <li><b>1</b><div><strong>Người xử lý yêu cầu gỡ/mở lại</strong><p>Ghi rõ kết quả khắc phục và bằng chứng liên quan.</p></div></li>
+                    <li><b>2</b><div><strong>Người có quyền xác nhận</strong><p>Kiểm tra độc lập trước khi xác nhận gỡ blocker và mở bán lại.</p></div></li>
+                    <li><b>3</b><div><strong>Kiểm tra lịch booking</strong><p>Đảm bảo không còn khoảng dừng bán có hiệu lực trước khi nhận booking mới.</p></div></li>
+                </ol>
+                <div class="doc-callout doc-callout-danger">
+                    <strong>Không tự động mở bán theo ngày dự kiến</strong>
+                    <p><code>planned_end_at</code> là mốc dự kiến để theo dõi, không thay thế bước xác nhận. Phòng chỉ mở lại khi quy trình hai bước đã hoàn tất.</p>
+                </div>
+                <div class="doc-actions"><a class="button secondary" href="{% url 'room_operations:stop-sell-list' %}">Mở danh sách dừng bán</a></div>
+            </section>
+
+            <section id="man-hinh-web" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">09</span>
+                    <div>
+                        <p class="doc-kicker">Điều hướng</p>
+                        <h2>Các màn hình trên web</h2>
+                    </div>
+                </div>
+                <div class="doc-table-wrap">
+                    <table class="doc-table">
+                        <thead><tr><th>Màn hình</th><th>Mục đích</th><th>Đường dẫn</th></tr></thead>
+                        <tbody>
+                            <tr><td><a href="{% url 'housekeeping:task-list' %}"><strong>Công việc</strong></a></td><td>Danh sách, lọc, xem chi tiết và thao tác theo quyền.</td><td><code>/housekeeping/tasks/</code></td></tr>
+                            <tr><td><a href="{% url 'housekeeping:operations-dashboard' %}"><strong>Điều phối</strong></a></td><td>Tình hình SLA, tải công việc và rủi ro cần ưu tiên.</td><td><code>/housekeeping/operations/</code></td></tr>
+                            <tr><td><a href="{% url 'housekeeping:support-queue' %}"><strong>Kho và Kỹ thuật</strong></a></td><td>Hàng chờ vật tư, sự cố và trạng thái xử lý.</td><td><code>/housekeeping/support/</code></td></tr>
+                            <tr><td><a href="{% url 'reservations:booking-list' %}"><strong>Booking</strong></a></td><td>Quản lý lịch ở và yêu cầu khách.</td><td><code>/bookings/</code></td></tr>
+                            <tr><td><a href="{% url 'room_operations:schedule' %}"><strong>Lịch vận hành</strong></a></td><td>Đối chiếu check-in, checkout và công việc theo ngày.</td><td><code>/operations/schedule/</code></td></tr>
+                            <tr><td><a href="{% url 'room_operations:room-readiness' %}"><strong>Trạng thái phòng</strong></a></td><td>Bảng sẵn sàng và hồ sơ vận hành 360°.</td><td><code>/operations/rooms/</code></td></tr>
+                            <tr><td><a href="{% url 'room_operations:stop-sell-list' %}"><strong>Dừng bán phòng</strong></a></td><td>Blocker, stop-sell và quy trình mở lại.</td><td><code>/operations/stop-sell/</code></td></tr>
+                            <tr><td><a href="{% url 'housekeeping:activity-log' %}"><strong>Nhật ký hoạt động</strong></a></td><td>Tra cứu ai đã làm gì, ở đâu và khi nào.</td><td><code>/housekeeping/activity/</code></td></tr>
+                            <tr><td><a href="{% url 'housekeeping:notification-center' %}"><strong>Thông báo</strong></a></td><td>Cảnh báo, công việc mới, SLA và yêu cầu hỗ trợ.</td><td><code>/housekeeping/notifications/</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="doc-muted">Thanh bên chỉ hiển thị một số mục theo vai trò. Máy chủ vẫn kiểm tra quyền ở từng thao tác; biết đường dẫn không đồng nghĩa có quyền truy cập.</p>
+            </section>
+
+            <section id="mobile-api" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">10</span>
+                    <div>
+                        <p class="doc-kicker">Ứng dụng Bliss Home</p>
+                        <h2>Mobile và kết nối API</h2>
+                    </div>
+                </div>
+                <div class="doc-api-banner">
+                    <span>API production</span>
+                    <code>https://homestay.aaistech.com</code>
+                </div>
+                <p class="doc-lead">
+                    Ứng dụng mở màn hình đăng nhập trước. Sau khi xác thực, toàn bộ danh sách và thao tác nghiệp vụ
+                    được gọi trực tiếp tới domain trên; ứng dụng hiện tại không dùng SQLite/SQLCipher để lưu database nghiệp vụ.
+                </p>
+                <div class="doc-grid doc-grid-two">
+                    <div>
+                        <h3>Luồng đăng nhập</h3>
+                        <ol class="doc-mini-steps">
+                            <li><span>1</span>Nhập tài khoản và mật khẩu.</li>
+                            <li><span>2</span>API trả access token và refresh token.</li>
+                            <li><span>3</span>Token được giữ trong vùng lưu trữ bảo mật của thiết bị.</li>
+                            <li><span>4</span>Ứng dụng tải công việc theo quyền của tài khoản.</li>
+                            <li><span>5</span>Hết phiên thì làm mới token hoặc yêu cầu đăng nhập lại.</li>
+                        </ol>
+                    </div>
+                    <div>
+                        <h3>Nhóm API chính</h3>
+                        <ul class="doc-code-list">
+                            <li><code>/api/v1/auth/...</code><span>Đăng nhập, làm mới, đăng xuất, quên mật khẩu.</span></li>
+                            <li><code>/api/v1/housekeeping/tasks</code><span>Danh sách và chi tiết công việc.</span></li>
+                            <li><code>/api/v1/housekeeping/tasks/{id}/...</code><span>Nhận, bắt đầu, checklist, ảnh, hỗ trợ, hoàn thành và QC.</span></li>
+                            <li><code>/api/v1/housekeeping/notifications</code><span>Thông báo của người dùng.</span></li>
+                            <li><code>/api/v1/room-operations/rooms</code><span>Thông tin sẵn sàng của phòng.</span></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="doc-callout doc-callout-warning">
+                    <strong>Nếu còn thấy lỗi SQLite trên điện thoại</strong>
+                    <p>Đó là APK cũ hoặc dữ liệu cài đặt còn sót. Gỡ bản cũ, cài đúng APK release mới và đăng nhập lại. Bản hiện tại không cần tải hay mở database cục bộ.</p>
+                </div>
+                <div class="doc-note">
+                    Ứng dụng cần kết nối Internet để làm việc. Khi mạng lỗi, giữ nguyên màn hình và thử tải lại; không thao tác lặp nhiều lần nếu chưa biết yêu cầu trước đã thành công hay chưa.
+                </div>
+            </section>
+
+            <section id="bao-mat" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">11</span>
+                    <div>
+                        <p class="doc-kicker">An toàn vận hành</p>
+                        <h2>Bảo mật, nhật ký và tính nhất quán dữ liệu</h2>
+                    </div>
+                </div>
+                <div class="doc-grid doc-grid-two">
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-indigo">♙</span>
+                        <h3>Phạm vi theo chi nhánh</h3>
+                        <p>Truy vấn và thao tác được lọc theo quyền sở hữu hoặc thành viên chi nhánh. Dữ liệu khách chỉ hiển thị cho vai trò cần dùng.</p>
+                    </div>
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-teal">↻</span>
+                        <h3>Chống ghi đè</h3>
+                        <p>Booking, công việc, yêu cầu hỗ trợ và stop-sell dùng phiên bản. Khi có xung đột, tải lại dữ liệu trước khi gửi lại.</p>
+                    </div>
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-orange">#</span>
+                        <h3>Chống gửi trùng</h3>
+                        <p>Các yêu cầu từ client có mã nhận diện để máy chủ không tạo lặp khi mạng chập chờn hoặc người dùng bấm lại.</p>
+                    </div>
+                    <div class="doc-feature">
+                        <span class="doc-feature-icon doc-icon-rose">◉</span>
+                        <h3>Dấu vết kiểm toán</h3>
+                        <p>Thay đổi trạng thái, phân công, QC, blocker, stop-sell và các thao tác quan trọng được lưu người thực hiện và thời gian.</p>
+                    </div>
+                </div>
+                <h3>Tài khoản và mật khẩu</h3>
+                <ul class="doc-list">
+                    <li>Đổi mật khẩu trong menu tài khoản; phiên đăng nhập hiện tại được giữ an toàn sau khi đổi.</li>
+                    <li>Quên mật khẩu dùng OTP qua email hoặc SMS, có thời hạn, giới hạn số lần thử và token dùng một lần.</li>
+                    <li>Đổi/đặt lại mật khẩu sẽ thu hồi các token và phiên cũ theo chính sách hệ thống.</li>
+                    <li>Không gửi OTP, mật khẩu, access token hoặc ảnh nhạy cảm vào nhật ký, nhóm chat hay yêu cầu hỗ trợ.</li>
+                </ul>
+            </section>
+
+            <section id="trang-thai" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">12</span>
+                    <div>
+                        <p class="doc-kicker">Tra cứu nhanh</p>
+                        <h2>Các trạng thái nghiệp vụ</h2>
+                    </div>
+                </div>
+                <h3>Booking</h3>
+                <div class="doc-status-row"><span>Đã đặt</span><span>Đã nhận phòng</span><span>Đã trả phòng</span><span>Đã hủy</span></div>
+
+                <h3>Phòng</h3>
+                <div class="doc-status-row">
+                    <span>Sẵn sàng</span><span>Bẩn</span><span>Chờ dọn</span><span>Đang dọn</span>
+                    <span>Dọn phòng bị chặn</span><span>Chờ QC</span><span>Cần làm lại</span><span>Ngừng phục vụ</span>
+                </div>
+
+                <h3>Công việc buồng phòng</h3>
+                <div class="doc-status-row">
+                    <span>Chờ phân công</span><span>Đã phân công</span><span>Chờ nhận việc</span><span>Đã nhận việc</span>
+                    <span>Đang thực hiện</span><span>Tạm dừng</span><span>Chờ hỗ trợ</span><span>Đã hoàn thành</span>
+                    <span>Chờ QC</span><span>QC không đạt</span><span>QC đạt</span><span>Đã hủy</span>
+                </div>
+
+                <div class="doc-grid doc-grid-two">
+                    <div>
+                        <h3>Yêu cầu vật tư</h3>
+                        <div class="doc-status-row"><span>Chờ xử lý</span><span>Đã tiếp nhận</span><span>Đã cấp</span><span>Từ chối</span><span>Đã hủy</span></div>
+                    </div>
+                    <div>
+                        <h3>Sự cố</h3>
+                        <div class="doc-status-row"><span>Đang mở</span><span>Đã phân công</span><span>Đang xử lý</span><span>Đã xử lý</span><span>Đã hủy</span></div>
+                    </div>
+                </div>
+                <p class="doc-muted">Nhãn “quá hạn” được tính khi việc chưa kết thúc và thời hạn đã qua; nó có thể xuất hiện cùng trạng thái hiện tại.</p>
+            </section>
+
+            <section id="xu-ly-loi" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">13</span>
+                    <div>
+                        <p class="doc-kicker">Hỗ trợ người dùng</p>
+                        <h2>Xử lý các tình huống thường gặp</h2>
+                    </div>
+                </div>
+                <div class="doc-faq">
+                    <details open>
+                        <summary>Đăng nhập được nhưng danh sách trống</summary>
+                        <p>Kiểm tra tài khoản đã được gán đúng chi nhánh, vai trò thành viên còn hoạt động, ca/khu vực phù hợp và bộ lọc màn hình không giữ giá trị cũ.</p>
+                    </details>
+                    <details>
+                        <summary>Không tạo được booking cho phòng</summary>
+                        <p>Kiểm tra booking trùng thời gian, stop-sell đang có hiệu lực, phòng có đúng chi nhánh và thời gian check-in/checkout hợp lệ.</p>
+                    </details>
+                    <details>
+                        <summary>Không bắt đầu hoặc hoàn thành công việc</summary>
+                        <p>Tải lại công việc, kiểm tra quyền người nhận, trạng thái hiện tại, yêu cầu xác minh phòng, checklist bắt buộc, ảnh và yêu cầu hỗ trợ đang chờ.</p>
+                    </details>
+                    <details>
+                        <summary>Hệ thống báo dữ liệu đã thay đổi / xung đột phiên bản</summary>
+                        <p>Có người hoặc thiết bị khác đã cập nhật trước. Không cố gửi lại dữ liệu cũ; tải lại, đọc thay đổi mới nhất rồi thực hiện thao tác phù hợp.</p>
+                    </details>
+                    <details>
+                        <summary>Phòng hết ngày dự kiến nhưng vẫn chưa mở bán</summary>
+                        <p>Đây là hành vi đúng. Người xử lý phải gửi yêu cầu và người có quyền phải xác nhận gỡ blocker/mở lại stop-sell.</p>
+                    </details>
+                    <details>
+                        <summary>Ứng dụng mobile báo SQLite hoặc mở sai màn hình</summary>
+                        <p>Gỡ ứng dụng cũ và cài APK release mới. Bản đúng sẽ mở trang đăng nhập và gọi API tại <code>https://homestay.aaistech.com</code>.</p>
+                    </details>
+                    <details>
+                        <summary>Ảnh hoặc thao tác tải mãi không xong</summary>
+                        <p>Kiểm tra Internet, giữ ứng dụng ở màn hình hiện tại và thử tải lại một lần. Nếu vẫn lỗi, ghi lại thời gian, tài khoản, mã công việc và thông báo lỗi để quản trị viên tra nhật ký.</p>
+                    </details>
+                    <details>
+                        <summary>Cần gửi gì khi báo lỗi?</summary>
+                        <p>Gửi tên chi nhánh, mã phòng/booking/công việc, thời gian xảy ra, bước đã làm và ảnh chụp thông báo. Không gửi mật khẩu, OTP hoặc token.</p>
+                    </details>
+                </div>
+            </section>
+
+            <footer class="docs-footer">
+                <div>
+                    <strong>Bliss Home System Documentation</strong>
+                    <p>Tài liệu nội bộ theo phiên bản hệ thống ngày 07/08/2026.</p>
+                </div>
+                <a href="#doc-start">Về đầu trang ↑</a>
+            </footer>
+        </article>
+    </div>
+</div>
+{% endblock %}

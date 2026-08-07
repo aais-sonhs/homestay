@@ -10,35 +10,35 @@ lưu nghiệp vụ trong `localStorage`.
 - **Chủ chi nhánh/Quản lý/Founder:** 5 tab Tổng quan, Công việc, Phòng, QC và
   Thông báo. Dashboard lấy SLA/hiệu suất thật; Trạng thái phòng là read-only, có
   blocker, dừng bán và rủi ro check-in theo đúng scope chi nhánh.
-- **Tạp vụ:** danh sách và chi tiết công việc offline-first, QR/GPS/Wi-Fi/camera,
+- **Tạp vụ:** danh sách và chi tiết công việc gọi API trực tiếp, QR/GPS/Wi-Fi/camera,
   checklist, ảnh, pause/resume, vật tư, sự cố và gửi QC.
 - **QC:** mở thẳng ba nhóm Chờ kiểm tra, Làm lại và Hoàn thành; detail dùng
   capability từ backend để duyệt đạt hoặc trả lại đúng vòng kiểm tra.
 - Các role Kho/Kỹ thuật/Sales/CSKH chưa có workspace mobile trong bản này; app
   không tự cấp nhầm giao diện hay quyền khi các tài khoản đó đăng nhập.
 
-## Bảo mật và offline
+## Bảo mật và kết nối API
 
 - Access/refresh token chỉ nằm trong `flutter_secure_storage`; app không lưu password.
-- Khóa SQLCipher 256-bit sinh bằng `Random.secure()` và chỉ lưu trong secure storage.
-- Task, room, checklist, queue, conflict và photo BLOB đều nằm trong database SQLCipher.
-- Mỗi mutation/media có client UUID + idempotency key, base version, dependency và state `pending/syncing/synced/failed/conflict/discarded`.
-- Sync tự chạy khi connectivity thay đổi nhưng vẫn bắt lỗi từng HTTP request; connectivity không được xem là bằng chứng có Internet.
-- Version conflict không tự rebase. Màn hình yêu cầu người dùng bỏ local hoặc chủ động retry trên server version hiện tại.
-- Complete bị disable khi task còn pending/failed/conflict.
-- Cache được bind với user UUID trong SQLCipher; đổi tài khoản không thể đọc cache của người trước. Logout bị chặn khi còn unresolved work và secure-delete cache khi hoàn tất.
-- Hồ sơ phiên gồm ID, tên và role cũng nằm trong secure storage; app không suy đoán
-  role từ giao diện hoặc dữ liệu cache.
+- App không dùng SQLite/SQLCipher và không lưu task, checklist hay ảnh trong database cục bộ.
+- Login, dashboard, phòng, thông báo, task list/detail và mọi mutation/media đều gọi
+  trực tiếp `https://homestay.aaistech.com` qua HTTPS.
+- Mỗi mutation/media vẫn có UUID, idempotency key và base version để backend chống
+  gửi trùng và phát hiện version conflict.
+- App cần có Internet để đọc và cập nhật nghiệp vụ; backend là nguồn dữ liệu và kiểm
+  tra quyền duy nhất.
+- Hồ sơ phiên gồm ID, tên và role nằm trong secure storage; app không suy đoán role
+  từ giao diện.
 
 ## UI hiện trường
 
 - 7 tab: Việc của tôi, Chờ nhận, Đang làm, Chờ hỗ trợ, Chờ QC, Làm lại, Hoàn thành.
-- Search và filter theo ngày/chi nhánh/tầng/loại phòng/task/ưu tiên/overdue/check-in risk; mỗi view có cache riêng.
-- Danh sách tự lấy progress/version mới mỗi 30 giây khi online; countdown vẫn cập nhật cục bộ.
-- Task card có countdown, cảnh báo chữ + icon, tiến độ/checklist/ảnh và sync state.
-- Detail có task/room/booking/SLA, 9 typed checklist controls, ảnh local/server, vật tư/sự cố, QC/rework và timeline.
-- Conflict sheet bắt buộc xem base/local/server trước khi discard hoặc explicit retry.
-- Completion summary dùng blocker từ backend; offline chỉ queue và backend vẫn là nguồn validation cuối.
+- Search và các nhóm công việc được gửi thành query lên API.
+- Danh sách tự lấy progress/version mới mỗi 30 giây.
+- Task card có countdown, cảnh báo chữ + icon, tiến độ/checklist và ảnh.
+- Detail có task/room/booking/SLA, typed checklist controls, ảnh server, vật tư/sự cố,
+  QC/rework và timeline.
+- Completion summary và toàn bộ blocker được lấy trực tiếp từ backend.
 - API readiness mobile không trả tên/SĐT khách và luôn scope qua membership/ownership
   ở server.
 
@@ -56,17 +56,17 @@ flutter build apk --debug --dart-define=API_BASE_URL=https://homestay.aaistech.c
 
 Các cấu hình bảo mật platform đã áp dụng:
 
-- Android `minSdk` 24, `android:allowBackup="false"`, cleartext bị tắt ở release và ProGuard giữ SQLCipher.
-- Release bật minify/resource shrinking, không dùng debug signing config.
+- Android `minSdk` 24, `android:allowBackup="false"` và cleartext bị tắt ở release.
+- Release dùng keystore riêng, tắt minify/resource shrinking để bảo toàn plugin native.
 - iOS có mô tả quyền camera/photo và Keychain entitlement cho secure storage.
 - Production dùng `--dart-define=API_BASE_URL=https://homestay.aaistech.com` và
   chỉ cho phép HTTPS.
 
-## Luồng sync
+## Luồng API
 
-1. Tải task list/detail online và cache vào SQLCipher.
-2. Khi offline, queue checklist/note/pause/supply/issue/photo; photo bytes không ghi ra public storage.
-3. Dependency planner gửi prerequisite và mutation phụ thuộc cùng batch theo đúng thứ tự.
-4. Backend `/sync/batch` trả receipt riêng cho từng mutation.
-5. `CONFLICT` giữ base/local/server snapshot để người dùng resolve; `FAILED` có nút retry.
-6. Sau khi không còn dữ liệu unresolved, app mới cho gửi complete.
+1. App mở thẳng màn hình login và gọi `/api/v1/auth/login`.
+2. Sau login, workspace theo role tải dữ liệu trực tiếp từ API.
+3. Checklist/note/pause/supply/issue dùng `/api/v1/housekeeping/sync/batch` ngay
+   trong lúc thao tác, không ghi queue cục bộ.
+4. Ảnh được upload multipart trực tiếp tới endpoint media.
+5. Sau mỗi cập nhật thành công, app tải lại detail từ backend.

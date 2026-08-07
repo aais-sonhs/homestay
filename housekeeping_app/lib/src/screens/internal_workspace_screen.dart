@@ -2,48 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../api/housekeeping_api.dart';
-import '../offline/offline_repository.dart';
-import '../offline/sync_engine.dart';
 import '../presentation/task_presentation.dart';
 import '../security/secure_store.dart';
 import 'management_dashboard_screen.dart';
 import 'notification_screen.dart';
-import 'offline_home_screen.dart';
 import 'offline_task_detail_screen.dart';
+import 'online_task_list_screen.dart';
 import 'room_readiness_screen.dart';
 
 class InternalWorkspaceScreen extends StatelessWidget {
   const InternalWorkspaceScreen({
     required this.api,
-    required this.repository,
-    required this.syncEngine,
     required this.user,
     required this.onSignOut,
     super.key,
   });
 
   final HousekeepingApi api;
-  final OfflineRepository repository;
-  final OfflineSyncEngine syncEngine;
   final AppUserProfile user;
   final AsyncCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
     if (user.isManagement) {
-      return _ManagementWorkspace(
-        api: api,
-        repository: repository,
-        syncEngine: syncEngine,
-        user: user,
-        onSignOut: onSignOut,
-      );
+      return _ManagementWorkspace(api: api, user: user, onSignOut: onSignOut);
     }
     if (user.isQc) {
-      return OfflineHomeScreen(
+      return OnlineTaskListScreen(
         api: api,
-        repository: repository,
-        syncEngine: syncEngine,
         onSignOut: onSignOut,
         title: 'Kiểm tra chất lượng',
         initialTab: HousekeepingTaskTab.waitingQc,
@@ -55,10 +41,8 @@ class InternalWorkspaceScreen extends StatelessWidget {
       );
     }
     if (user.role == 'housekeeping') {
-      return OfflineHomeScreen(
+      return OnlineTaskListScreen(
         api: api,
-        repository: repository,
-        syncEngine: syncEngine,
         onSignOut: onSignOut,
         title: 'Công việc buồng phòng',
       );
@@ -70,14 +54,10 @@ class InternalWorkspaceScreen extends StatelessWidget {
 class _ManagementWorkspace extends StatefulWidget {
   const _ManagementWorkspace({
     required this.api,
-    required this.repository,
-    required this.syncEngine,
     required this.user,
     required this.onSignOut,
   });
   final HousekeepingApi api;
-  final OfflineRepository repository;
-  final OfflineSyncEngine syncEngine;
   final AppUserProfile user;
   final AsyncCallback onSignOut;
 
@@ -90,12 +70,7 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
 
   Future<void> _openTask(String taskId) => Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => OfflineTaskDetailScreen(
-        taskId: taskId,
-        api: widget.api,
-        repository: widget.repository,
-        syncEngine: widget.syncEngine,
-      ),
+      builder: (_) => OnlineTaskDetailScreen(taskId: taskId, api: widget.api),
     ),
   );
 
@@ -104,17 +79,13 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
     final pages = [
       ManagementDashboardScreen(
         api: widget.api,
-        repository: widget.repository,
-        syncEngine: widget.syncEngine,
         user: widget.user,
         onOpenTasks: () => setState(() => _index = 1),
         onOpenQc: () => setState(() => _index = 3),
         onSignOut: widget.onSignOut,
       ),
-      OfflineHomeScreen(
+      OnlineTaskListScreen(
         api: widget.api,
-        repository: widget.repository,
-        syncEngine: widget.syncEngine,
         onSignOut: widget.onSignOut,
         title: 'Điều phối công việc',
         initialTab: HousekeepingTaskTab.inProgress,
@@ -128,10 +99,8 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
         ],
       ),
       RoomReadinessScreen(api: widget.api),
-      OfflineHomeScreen(
+      OnlineTaskListScreen(
         api: widget.api,
-        repository: widget.repository,
-        syncEngine: widget.syncEngine,
         onSignOut: widget.onSignOut,
         title: 'Kiểm tra chất lượng',
         initialTab: HousekeepingTaskTab.waitingQc,

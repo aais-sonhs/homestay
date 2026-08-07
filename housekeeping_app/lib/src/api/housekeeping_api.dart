@@ -221,7 +221,7 @@ final class HousekeepingApi {
             'version': media.baseVersion.toString(),
             'clientId': media.clientMediaId,
             'checksum': media.checksum,
-            'source': 'OFFLINE_CAMERA',
+            'source': '${media.metadata['source'] ?? 'CAMERA'}',
             'metadata': jsonEncode(media.metadata),
             for (final entry in media.metadata.entries)
               if (entry.value != null && entry.key != 'metadata')

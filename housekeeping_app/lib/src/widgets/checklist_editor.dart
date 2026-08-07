@@ -213,7 +213,7 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
           label: Text(
             _type == 'PHOTO' && _status == 'COMPLETED'
                 ? 'Chụp ảnh và lưu'
-                : 'Lưu thay đổi ngoại tuyến',
+                : 'Lưu lên máy chủ',
           ),
         ),
       ],
@@ -318,9 +318,7 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
       contentPadding: EdgeInsets.zero,
       leading: Icon(Icons.camera_alt),
       title: Text('Ứng dụng sẽ mở máy ảnh'),
-      subtitle: Text(
-        'Ảnh được lưu mã hóa và phải đồng bộ trước khi hoàn thành.',
-      ),
+      subtitle: Text('Ảnh sẽ được tải trực tiếp lên máy chủ.'),
     ),
     _ => const Text('Loại hạng mục kiểm tra chưa được hỗ trợ trên ứng dụng.'),
   };

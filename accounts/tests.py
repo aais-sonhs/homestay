@@ -395,8 +395,31 @@ class ForgotPasswordWebTests(TestCase):
         self.assertContains(response, reverse("password-change"))
         self.assertContains(response, reverse("avatar-update"))
         self.assertContains(response, reverse("logout"))
+        self.assertContains(response, reverse("documentation"))
+        self.assertContains(response, "Tài liệu")
         self.assertNotContains(response, "Quản trị hệ thống")
         self.assertNotContains(response, ">Trang chủ</a>")
+
+    def test_documentation_is_login_protected_and_renders_as_one_page(self):
+        anonymous = self.client.get(reverse("documentation"))
+        self.assertRedirects(
+            anonymous,
+            f'{reverse("login")}?next={reverse("documentation")}',
+        )
+
+        user = User.objects.create_user(
+            username="documentation-user",
+            password="Current@2026Pass",
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("documentation"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tài liệu hệ thống Bliss Home")
+        self.assertContains(response, "Một trang · Cuộn liên tục")
+        self.assertContains(response, "https://homestay.aaistech.com")
+        self.assertContains(response, 'id="mobile-api"')
+        self.assertNotContains(response, 'class="pagination"')
 
     def test_superuser_keeps_system_admin_submenu_and_main_sidebar(self):
         user = User.objects.create_superuser(

@@ -129,7 +129,7 @@ void main() {
     await tester.tap(find.text('Không đạt'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Số lượng'), '12');
-    await tester.tap(find.text('Lưu thay đổi ngoại tuyến'));
+    await tester.tap(find.text('Lưu lên máy chủ'));
     await tester.pump();
 
     expect(find.text('Mục Không đạt phải có lý do.'), findsOneWidget);

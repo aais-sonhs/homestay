@@ -43,6 +43,11 @@ def dashboard(request):
 
 
 @login_required
+def documentation(request):
+    return render(request, "documentation.html")
+
+
+@login_required
 @require_http_methods(["GET", "POST"])
 def password_change(request):
     form = AuthenticatedPasswordChangeForm(request.POST or None)

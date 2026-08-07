@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
     {% include "shared/favicon.html" %}
-    <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}">
+    <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}?v=20260807-2">
     <title>{% block title %}Buồng phòng | Bliss Home{% endblock %}</title>
     {% block extra_head %}{% endblock %}
 </head>
@@ -107,9 +107,14 @@
                 {% elif request.resolver_match.url_name == 'support-queue' %}KHO VÀ KỸ THUẬT
                 {% elif request.resolver_match.url_name == 'activity-log' %}NHẬT KÝ VẬN HÀNH
                 {% elif request.resolver_match.url_name == 'notification-center' %}TRUNG TÂM THÔNG BÁO
+                {% elif request.resolver_match.url_name == 'documentation' %}TÀI LIỆU HỆ THỐNG
                 {% else %}NỀN TẢNG VẬN HÀNH BLISS HOME{% endif %}
             </div>
             <div class="topbar-actions">
+                <a class="topbar-help" href="{% url 'documentation' %}" aria-label="Tài liệu hệ thống"{% if request.resolver_match.url_name == 'documentation' %} aria-current="page"{% endif %}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v4h4M8 11h6M8 15h6"/></svg>
+                    <span>Tài liệu</span>
+                </a>
                 {% include "shared/account_menu.html" %}
             </div>
         </header>

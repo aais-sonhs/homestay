@@ -4,8 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../api/housekeeping_api.dart';
-import '../offline/offline_repository.dart';
-import '../offline/sync_engine.dart';
 import '../presentation/task_presentation.dart';
 import '../security/secure_store.dart';
 import 'offline_task_detail_screen.dart';
@@ -13,8 +11,6 @@ import 'offline_task_detail_screen.dart';
 class ManagementDashboardScreen extends StatefulWidget {
   const ManagementDashboardScreen({
     required this.api,
-    required this.repository,
-    required this.syncEngine,
     required this.user,
     required this.onOpenTasks,
     required this.onOpenQc,
@@ -23,8 +19,6 @@ class ManagementDashboardScreen extends StatefulWidget {
   });
 
   final HousekeepingApi api;
-  final OfflineRepository repository;
-  final OfflineSyncEngine syncEngine;
   final AppUserProfile user;
   final VoidCallback onOpenTasks;
   final VoidCallback onOpenQc;
@@ -82,36 +76,25 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   Future<void> _openTask(String taskId) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => OfflineTaskDetailScreen(
-          taskId: taskId,
-          api: widget.api,
-          repository: widget.repository,
-          syncEngine: widget.syncEngine,
-        ),
+        builder: (_) => OnlineTaskDetailScreen(taskId: taskId, api: widget.api),
       ),
     );
     await _load();
   }
 
   Future<void> _confirmSignOut() async {
-    final pending = await widget.repository.unresolvedCount();
-    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Đăng xuất?'),
-        content: Text(
-          pending > 0
-              ? 'Thiết bị còn $pending thay đổi chưa đồng bộ. Hãy mở Công việc và đồng bộ trước khi đăng xuất.'
-              : 'Phiên đăng nhập và cache mã hóa trên thiết bị sẽ được xóa.',
-        ),
+        content: const Text('Phiên đăng nhập trên thiết bị sẽ được xóa.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Ở lại'),
           ),
           FilledButton(
-            onPressed: pending > 0 ? null : () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Đăng xuất'),
           ),
         ],

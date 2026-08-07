@@ -4,35 +4,29 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
 import '../api/housekeeping_api.dart';
 import '../device/device_evidence.dart';
 import '../offline/models.dart';
-import '../offline/offline_repository.dart';
-import '../offline/sync_engine.dart';
 import '../presentation/task_presentation.dart';
 import '../widgets/checklist_editor.dart';
 
-class OfflineTaskDetailScreen extends StatefulWidget {
-  const OfflineTaskDetailScreen({
+class OnlineTaskDetailScreen extends StatefulWidget {
+  const OnlineTaskDetailScreen({
     required this.taskId,
     required this.api,
-    required this.repository,
-    required this.syncEngine,
     super.key,
   });
 
   final String taskId;
   final HousekeepingApi api;
-  final OfflineRepository repository;
-  final OfflineSyncEngine syncEngine;
 
   @override
-  State<OfflineTaskDetailScreen> createState() =>
-      _OfflineTaskDetailScreenState();
+  State<OnlineTaskDetailScreen> createState() => _OnlineTaskDetailScreenState();
 }
 
-class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
+class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
   final _picker = ImagePicker();
   final _note = TextEditingController();
   Map<String, Object?>? _task;
@@ -47,25 +41,19 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
     _load();
   }
 
-  Future<void> _load({bool online = true}) async {
+  Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
-    _task = await widget.repository.cachedTaskDetail(widget.taskId);
-    if (online) {
-      try {
-        _task = await widget.api.taskDetail(widget.taskId);
-        await widget.repository.cacheTaskDetail(_task!);
-        _notice = null;
-      } on Object {
-        _notice = _task == null
-            ? 'Không có dữ liệu chi tiết của công việc này trên thiết bị.'
-            : 'Ngoại tuyến: thay đổi mới được giữ trong kho dữ liệu mã hóa.';
-      }
+    try {
+      _task = await widget.api.taskDetail(widget.taskId);
+      _notice = null;
+    } on Object catch (error) {
+      _notice = 'Không tải được công việc từ máy chủ: $error';
     }
     if (_note.text.isEmpty && _task?['note'] is String) {
       _note.text = _task!['note']! as String;
     }
-    _pending = await widget.repository.unresolvedCount(taskId: widget.taskId);
-    _localMedia = await widget.repository.localMedia(widget.taskId);
+    _pending = 0;
+    _localMedia = const [];
     if (mounted) setState(() => _loading = false);
   }
 
@@ -79,45 +67,54 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
     Map<String, bool>? projectedCapabilities,
   }) async {
     final task = _task!;
-    final baseVersion = await widget.repository.nextProjectedVersion(
-      widget.taskId,
-    );
-    final dependsOn = await widget.repository.latestTaskDependency(
-      widget.taskId,
-    );
-    await widget.repository.enqueueMutation(
-      taskId: widget.taskId,
-      operation: operation,
-      baseVersion: baseVersion,
-      baseSnapshot: {
-        'version': task['version'],
-        'status': task['status'],
-        'note': task['note'],
-      },
-      dependsOn: dependsOn,
-      payload: payload,
-    );
-    if (projectedStatus != null) {
-      task['status'] = projectedStatus;
-      task['statusLabel'] = _statusLabel(projectedStatus);
+    final baseVersion = (task['version'] as num?)?.toInt() ?? 1;
+    final mutationId = const Uuid().v4();
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _notice = 'Đang gửi thay đổi lên máy chủ…';
+      });
     }
-    if (projectedCapabilities != null) {
-      final capabilities = Map<String, Object?>.from(
-        task['capabilities'] as Map? ?? const {},
-      );
-      capabilities.addAll(projectedCapabilities);
-      task['capabilities'] = capabilities;
+    try {
+      final response = await widget.api.syncBatch([
+        QueuedMutation(
+          clientMutationId: mutationId,
+          idempotencyKey: mutationId,
+          taskId: widget.taskId,
+          operation: operation,
+          baseVersion: baseVersion,
+          payload: payload,
+          baseSnapshot: {
+            'version': task['version'],
+            'status': task['status'],
+            'note': task['note'],
+          },
+          dependsOn: const [],
+          state: LocalSyncState.pending,
+          createdAt: DateTime.now().toUtc(),
+        ),
+      ]);
+      final rows = response['results'] as List? ?? const [];
+      final row = rows.isEmpty ? const <Object?, Object?>{} : rows.first as Map;
+      if (row['status'] != 'SYNCED') {
+        final error = row['error'] as Map? ?? const {};
+        throw ApiFailure(
+          statusCode: row['status'] == 'CONFLICT' ? 409 : 422,
+          code: '${error['code'] ?? row['status'] ?? 'REQUEST_FAILED'}',
+          message: '${error['message'] ?? 'Máy chủ không chấp nhận thay đổi.'}',
+        );
+      }
+      await _load();
+      if (mounted) setState(() => _notice = 'Đã cập nhật trên máy chủ.');
+    } on Object catch (error) {
+      if (mounted) setState(() => _notice = 'Không thể cập nhật: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    await widget.repository.cacheTaskDetail(task);
-    await _load(online: false);
   }
 
-  Future<void> _saveNote() async {
-    await _queueOperation('UPDATE_TASK_NOTE', {'note': _note.text.trim()});
-    _task!['note'] = _note.text.trim();
-    await widget.repository.cacheTaskDetail(_task!);
-    setState(() => _notice = 'Ghi chú đang chờ đồng bộ.');
-  }
+  Future<void> _saveNote() =>
+      _queueOperation('UPDATE_TASK_NOTE', {'note': _note.text.trim()});
 
   Future<void> _editChecklist(Map<String, Object?> item) async {
     final result = await showChecklistEditor(context, item);
@@ -130,69 +127,17 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
       );
       if (captured == null) return;
     }
-    final baseVersion = await widget.repository.nextProjectedVersion(
-      widget.taskId,
-    );
-    final dependsOn = await widget.repository.latestTaskDependency(
-      widget.taskId,
-    );
-    await widget.repository.enqueueMutation(
-      taskId: widget.taskId,
-      operation: 'UPDATE_CHECKLIST_ITEM',
-      baseVersion: baseVersion,
-      baseSnapshot: {'version': _task!['version'], 'checklistItem': item},
-      dependsOn: dependsOn,
-      payload: {
-        'itemId': item['id'],
-        'itemVersion': item['updateVersion'],
-        'status': result.status,
-        'value': result.value,
-        'note': result.note,
-        'failureReason': result.failureReason,
-      },
-    );
-    item
-      ..['status'] = result.status
-      ..['value'] = result.value
-      ..['note'] = result.note
-      ..['failureReason'] = result.failureReason
-      ..['updateVersion'] = (item['updateVersion'] as int? ?? 1) + 1;
-    for (final cached
-        in (_task!['checklist'] as List? ?? const []).whereType<Map>()) {
-      if (cached['id'] == item['id']) {
-        cached
-          ..['status'] = result.status
-          ..['value'] = result.value
-          ..['note'] = result.note
-          ..['failureReason'] = result.failureReason
-          ..['updateVersion'] = item['updateVersion'];
-        break;
-      }
-    }
-    _recalculateLocalProgress();
-    await widget.repository.cacheTaskDetail(_task!);
-    await _load(online: false);
+    await _queueOperation('UPDATE_CHECKLIST_ITEM', {
+      'itemId': item['id'],
+      'itemVersion': item['updateVersion'],
+      'status': result.status,
+      'value': result.value,
+      'note': result.note,
+      'failureReason': result.failureReason,
+    });
   }
 
-  void _recalculateLocalProgress() {
-    final checklist = (_task!['checklist'] as List? ?? const [])
-        .whereType<Map>();
-    final required = checklist
-        .where((item) => item['required'] == true)
-        .toList();
-    final completed = required
-        .where((item) => item['status'] == 'COMPLETED')
-        .length;
-    _task!['progressPercent'] = required.isEmpty
-        ? 100
-        : (completed * 100 / required.length).round();
-    _task!['checklistSummary'] = {
-      'totalRequired': required.length,
-      'completedRequired': completed,
-    };
-  }
-
-  Future<QueuedMedia?> _capturePhoto({
+  Future<Map<String, Object?>?> _capturePhoto({
     required ImageSource source,
     required String category,
     String? checklistItemId,
@@ -200,32 +145,37 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
     final file = await _picker.pickImage(source: source, imageQuality: 86);
     if (file == null) return null;
     final bytes = await file.readAsBytes();
-    final baseVersion = await widget.repository.nextProjectedVersion(
-      widget.taskId,
-    );
-    final dependsOn = await widget.repository.latestTaskDependency(
-      widget.taskId,
-    );
-    final media = await widget.repository.enqueueMedia(
+    final mediaId = const Uuid().v4();
+    final media = QueuedMedia(
+      clientMediaId: mediaId,
+      idempotencyKey: mediaId,
       taskId: widget.taskId,
-      baseVersion: baseVersion,
+      baseVersion: (_task?['version'] as num?)?.toInt() ?? 1,
       bytes: bytes,
       fileName: file.name,
       checksum: sha256.convert(bytes).toString(),
-      dependsOn: dependsOn,
+      dependsOn: const [],
+      state: LocalSyncState.pending,
       metadata: {
         'category': category,
         'checklistItemId': ?checklistItemId,
-        'source': source == ImageSource.camera ? 'OFFLINE_CAMERA' : 'GALLERY',
+        'source': source == ImageSource.camera ? 'CAMERA' : 'GALLERY',
         'capturedAt': DateTime.now().toUtc().toIso8601String(),
         'metadata': {
-          'offline': true,
           'originalPathHash': sha256.convert(utf8.encode(file.path)).toString(),
         },
       },
     );
-    await _load(online: false);
-    return media;
+    if (mounted) setState(() => _notice = 'Đang tải ảnh lên máy chủ…');
+    try {
+      final result = await widget.api.uploadMedia(media);
+      await _load();
+      if (mounted) setState(() => _notice = 'Đã tải ảnh lên máy chủ.');
+      return result;
+    } on Object catch (error) {
+      if (mounted) setState(() => _notice = 'Không tải được ảnh: $error');
+      return null;
+    }
   }
 
   Future<void> _addPhoto() async {
@@ -258,7 +208,7 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
         category: 'BEFORE',
       );
       if (media == null) return;
-      verification['cameraPhotoClientId'] = media.clientMediaId;
+      verification['cameraPhotoId'] = media['photoId'];
     }
     await _queueOperation(
       'START',
@@ -343,13 +293,6 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
       ),
     );
     if (confirmed != true) return;
-    if (_pending > 0) {
-      setState(
-        () => _notice =
-            'Phải đồng bộ hoặc xử lý hết thay đổi đang chờ, bị lỗi và xung đột trước khi hoàn thành.',
-      );
-      return;
-    }
     await _queueOperation(
       'COMPLETE',
       {'confirmFinalInspection': true, 'finalNote': _note.text.trim()},
@@ -360,30 +303,12 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
         'complete': false,
       },
     );
-    await _sync();
   }
 
   Future<void> _sync() async {
-    setState(() => _notice = 'Đang đồng bộ…');
-    try {
-      final result = await widget.syncEngine.syncNow();
-      _notice =
-          'Đồng bộ ${result.mediaSynced + result.mutationsSynced} thay đổi; '
-          '${result.conflicts} xung đột, ${result.failed} lỗi.';
-    } on Object catch (error) {
-      _notice = 'Không thể đồng bộ: $error';
-    }
+    if (mounted) setState(() => _notice = 'Đang tải dữ liệu mới nhất…');
     await _load();
   }
-
-  String _statusLabel(String status) => switch (status) {
-    'ACCEPTED' => 'Đã nhận việc',
-    'IN_PROGRESS' => 'Đang thực hiện',
-    'PAUSED' => 'Tạm dừng',
-    'WAITING_SUPPORT' => 'Chờ hỗ trợ',
-    'WAITING_QC' => 'Chờ kiểm tra chất lượng',
-    _ => viCodeLabel(status),
-  };
 
   @override
   void dispose() {
@@ -400,7 +325,7 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
         body: Center(
           child: _loading
               ? const CircularProgressIndicator()
-              : const Text('Không có dữ liệu công việc trên thiết bị.'),
+              : const Text('Không tải được dữ liệu công việc từ máy chủ.'),
         ),
       );
     }
@@ -409,14 +334,10 @@ class _OfflineTaskDetailScreenState extends State<OfflineTaskDetailScreen> {
       appBar: AppBar(
         title: Text('${room['code'] ?? ''} · ${task['code']}'),
         actions: [
-          Badge(
-            isLabelVisible: _pending > 0,
-            label: Text('$_pending'),
-            child: IconButton(
-              tooltip: 'Đồng bộ công việc',
-              onPressed: _sync,
-              icon: const Icon(Icons.sync),
-            ),
+          IconButton(
+            tooltip: 'Tải lại từ máy chủ',
+            onPressed: _sync,
+            icon: const Icon(Icons.refresh),
           ),
         ],
         bottom: _loading
@@ -570,7 +491,9 @@ class _TaskHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  pending == 0 ? 'Đã đồng bộ' : '$pending thay đổi chưa xử lý',
+                  pending == 0
+                      ? 'Dữ liệu từ máy chủ'
+                      : '$pending thay đổi chưa xử lý',
                 ),
               ],
             ),
@@ -854,7 +777,7 @@ class _PhotoSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final serverPhotos = (task['photos'] as List? ?? const []).whereType<Map>();
     return _SectionCard(
-      title: 'Ảnh và trạng thái đồng bộ',
+      title: 'Ảnh công việc',
       icon: Icons.photo_library_outlined,
       initiallyExpanded: true,
       trailing: canAdd
@@ -1034,7 +957,7 @@ class _NoteSection extends StatelessWidget {
             child: TextButton.icon(
               onPressed: onSave,
               icon: const Icon(Icons.save),
-              label: const Text('Lưu ngoại tuyến'),
+              label: const Text('Lưu lên máy chủ'),
             ),
           ),
       ],
@@ -1589,10 +1512,7 @@ class _StartDialogState extends State<_StartDialog> {
         onPressed: () => Navigator.pop(context),
         child: const Text('Hủy'),
       ),
-      FilledButton(
-        onPressed: _submit,
-        child: const Text('Bắt đầu khi ngoại tuyến'),
-      ),
+      FilledButton(onPressed: _submit, child: const Text('Bắt đầu công việc')),
     ],
   );
 }
@@ -1770,7 +1690,7 @@ class _SupplyDialogState extends State<_SupplyDialog> {
             ],
           });
         },
-        child: const Text('Lưu ngoại tuyến'),
+        child: const Text('Gửi yêu cầu'),
       ),
     ],
   );
@@ -1850,7 +1770,7 @@ class _IssueDialogState extends State<_IssueDialog> {
             'blocksRoomReady': _blocksRoom,
           });
         },
-        child: const Text('Lưu ngoại tuyến'),
+        child: const Text('Gửi báo cáo'),
       ),
     ],
   );
@@ -1893,9 +1813,9 @@ class _CompletionDialogState extends State<_CompletionDialog> {
           children: [
             if (summary == null)
               const _InlineWarning(
-                icon: Icons.cloud_off,
+                icon: Icons.cloud_off_outlined,
                 text:
-                    'Đang ngoại tuyến: máy chủ sẽ kiểm tra lại toàn bộ điều kiện chặn khi đồng bộ.',
+                    'Không tải được tóm tắt từ máy chủ. Hãy kiểm tra kết nối và thử lại.',
               ),
             _FactsGrid(
               facts: {
