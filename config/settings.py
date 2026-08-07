@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     "accounts",
     "housekeeping",
     "organizations",
+    "reservations.apps.ReservationsConfig",
+    "room_operations.apps.RoomOperationsConfig",
 ]
 
 MIDDLEWARE = [

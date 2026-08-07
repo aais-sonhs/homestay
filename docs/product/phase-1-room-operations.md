@@ -158,11 +158,12 @@ App này chứa read-model xuyên domain và sở hữu blocker/stop-sell chính
   checkout task tương lai.
 - Test reschedule/cancel bao phủ đồng bộ task/SLA, rollback khi task đã bắt đầu, stale
   version, cross-branch, audit/outbox, idempotency, quyền web và migration bảo toàn dữ liệu.
-- Toàn bộ Django suite trên SQLite: 164 test được phát hiện, 159 pass và 5 test
+- Toàn bộ Django suite trên SQLite: 165 test được phát hiện, 160 pass và 5 test
   PostgreSQL-only skip.
-- PostgreSQL thật: 5/5 row-lock race test pass, gồm hai reschedule cùng booking chỉ một
+- PostgreSQL thật: 6/6 row-lock/race test pass, gồm hai reschedule cùng booking chỉ một
   thao tác thành công và hai stop-sell cạnh tranh chỉ một bản ghi được tạo; lỗi
-  `FOR UPDATE` trên nullable join đã được khóa bằng `of=("self",)`.
+  `FOR UPDATE` trên nullable join đã được khóa bằng `of=("self",)`, kể cả toàn bộ
+  chuỗi tạo stop-sell → yêu cầu mở lại → xác nhận mở lại khi blocker không có issue.
 - `makemigrations --check --dry-run`, Django system check, `git diff --check` và
   `startup.sh` syntax đều pass.
 
@@ -183,12 +184,19 @@ App này chứa read-model xuyên domain và sở hữu blocker/stop-sell chính
   backfill 9 item, không có `branch_id` sai booking, booking text thiếu item hoặc task
   text thiếu snapshot.
 - Cấu hình PostgreSQL race test đã đổi khỏi host localhost cũ sang đúng DB host dự án;
-  5/5 race test pass trên database tách biệt `test_homestay` và database test đã được xóa.
+  6/6 race/regression test pass trên database tách biệt `test_homestay` và database test đã được xóa.
 - Backup trước blocker/stop-sell:
   `/tmp/homestay-pre-stop-sell-20260807-110826.dump` (đã kiểm tra bằng `pg_restore -l`).
 - Đã áp dụng `room_operations.0001` thành công; smoke check giữ 18 booking và 18 task,
   không có quan hệ branch–room sai hoặc sự cố chặn đang mở bị thiếu blocker. Production
   hiện chưa có blocker hay stop-sell nên migration không tự tạo dữ liệu giả.
+- Backup trước dữ liệu demo:
+  `/tmp/homestay-pre-demo-seed-20260807-114103.dump` (đã kiểm tra bằng `pg_restore -l`).
+- Command `seed_operations_demo_data` đã tạo 11 phòng tình huống, 6 booking, 14 task,
+  10 yêu cầu khách, 2 sự cố, 4 ảnh, 6 blocker và 5 stop-sell trên PostgreSQL. Hậu kiểm
+  không có mismatch branch/room hoặc phòng có nhiều stop-sell mở; 10/10 tài khoản demo
+  đăng nhập được bằng mật khẩu chuẩn.
+- Hướng dẫn scenario và chạy lại idempotent: `docs/product/demo-data.md`.
 
 ## Việc tiếp theo đã chốt
 

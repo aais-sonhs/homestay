@@ -7,7 +7,7 @@
 > là nền tảng bắt buộc và không bị thay thế.
 
 > Cập nhật: 07/08/2026 — Asia/Ho_Chi_Minh
-> Trạng thái: Giai đoạn 0–10 của Housekeeping và Phase 1–2 trung tâm vận hành phòng đã hoàn tất. Ngoài lịch Booking, readiness, phòng 360°, ownership đa chi nhánh và lifecycle Booking, hệ thống đã có yêu cầu khách dạng item, blocker chính thức, stop-sell theo khoảng thời gian và quy trình hai bước xác nhận mở lại phòng. Sales chỉ đọc trạng thái bán/blocker trong đúng chi nhánh; Booking bị chặn ở service khi stop-sell còn hiệu lực, kể cả đã qua ETA nhưng chưa được xác nhận mở lại. SQLite phát hiện 164 test: 159 pass và 5 PostgreSQL-only skip; 5/5 race test pass trên PostgreSQL thật. PostgreSQL đã áp dụng đến `accounts.0010`, `housekeeping.0014` và `room_operations.0001`; không tự quản lý tiến trình người dùng đang chạy tại cổng `8020`.
+> Trạng thái: Giai đoạn 0–10 của Housekeeping và Phase 1–2 trung tâm vận hành phòng đã hoàn tất. Ngoài lịch Booking, readiness, phòng 360°, ownership đa chi nhánh và lifecycle Booking, hệ thống đã có yêu cầu khách dạng item, blocker chính thức, stop-sell theo khoảng thời gian và quy trình hai bước xác nhận mở lại phòng. Sales chỉ đọc trạng thái bán/blocker trong đúng chi nhánh; Booking bị chặn ở service khi stop-sell còn hiệu lực, kể cả đã qua ETA nhưng chưa được xác nhận mở lại. SQLite phát hiện 165 test: 160 pass và 5 PostgreSQL-only skip; 6/6 race/regression test pass trên PostgreSQL thật. PostgreSQL đã áp dụng đến `accounts.0010`, `housekeeping.0014` và `room_operations.0001`, đồng thời có bộ dữ liệu `DEMO-*` đầy đủ tình huống; không tự quản lý tiến trình người dùng đang chạy tại cổng `8020`.
 
 ## 1. Mục đích tài liệu
 
