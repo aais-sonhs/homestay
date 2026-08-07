@@ -303,7 +303,7 @@ final class HousekeepingApi {
         allowRefresh: false,
         body: {
           'refreshToken': refreshToken,
-          'deviceName': 'Ứng dụng Bliss Home nội bộ',
+          'deviceName': 'Ứng dụng Bliss Home',
         },
       );
       final user = AppUserProfile.fromMap(data['user']! as Map);

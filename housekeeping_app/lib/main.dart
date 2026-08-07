@@ -8,29 +8,153 @@ import 'src/security/secure_store.dart';
 import 'src/storage/encrypted_database.dart';
 import 'src/theme/app_theme.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  final secrets = FlutterSecretStore();
-  final tokens = SecureTokenStore(secrets);
-  final database = await EncryptedHousekeepingDatabase.open(secrets);
-  final repository = OfflineRepository(database);
-  final api = HousekeepingApi(
-    baseUri: Uri.parse(
-      const String.fromEnvironment(
-        'API_BASE_URL',
-        defaultValue: 'https://homestay.aaistech.com',
+  runApp(const BlissHomeBootstrapApp());
+}
+
+final class _AppDependencies {
+  const _AppDependencies({
+    required this.tokens,
+    required this.api,
+    required this.repository,
+    required this.syncEngine,
+  });
+
+  final SecureTokenStore tokens;
+  final HousekeepingApi api;
+  final OfflineRepository repository;
+  final OfflineSyncEngine syncEngine;
+}
+
+class BlissHomeBootstrapApp extends StatefulWidget {
+  const BlissHomeBootstrapApp({super.key});
+
+  @override
+  State<BlissHomeBootstrapApp> createState() => _BlissHomeBootstrapAppState();
+}
+
+class _BlissHomeBootstrapAppState extends State<BlissHomeBootstrapApp> {
+  late Future<_AppDependencies> _startup;
+
+  @override
+  void initState() {
+    super.initState();
+    _startup = _initialize();
+  }
+
+  Future<_AppDependencies> _initialize() async {
+    final secrets = FlutterSecretStore();
+    final tokens = SecureTokenStore(secrets);
+    final database = await EncryptedHousekeepingDatabase.open(secrets);
+    final repository = OfflineRepository(database);
+    final api = HousekeepingApi(
+      baseUri: Uri.parse(
+        const String.fromEnvironment(
+          'API_BASE_URL',
+          defaultValue: 'https://homestay.aaistech.com',
+        ),
       ),
-    ),
-    tokens: tokens,
-  );
-  final syncEngine = OfflineSyncEngine(repository: repository, api: api)
-    ..startAutomaticSync();
-  runApp(
-    HousekeepingFieldApp(
+      tokens: tokens,
+    );
+    final syncEngine = OfflineSyncEngine(repository: repository, api: api)
+      ..startAutomaticSync();
+    return _AppDependencies(
       tokens: tokens,
       api: api,
       repository: repository,
       syncEngine: syncEngine,
+    );
+  }
+
+  void _retry() => setState(() => _startup = _initialize());
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<_AppDependencies>(
+    future: _startup,
+    builder: (context, snapshot) {
+      final dependencies = snapshot.data;
+      if (dependencies != null) {
+        return HousekeepingFieldApp(
+          tokens: dependencies.tokens,
+          api: dependencies.api,
+          repository: dependencies.repository,
+          syncEngine: dependencies.syncEngine,
+        );
+      }
+      return MaterialApp(
+        title: 'Bliss Home',
+        debugShowCheckedModeBanner: false,
+        theme: BlissAppTheme.light(),
+        home: _StartupScreen(error: snapshot.error, onRetry: _retry),
+      );
+    },
+  );
+}
+
+class _StartupScreen extends StatelessWidget {
+  const _StartupScreen({required this.error, required this.onRetry});
+
+  final Object? error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Image.asset(
+                    'assets/branding/app_icon.png',
+                    width: 112,
+                    height: 112,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Bliss Home',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (error == null) ...[
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text('Đang khởi động ứng dụng…'),
+                ] else ...[
+                  Text(
+                    'Không thể khởi động ứng dụng',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xff6b7280)),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Thử lại'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -95,7 +219,7 @@ class _HousekeepingFieldAppState extends State<HousekeepingFieldApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Bliss Home Nội bộ',
+    title: 'Bliss Home',
     debugShowCheckedModeBanner: false,
     theme: BlissAppTheme.light(),
     home: FutureBuilder<AppUserProfile?>(
@@ -147,7 +271,7 @@ class _LoginScreenState extends State<_LoginScreen> {
       final data = await widget.api.login(
         identifier: _identifier.text,
         password: _password.text,
-        deviceName: 'Ứng dụng Bliss Home nội bộ',
+        deviceName: 'Ứng dụng Bliss Home',
       );
       await widget.onSignedIn(AppUserProfile.fromMap(data['user']! as Map));
     } on Object catch (error) {
@@ -196,7 +320,7 @@ class _LoginScreenState extends State<_LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Bliss Home nội bộ',
+                      'Bliss Home',
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),

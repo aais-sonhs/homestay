@@ -1,7 +1,7 @@
 name: bliss_housekeeping_app
 description: Ứng dụng nội bộ đa vai trò cho Chủ chi nhánh, Tạp vụ và QC Bliss Home.
 publish_to: none
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ">=3.10.0 <4.0.0"
@@ -25,7 +25,17 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
   flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/app_icon.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/app_icon.png
+  min_sdk_android: 24
+  remove_alpha_ios: true

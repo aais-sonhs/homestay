@@ -187,7 +187,7 @@ class _UnsupportedWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Bliss Home nội bộ')),
+    appBar: AppBar(title: const Text('Bliss Home')),
     body: Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
