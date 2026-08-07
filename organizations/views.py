@@ -6,7 +6,7 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.models import User
-from common.list_views import paginate_context
+from common.list_views import paginate_collection, paginate_context
 from housekeeping.models import HousekeepingTask
 
 from .api import ROLE_DEFINITIONS, _manageable_branches, _role_key
@@ -99,6 +99,16 @@ def branch_update(request, branch_id):
         branch = update_branch(branch, **form.cleaned_data, changed_by=request.user)
         messages.success(request, f"Đã cập nhật chi nhánh {branch.name}.")
         return redirect("organizations:branch-list")
+    history_pagination = paginate_collection(
+        request,
+        branch.ownership_history.select_related(
+            "previous_owner",
+            "new_owner",
+            "changed_by",
+        ),
+        per_page=20,
+        page_parameter="history_page",
+    )
     return render(
         request,
         "organizations/branch_form.html",
@@ -108,9 +118,8 @@ def branch_update(request, branch_id):
             "page_title": f"Chỉnh sửa {branch.name}",
             "page_description": "Cập nhật mã, tên và địa chỉ chi nhánh.",
             "submit_label": "Lưu thay đổi",
-            "ownership_history": branch.ownership_history.select_related(
-                "previous_owner", "new_owner", "changed_by"
-            )[:20],
+            "ownership_history": history_pagination["items"],
+            "history_pagination": history_pagination,
         },
     )
 

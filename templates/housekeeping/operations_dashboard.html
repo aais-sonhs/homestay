@@ -26,31 +26,35 @@
     <h2>Công việc có nguy cơ quá hạn hoặc trễ giờ nhận phòng</h2>
     <div class="table-wrap"><table>
         <thead><tr><th>Công việc / phòng</th><th>Trạng thái</th><th>Người làm</th><th>Tiến độ</th><th>Hạn</th><th>Cảnh báo</th></tr></thead>
-        <tbody>{% for row in sla.tasks %}<tr>
+        <tbody>{% for row in risk_rows %}<tr>
             <td><a href="{% url 'housekeeping:task-detail' row.taskId %}"><strong>{{ row.room.code }}</strong> · {{ row.taskCode }}</a><br><span class="muted">{{ row.branch.name }}</span></td>
             <td>{{ row.statusLabel }}</td><td>{% if row.assignee %}{{ row.assignee.name }}{% else %}Chưa giao{% endif %}</td><td>{{ row.progressPercent }}%</td>
             <td>{{ row.completionDueLabel|default:"—" }}</td>
             <td>{% if row.checkinRisk %}<span class="pill warn">⚠ Nguy cơ trễ giờ nhận phòng</span>{% endif %} {% if row.overdue %}<span class="pill danger">⚠ Quá {{ row.overdueMinutes }} phút</span>{% elif row.nearDue %}<span class="pill warn">⏱ Sắp quá hạn</span>{% endif %}</td>
         </tr>{% empty %}<tr><td colspan="6" class="empty">Không có công việc rủi ro trong phạm vi lọc.</td></tr>{% endfor %}</tbody>
     </table></div>
+    {% include "shared/pagination.html" with page_obj=risk_pagination.page_obj paginator=risk_pagination.paginator is_paginated=risk_pagination.is_paginated pagination_query=risk_pagination.pagination_query page_parameter=risk_pagination.page_parameter only %}
 </section>
 
 <div class="split">
     <section class="card">
         <h2>Tiến độ đang hoạt động</h2>
         {% for task in active_tasks %}<div class="inline-form"><div class="grow"><a href="{% url 'housekeeping:task-detail' task.id %}"><strong>{{ task.room.code }} · {{ task.code }}</strong></a><br><span class="muted">{{ task.get_status_display }} · {% if task.assignee %}{{ task.assignee.get_full_name|default:task.assignee.username }}{% else %}Chưa giao{% endif %}</span><div class="progress" role="progressbar" aria-label="Tiến độ {{ task.code }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ task.progress_percent }}"><span style="width:{{ task.progress_percent }}%"></span></div></div><strong>{{ task.progress_percent }}%</strong></div>{% empty %}<p class="empty">Không có công việc đang hoạt động.</p>{% endfor %}
+        {% include "shared/pagination.html" with page_obj=active_pagination.page_obj paginator=active_pagination.paginator is_paginated=active_pagination.is_paginated pagination_query=active_pagination.pagination_query page_parameter=active_pagination.page_parameter only %}
     </section>
     <section class="card">
         <h2>Hàng chờ kiểm tra chất lượng</h2>
         {% for task in qc_tasks %}<div class="inline-form"><div class="grow"><a href="{% url 'housekeeping:task-detail' task.id %}"><strong>{{ task.room.code }} · {{ task.code }}</strong></a><br><span class="muted">{{ task.get_status_display }} · vòng kiểm tra {{ task.current_qc_round|default:"—" }}</span></div>{% if task.status == 'QC_REJECTED' %}<span class="pill danger">↻ Cần làm lại</span>{% else %}<span class="pill">Chờ kiểm tra</span>{% endif %}</div>{% empty %}<p class="empty">Hàng chờ kiểm tra đang trống.</p>{% endfor %}
+        {% include "shared/pagination.html" with page_obj=qc_pagination.page_obj paginator=qc_pagination.paginator is_paginated=qc_pagination.is_paginated pagination_query=qc_pagination.pagination_query page_parameter=qc_pagination.page_parameter only %}
     </section>
 </div>
 
 <section class="card" style="margin-top:16px">
     <h2>Hiệu suất theo nhân viên / ca / chi nhánh</h2>
     <div class="table-wrap"><table><thead><tr><th>Nhân viên</th><th>Chi nhánh / ca</th><th>Công việc</th><th>Hoàn thành</th><th>Kiểm tra đạt</th><th>Quá hạn</th><th>Lượt làm lại</th><th>Tiến độ trung bình</th><th>Thời gian làm trung bình</th></tr></thead><tbody>
-    {% for row in performance.rows %}<tr><td>{% if row.employee %}{{ row.employee.name }}{% else %}Chưa giao{% endif %}</td><td>{{ row.branch.name }}{% if row.shift %}<br><span class="muted">{{ row.shift.name }}</span>{% endif %}</td><td>{{ row.taskCount }}</td><td>{{ row.completionRatePercent }}%</td><td>{{ row.qcApprovalRatePercent }}%</td><td>{{ row.slaBreachedCount }}</td><td>{{ row.reworkRoundCount }}</td><td>{{ row.averageProgressPercent }}%</td><td>{{ row.averageActiveMinutes }} phút</td></tr>{% empty %}<tr><td colspan="9" class="empty">Chưa có dữ liệu hiệu suất.</td></tr>{% endfor %}
+    {% for row in performance_rows %}<tr><td>{% if row.employee %}{{ row.employee.name }}{% else %}Chưa giao{% endif %}</td><td>{{ row.branch.name }}{% if row.shift %}<br><span class="muted">{{ row.shift.name }}</span>{% endif %}</td><td>{{ row.taskCount }}</td><td>{{ row.completionRatePercent }}%</td><td>{{ row.qcApprovalRatePercent }}%</td><td>{{ row.slaBreachedCount }}</td><td>{{ row.reworkRoundCount }}</td><td>{{ row.averageProgressPercent }}%</td><td>{{ row.averageActiveMinutes }} phút</td></tr>{% empty %}<tr><td colspan="9" class="empty">Chưa có dữ liệu hiệu suất.</td></tr>{% endfor %}
     </tbody></table></div>
+    {% include "shared/pagination.html" with page_obj=performance_pagination.page_obj paginator=performance_pagination.paginator is_paginated=performance_pagination.is_paginated pagination_query=performance_pagination.pagination_query page_parameter=performance_pagination.page_parameter only %}
 </section>
 </div>
 {% endblock %}

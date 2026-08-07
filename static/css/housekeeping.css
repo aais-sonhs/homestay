@@ -72,9 +72,10 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 /* Topbar and account menu */
 .topbar { position:sticky; top:0; z-index:20; display:grid; grid-template-columns:minmax(80px,1fr) auto minmax(80px,1fr); align-items:center; height:68px; padding:0 24px; background:rgba(255,255,255,.96); border-bottom:1px solid var(--line); backdrop-filter:blur(14px); }
 .topbar-start { justify-self:start; }
-.topbar-toggle { display:grid; place-items:center; width:40px; min-height:40px; padding:8px; color:var(--muted); background:transparent; border:0; border-radius:12px; cursor:pointer; }
-.topbar-toggle:hover { color:var(--brand); background:var(--brand-soft); }
-.topbar-toggle svg { width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; }
+.topbar-toggle { display:flex; align-items:center; justify-content:center; flex:0 0 auto; width:36px; min-height:36px; margin-left:-6px; padding:6px; appearance:none; border:0; border-radius:10px; color:var(--muted); background:none; box-shadow:none; cursor:pointer; transform:none; }
+.topbar-toggle:hover { border-color:transparent; color:var(--brand); background:#f3f4f6; box-shadow:none; transform:none; }
+.topbar-toggle:active { color:var(--brand-dark); background:#eef2ff; box-shadow:none; transform:none; }
+.topbar-toggle svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
 .topbar-title { max-width:52vw; overflow:hidden; color:#2563eb; background:linear-gradient(90deg,#0f766e 0%,#2563eb 36%,#7c3aed 70%,#ea580c 100%); background-size:180% auto; background-clip:text; -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-size:13px; font-weight:800; letter-spacing:.12em; text-align:center; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; filter:drop-shadow(0 2px 8px rgba(37,99,235,.12)); animation:title-shimmer 7s ease-in-out infinite alternate; }
 @keyframes title-shimmer { from { background-position:0 center; } to { background-position:100% center; } }
 .topbar-actions { display:flex; align-items:center; justify-self:end; gap:12px; min-width:0; }

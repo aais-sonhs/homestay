@@ -49,6 +49,7 @@
             </tbody>
         </table>
     </div>
+    {% include "shared/pagination.html" with page_obj=schedule_pagination.page_obj paginator=schedule_pagination.paginator is_paginated=schedule_pagination.is_paginated pagination_query=schedule_pagination.pagination_query page_parameter=schedule_pagination.page_parameter only %}
 </section>
 
 {% if schedule.standaloneTasks %}
@@ -57,6 +58,7 @@
     <div class="room-task-list">
         {% for task in schedule.standaloneTasks %}<a class="room-task-row" href="{% url 'housekeeping:task-detail' task.id %}"><span><strong>{{ task.room.code }} · {{ task.code }}</strong><small>{{ task.get_task_type_display }} · {{ task.branch.name }}</small></span><span>{{ task.scheduled_start_at|date:"H:i" }}</span><span class="pill">{{ task.get_status_display }}</span></a>{% endfor %}
     </div>
+    {% include "shared/pagination.html" with page_obj=standalone_pagination.page_obj paginator=standalone_pagination.paginator is_paginated=standalone_pagination.is_paginated pagination_query=standalone_pagination.pagination_query page_parameter=standalone_pagination.page_parameter only %}
 </section>
 {% endif %}
 {% endblock %}

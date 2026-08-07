@@ -254,6 +254,13 @@ class Phase8BackofficeUITests(TestCase):
         self.assertContains(response, "Hiệu suất theo nhân viên")
         self.assertContains(response, 'class="stat-icon"', count=6, html=False)
         self.assertContains(response, 'class="stat danger"', html=False)
+        for key, parameter in (
+            ("risk_pagination", "risk_page"),
+            ("performance_pagination", "performance_page"),
+            ("active_pagination", "active_page"),
+            ("qc_pagination", "qc_page"),
+        ):
+            self.assertEqual(response.context[key]["page_parameter"], parameter)
 
     def test_task_list_and_detail_expose_full_filters_typed_checklist_and_qc_form(self):
         list_response = self.authenticated(self.housekeeper).get(
@@ -426,6 +433,111 @@ class Phase8BackofficeUITests(TestCase):
         self.assertEqual(read.status_code, 302)
         self.recipient.refresh_from_db()
         self.assertIsNotNone(self.recipient.read_at)
+
+    def test_task_activity_and_notification_pages_use_real_paginators(self):
+        now = timezone.now()
+        HousekeepingTask.objects.bulk_create(
+            [
+                HousekeepingTask(
+                    code=f"P8-PAGE-TASK-{index:02}",
+                    branch=self.branch,
+                    room=self.room,
+                    status=HousekeepingTask.Status.IN_PROGRESS,
+                    assignee=self.housekeeper,
+                    scheduled_start_at=now,
+                    due_at=now + timedelta(hours=1),
+                )
+                for index in range(23)
+            ]
+        )
+        HousekeepingActivityLog.objects.bulk_create(
+            [
+                HousekeepingActivityLog(
+                    task=self.task,
+                    branch=self.branch,
+                    user=self.housekeeper,
+                    action="TASK_VIEWED",
+                    correlation_id=f"page-log-{index:02}",
+                )
+                for index in range(27)
+            ]
+        )
+        notifications = Notification.objects.bulk_create(
+            [
+                Notification(
+                    branch=self.branch,
+                    task=self.task,
+                    notification_type="TASK_ASSIGNED",
+                    title=f"Thông báo phân trang {index:02}",
+                    body="Kiểm tra phân trang thông báo",
+                )
+                for index in range(22)
+            ]
+        )
+        NotificationRecipient.objects.bulk_create(
+            [
+                NotificationRecipient(notification=row, user=self.housekeeper)
+                for row in notifications
+            ]
+        )
+        client = self.authenticated(self.housekeeper)
+
+        tasks = client.get(
+            reverse("housekeeping:task-list"),
+            {"date": timezone.localdate().isoformat(), "page": 2},
+        )
+        activity = client.get(reverse("housekeeping:activity-log"), {"page": 2})
+        notices = client.get(reverse("housekeeping:notification-center"), {"page": 2})
+
+        self.assertEqual(tasks.context["page_obj"].number, 2)
+        self.assertGreater(tasks.context["paginator"].count, 20)
+        self.assertLessEqual(len(tasks.context["tasks"]), 20)
+        self.assertEqual(activity.context["page_obj"].number, 2)
+        self.assertEqual(activity.context["paginator"].count, 28)
+        self.assertLessEqual(len(activity.context["logs"]), 25)
+        self.assertEqual(notices.context["page_obj"].number, 2)
+        self.assertEqual(notices.context["paginator"].count, 23)
+        self.assertLessEqual(len(notices.context["notifications"]), 20)
+
+    def test_support_queues_have_independent_page_parameters(self):
+        SupplyRequest.objects.bulk_create(
+            [
+                SupplyRequest(
+                    task=self.task,
+                    branch=self.branch,
+                    requested_by=self.housekeeper,
+                    priority=HousekeepingTask.Priority.NORMAL,
+                    note=f"Vật tư phân trang {index:02}",
+                )
+                for index in range(21)
+            ]
+        )
+        IssueTicket.objects.bulk_create(
+            [
+                IssueTicket(
+                    task=self.task,
+                    room=self.room,
+                    reported_by=self.housekeeper,
+                    issue_type="OTHER",
+                    severity=HousekeepingTask.Priority.NORMAL,
+                    description=f"Sự cố phân trang {index:02}",
+                )
+                for index in range(21)
+            ]
+        )
+
+        response = self.authenticated(self.manager).get(
+            reverse("housekeeping:support-queue"),
+            {"supply_page": 2, "issue_page": 1},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["supply_pagination"]["page_obj"].number, 2)
+        self.assertEqual(response.context["issue_pagination"]["page_obj"].number, 1)
+        self.assertLessEqual(len(response.context["supplies"]), 20)
+        self.assertLessEqual(len(response.context["issues"]), 20)
+        self.assertContains(response, "supply_page=1")
+        self.assertContains(response, "issue_page=2")
 
     def test_field_user_cannot_open_support_backoffice(self):
         response = self.authenticated(self.housekeeper).get(

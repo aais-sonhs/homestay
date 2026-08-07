@@ -17,10 +17,11 @@
 
 {% if pending_blockers %}
 <section class="card operations-section">
-    <div class="section-heading"><div><h2>Blocker chờ xác nhận gỡ</h2><p class="muted">Nguồn sự cố đã báo xử lý xong nhưng readiness chưa được mở tự động.</p></div><span class="pill warn">{{ pending_blockers|length }} blocker</span></div>
+    <div class="section-heading"><div><h2>Blocker chờ xác nhận gỡ</h2><p class="muted">Nguồn sự cố đã báo xử lý xong nhưng readiness chưa được mở tự động.</p></div><span class="pill warn">{{ blocker_pagination.paginator.count }} blocker</span></div>
     <div class="stop-sell-grid">
         {% for row in pending_blocker_rows %}{% with blocker=row.blocker %}<article class="stop-sell-card"><div class="stop-sell-card-head"><div><strong>{{ blocker.room.code }} · {{ blocker.get_kind_display }}</strong><span>{{ blocker.branch.name }}</span></div><span class="pill warn">{{ blocker.get_status_display }}</span></div><p>{{ blocker.reason }}</p>{% if blocker.clearance_note %}<small>Kết quả xử lý: {{ blocker.clearance_note }}</small>{% endif %}{% if row.canManage %}<form method="post" action="{% url 'room_operations:blocker-confirm-clearance' blocker.id %}" class="stop-sell-action-form" data-confirm="Xác nhận gỡ blocker phòng {{ blocker.room.code }}?">{% csrf_token %}<input type="hidden" name="version" value="{{ blocker.version }}"><label class="field grow"><span class="field-label">Ghi chú xác nhận</span><textarea name="note" rows="2" required placeholder="Đã kiểm tra thực tế..."></textarea></label><button type="submit">Xác nhận gỡ blocker</button></form>{% endif %}</article>{% endwith %}{% endfor %}
     </div>
+    {% include "shared/pagination.html" with page_obj=blocker_pagination.page_obj paginator=blocker_pagination.paginator is_paginated=blocker_pagination.is_paginated pagination_query=blocker_pagination.pagination_query page_parameter=blocker_pagination.page_parameter only %}
 </section>
 {% endif %}
 

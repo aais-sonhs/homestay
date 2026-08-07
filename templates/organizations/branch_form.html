@@ -44,6 +44,7 @@
             </tbody>
         </table>
     </div>
+    {% include "shared/pagination.html" with page_obj=history_pagination.page_obj paginator=history_pagination.paginator is_paginated=history_pagination.is_paginated pagination_query=history_pagination.pagination_query page_parameter=history_pagination.page_parameter only %}
 </section>
 {% endif %}
 {% endblock %}

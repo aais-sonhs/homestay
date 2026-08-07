@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from accounts.models import User
+from common.list_views import paginate_collection, paginate_context
 from organizations.models import (
     Area,
     Branch,
@@ -78,7 +79,13 @@ def _allowed_branches(user):
 @login_required
 def task_list(request):
     try:
-        tasks = filtered_task_queryset(request.user, request.GET)
+        task_queryset = filtered_task_queryset(request.user, request.GET)
+        page_context = paginate_context(
+            request,
+            task_queryset,
+            context_object_name="tasks",
+            per_page=20,
+        )
         branches = _allowed_branches(request.user)
         shifts = Shift.objects.filter(is_active=True, branch__in=branches).select_related(
             "branch"
@@ -87,7 +94,7 @@ def task_list(request):
             request,
             "housekeeping/task_list.html",
             {
-                "tasks": tasks,
+                **page_context,
                 "branches": branches,
                 "shifts": shifts,
                 "selected_date": request.GET.get("date") or timezone.localdate().isoformat(),
@@ -212,12 +219,16 @@ def operations_dashboard(request):
         status_counts = list(
             tasks.values("status").annotate(total=Count("id")).order_by("status")
         )
-        qc_tasks = list(
+        qc_pagination = paginate_collection(
+            request,
             tasks.filter(
                 status__in={HousekeepingTask.Status.WAITING_QC, HousekeepingTask.Status.QC_REJECTED}
-            )[:50]
+            ),
+            per_page=20,
+            page_parameter="qc_page",
         )
-        active_tasks = list(
+        active_pagination = paginate_collection(
+            request,
             tasks.filter(
                 status__in={
                     HousekeepingTask.Status.ACCEPTED,
@@ -225,7 +236,21 @@ def operations_dashboard(request):
                     HousekeepingTask.Status.PAUSED,
                     HousekeepingTask.Status.WAITING_SUPPORT,
                 }
-            )[:100]
+            ),
+            per_page=20,
+            page_parameter="active_page",
+        )
+        risk_pagination = paginate_collection(
+            request,
+            sla["tasks"],
+            per_page=20,
+            page_parameter="risk_page",
+        )
+        performance_pagination = paginate_collection(
+            request,
+            performance["rows"],
+            per_page=20,
+            page_parameter="performance_page",
         )
     except HousekeepingError as error:
         messages.error(request, error.message)
@@ -236,9 +261,15 @@ def operations_dashboard(request):
         {
             "sla": sla,
             "performance": performance,
+            "risk_rows": risk_pagination["items"],
+            "risk_pagination": risk_pagination,
+            "performance_rows": performance_pagination["items"],
+            "performance_pagination": performance_pagination,
             "status_counts": status_counts,
-            "qc_tasks": qc_tasks,
-            "active_tasks": active_tasks,
+            "qc_tasks": qc_pagination["items"],
+            "qc_pagination": qc_pagination,
+            "active_tasks": active_pagination["items"],
+            "active_pagination": active_pagination,
             "branches": _allowed_branches(request.user),
             "selected_date": params.get("date", ""),
             "is_management": request.user.role in MANAGEMENT_ROLES
@@ -259,25 +290,39 @@ def support_queue(request):
         supplies = scoped_supply_requests(request.user)
         if request.GET.get("supplyStatus"):
             supplies = supplies.filter(status=request.GET["supplyStatus"])
-        supplies = supplies.order_by("status", "-created_at")[:100]
+        supplies = supplies.order_by("status", "-created_at")
     except HousekeepingError:
         supply_denied = True
     try:
         issues = scoped_issues(request.user)
         if request.GET.get("issueStatus"):
             issues = issues.filter(status=request.GET["issueStatus"])
-        issues = issues.order_by("status", "-created_at")[:100]
+        issues = issues.order_by("status", "-created_at")
     except HousekeepingError:
         issue_denied = True
     if supply_denied and issue_denied:
         messages.error(request, "Bạn không có quyền xem hàng đợi Kho hoặc Kỹ thuật.")
         return redirect("housekeeping:task-list")
+    supply_pagination = paginate_collection(
+        request,
+        supplies,
+        per_page=20,
+        page_parameter="supply_page",
+    )
+    issue_pagination = paginate_collection(
+        request,
+        issues,
+        per_page=20,
+        page_parameter="issue_page",
+    )
     return render(
         request,
         "housekeeping/support_queue.html",
         {
-            "supplies": supplies,
-            "issues": issues,
+            "supplies": supply_pagination["items"],
+            "supply_pagination": supply_pagination,
+            "issues": issue_pagination["items"],
+            "issue_pagination": issue_pagination,
             "supply_statuses": SupplyRequest.Status.choices,
             "issue_statuses": IssueTicket.Status.choices,
             "supply_denied": supply_denied,
@@ -337,10 +382,16 @@ def activity_log(request):
     actions = HousekeepingActivityLog.objects.filter(task_id__in=task_ids).values_list(
         "action", flat=True
     ).distinct().order_by("action")
+    page_context = paginate_context(
+        request,
+        logs.order_by("-created_at", "-id"),
+        context_object_name="logs",
+        per_page=25,
+    )
     return render(
         request,
         "housekeeping/activity_log.html",
-        {"logs": logs[:250], "actions": actions},
+        {**page_context, "actions": actions},
     )
 
 
@@ -351,11 +402,17 @@ def notification_center(request):
     )
     if request.GET.get("unread") == "true":
         notifications = notifications.filter(read_at__isnull=True)
+    page_context = paginate_context(
+        request,
+        notifications.order_by("-notification__created_at"),
+        context_object_name="notifications",
+        per_page=20,
+    )
     return render(
         request,
         "housekeeping/notification_center.html",
         {
-            "notifications": notifications.order_by("-notification__created_at")[:100],
+            **page_context,
             "unread_count": NotificationRecipient.objects.filter(
                 user=request.user, read_at__isnull=True
             ).count(),

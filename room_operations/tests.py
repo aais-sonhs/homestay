@@ -218,6 +218,56 @@ class RoomOperationsTests(TestCase):
         self.assertContains(field_schedule, "Không xịt phòng")
         self.assertNotContains(field_schedule, "Khách được bảo vệ")
 
+    def test_schedule_and_readiness_board_paginate_without_changing_summaries(self):
+        now = timezone.now()
+        extra_rooms = Room.objects.bulk_create(
+            [
+                Room(
+                    branch=self.branch,
+                    code=f"OPS-PAGE-{index:02}",
+                    name=f"Phòng phân trang {index:02}",
+                    status=Room.Status.READY,
+                )
+                for index in range(20)
+            ]
+        )
+        Booking.objects.bulk_create(
+            [
+                Booking(
+                    branch=self.branch,
+                    room=room,
+                    code=f"OPS-PAGE-BOOK-{index:02}",
+                    status=Booking.Status.BOOKED,
+                    checkin_at=now,
+                    checkout_at=now + timedelta(days=1),
+                    guest_name=f"Khách phân trang {index:02}",
+                )
+                for index, room in enumerate(extra_rooms)
+            ]
+        )
+        client = self.authenticated(self.cskh)
+
+        schedule = client.get(
+            reverse("room_operations:schedule"),
+            {"date": timezone.localdate().isoformat(), "schedule_page": 2},
+        )
+        readiness = client.get(
+            reverse("room_operations:room-readiness"),
+            {"page": 2},
+        )
+
+        self.assertEqual(schedule.status_code, 200)
+        self.assertEqual(
+            schedule.context["schedule_pagination"]["page_obj"].number,
+            2,
+        )
+        self.assertEqual(schedule.context["schedule"]["summary"]["bookingCount"], 22)
+        self.assertLessEqual(len(schedule.context["schedule"]["rows"]), 20)
+        self.assertEqual(readiness.status_code, 200)
+        self.assertEqual(readiness.context["page_obj"].number, 2)
+        self.assertEqual(readiness.context["board"]["summary"]["total"], 22)
+        self.assertLessEqual(len(readiness.context["board"]["rows"]), 18)
+
     def test_founder_can_view_all_branches(self):
         board = build_readiness_board(self.founder)
         self.assertEqual({row["room"].code for row in board["rows"]}, {"OPS-101", "OPS-102", "SECRET-201"})

@@ -8,7 +8,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from common.list_views import paginate_context
+from common.list_views import paginate_collection, paginate_context
 from housekeeping.services import request_context
 from organizations.selectors import branch_queryset_for_user
 from reservations.selectors import can_create_any_booking
@@ -57,6 +57,24 @@ def operations_schedule(request):
     branches = branch_queryset_for_user(request.user)
     branch_id = _branch_filter(request, branches)
     selected_date = _selected_date(request)
+    schedule = build_daily_schedule(request.user, selected_date, branch_id=branch_id)
+    schedule_pagination = paginate_collection(
+        request,
+        schedule["rows"],
+        per_page=20,
+        page_parameter="schedule_page",
+    )
+    standalone_pagination = paginate_collection(
+        request,
+        schedule["standaloneTasks"],
+        per_page=20,
+        page_parameter="standalone_page",
+    )
+    schedule = {
+        **schedule,
+        "rows": schedule_pagination["items"],
+        "standaloneTasks": standalone_pagination["items"],
+    }
     return render(
         request,
         "room_operations/schedule.html",
@@ -64,7 +82,9 @@ def operations_schedule(request):
             "branches": branches,
             "selected_date": selected_date,
             "selected_branch_id": branch_id,
-            "schedule": build_daily_schedule(request.user, selected_date, branch_id=branch_id),
+            "schedule": schedule,
+            "schedule_pagination": schedule_pagination,
+            "standalone_pagination": standalone_pagination,
             "can_create_booking": can_create_any_booking(request.user),
         },
     )
@@ -74,6 +94,19 @@ def operations_schedule(request):
 def room_readiness_board(request):
     branches = branch_queryset_for_user(request.user)
     branch_id = _branch_filter(request, branches)
+    board = build_readiness_board(
+        request.user,
+        branch_id=branch_id,
+        query=request.GET.get("q", ""),
+        state=request.GET.get("state", ""),
+    )
+    page_context = paginate_context(
+        request,
+        board["rows"],
+        context_object_name="readiness_rows",
+        per_page=18,
+    )
+    board = {**board, "rows": page_context["readiness_rows"]}
     return render(
         request,
         "room_operations/readiness_board.html",
@@ -87,12 +120,8 @@ def room_readiness_board(request):
                 ("NOT_READY", "Chưa sẵn sàng"),
                 ("BLOCKED", "Đang bị chặn"),
             ),
-            "board": build_readiness_board(
-                request.user,
-                branch_id=branch_id,
-                query=request.GET.get("q", ""),
-                state=request.GET.get("state", ""),
-            ),
+            "board": board,
+            **page_context,
         },
     )
 
@@ -150,13 +179,20 @@ def stop_sell_list(request):
         }
         for stop_sell in page_context["stop_sells"]
     ]
-    pending_blockers = list(
+    pending_blocker_queryset = (
         blocker_queryset_for_user(request.user)
         .filter(status=RoomBlocker.Status.CLEARANCE_PENDING)
         .exclude(stop_sells__status__in=OPEN_STOP_SELL_STATUSES)
         .distinct()
-        .order_by("branch__name", "room__code")[:50]
+        .order_by("branch__name", "room__code")
     )
+    blocker_pagination = paginate_collection(
+        request,
+        pending_blocker_queryset,
+        per_page=20,
+        page_parameter="blocker_page",
+    )
+    pending_blockers = blocker_pagination["items"]
     pending_blocker_rows = [
         {
             "blocker": blocker,
@@ -172,6 +208,7 @@ def stop_sell_list(request):
             "stop_sell_rows": stop_sell_rows,
             "pending_blockers": pending_blockers,
             "pending_blocker_rows": pending_blocker_rows,
+            "blocker_pagination": blocker_pagination,
             "branches": branches,
             "statuses": RoomStopSell.Status.choices,
             "filters": {

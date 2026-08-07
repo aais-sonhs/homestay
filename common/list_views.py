@@ -83,6 +83,19 @@ def paginate_context(request, rows, *, context_object_name, per_page=20, page_pa
     }
 
 
+def paginate_collection(request, rows, *, per_page=20, page_parameter="page"):
+    """Return a namespaced pagination bundle for pages with multiple collections."""
+    context = paginate_context(
+        request,
+        rows,
+        context_object_name="items",
+        per_page=per_page,
+        page_parameter=page_parameter,
+    )
+    context["page_parameter"] = page_parameter
+    return context
+
+
 class FilteredListView(ListView):
     filter_fields = ()
 
@@ -110,4 +123,3 @@ class FilteredListView(ListView):
         context["filters"] = self.get_filter_state()
         context["pagination_query"] = build_pagination_query(self.request)
         return context
-
