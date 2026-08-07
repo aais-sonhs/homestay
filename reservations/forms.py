@@ -1,15 +1,58 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django import forms
 from django.db.models import Q
 from django.utils import timezone
 
-from common.forms import DateTimeLocalInput, StyledModelForm
-from housekeeping.models import Booking, BookingSpecialRequest
+from common.forms import DateTimeLocalInput, StyledModelForm, VietnameseMoneyField
+from housekeeping.models import (
+    Booking,
+    BookingSpecialRequest,
+    CapitalEntry,
+    OperatingExpense,
+)
 from organizations.models import Room
 from room_operations.selectors import find_room_stop_sell_conflict
 
 from .selectors import booking_creation_branch_queryset
+from .selectors import revenue_branch_queryset
+
+
+MONEY_ZERO = Decimal("0.00")
+
+
+def _booking_money_field(label, help_text):
+    return VietnameseMoneyField(
+        label=label,
+        help_text=help_text,
+        required=False,
+        min_value=MONEY_ZERO,
+        max_digits=14,
+        decimal_places=2,
+    )
+
+
+def _clean_booking_financials(form, cleaned_data):
+    for field_name in (
+        "room_charge",
+        "service_charge",
+        "discount_amount",
+        "paid_amount",
+    ):
+        cleaned_data[field_name] = cleaned_data.get(field_name) or MONEY_ZERO
+    gross_amount = cleaned_data["room_charge"] + cleaned_data["service_charge"]
+    if cleaned_data["discount_amount"] > gross_amount:
+        form.add_error(
+            "discount_amount",
+            "Tiền giảm giá không được lớn hơn tiền phòng và phụ thu.",
+        )
+    total_amount = gross_amount - cleaned_data["discount_amount"]
+    if cleaned_data["paid_amount"] > total_amount:
+        form.add_error(
+            "paid_amount",
+            "Số tiền đã thu không được lớn hơn tổng giá trị booking.",
+        )
 
 
 class BranchRoomSelect(forms.Select):
@@ -107,6 +150,22 @@ class BookingCreateForm(StyledModelForm):
         queryset=Room.objects.none(),
         widget=BranchRoomSelect,
     )
+    room_charge = _booking_money_field(
+        "Tiền phòng",
+        "Nhập tổng tiền phòng của cả kỳ lưu trú.",
+    )
+    service_charge = _booking_money_field(
+        "Phụ thu / dịch vụ",
+        "Ví dụ: phụ thu thêm người, nước uống hoặc dịch vụ tính phí.",
+    )
+    discount_amount = _booking_money_field(
+        "Giảm giá",
+        "Để trống nếu booking không có giảm giá.",
+    )
+    paid_amount = _booking_money_field(
+        "Đã thu",
+        "Tổng tiền cọc và thanh toán đã nhận từ khách.",
+    )
 
     class Meta:
         model = Booking
@@ -119,6 +178,10 @@ class BookingCreateForm(StyledModelForm):
             "guest_count",
             "checkin_at",
             "checkout_at",
+            "room_charge",
+            "service_charge",
+            "discount_amount",
+            "paid_amount",
         )
         labels = {
             "branch": "Chi nhánh",
@@ -208,6 +271,7 @@ class BookingCreateForm(StyledModelForm):
             )
             if overlapping:
                 self.add_error("room", "Phòng đã có booking trùng khoảng thời gian này.")
+        _clean_booking_financials(self, cleaned_data)
         return cleaned_data
 
 
@@ -216,6 +280,22 @@ class BookingUpdateForm(StyledModelForm):
     room = BookingRoomField(
         label="Phòng",
         queryset=Room.objects.none(),
+    )
+    room_charge = _booking_money_field(
+        "Tiền phòng",
+        "Nhập tổng tiền phòng của cả kỳ lưu trú.",
+    )
+    service_charge = _booking_money_field(
+        "Phụ thu / dịch vụ",
+        "Ví dụ: phụ thu thêm người, nước uống hoặc dịch vụ tính phí.",
+    )
+    discount_amount = _booking_money_field(
+        "Giảm giá",
+        "Để trống nếu booking không có giảm giá.",
+    )
+    paid_amount = _booking_money_field(
+        "Đã thu",
+        "Tổng tiền cọc và thanh toán đã nhận từ khách.",
     )
 
     class Meta:
@@ -228,6 +308,10 @@ class BookingUpdateForm(StyledModelForm):
             "guest_count",
             "checkin_at",
             "checkout_at",
+            "room_charge",
+            "service_charge",
+            "discount_amount",
+            "paid_amount",
         )
         labels = BookingCreateForm.Meta.labels
         help_texts = {
@@ -291,6 +375,46 @@ class BookingUpdateForm(StyledModelForm):
             )
             if overlapping:
                 self.add_error("room", "Phòng đã có booking trùng khoảng thời gian này.")
+        _clean_booking_financials(self, cleaned_data)
+        return cleaned_data
+
+
+class BookingFinancialUpdateForm(StyledModelForm):
+    version = forms.IntegerField(widget=forms.HiddenInput)
+    room_charge = _booking_money_field(
+        "Tiền phòng",
+        "Tổng tiền phòng của cả kỳ lưu trú.",
+    )
+    service_charge = _booking_money_field(
+        "Phụ thu / dịch vụ",
+        "Các khoản dịch vụ và phụ thu tính thêm.",
+    )
+    discount_amount = _booking_money_field(
+        "Giảm giá",
+        "Tổng số tiền giảm cho booking.",
+    )
+    paid_amount = _booking_money_field(
+        "Đã thu",
+        "Cập nhật tổng tiền cọc và thanh toán thực tế đã nhận.",
+    )
+
+    class Meta:
+        model = Booking
+        fields = (
+            "version",
+            "room_charge",
+            "service_charge",
+            "discount_amount",
+            "paid_amount",
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial.setdefault("version", self.instance.version)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        _clean_booking_financials(self, cleaned_data)
         return cleaned_data
 
 
@@ -301,3 +425,64 @@ class BookingCancelForm(forms.Form):
         max_length=500,
         widget=forms.TextInput(attrs={"placeholder": "Nhập lý do bắt buộc"}),
     )
+
+
+class CapitalEntryForm(StyledModelForm):
+    amount = _booking_money_field("Số tiền", "Số vốn thực tế đã ghi nhận.")
+
+    class Meta:
+        model = CapitalEntry
+        fields = ("branch", "title", "amount", "capital_date", "source", "notes")
+        labels = {
+            "branch": "Chi nhánh",
+            "title": "Tên nguồn vốn",
+            "capital_date": "Ngày ghi nhận",
+            "source": "Nguồn vốn",
+            "notes": "Ghi chú",
+        }
+        widgets = {
+            "capital_date": forms.DateInput(attrs={"type": "date"}),
+            "title": forms.TextInput(attrs={"placeholder": "Ví dụ: Vốn đầu tư ban đầu"}),
+            "source": forms.TextInput(attrs={"placeholder": "Ví dụ: Chủ chi nhánh"}),
+            "notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, user, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["branch"].queryset = revenue_branch_queryset(user)
+        self.fields["branch"].empty_label = "Chọn chi nhánh"
+
+
+class OperatingExpenseForm(StyledModelForm):
+    amount = _booking_money_field("Số tiền", "Số tiền dự kiến hoặc đã chi.")
+
+    class Meta:
+        model = OperatingExpense
+        fields = (
+            "branch",
+            "name",
+            "category",
+            "amount",
+            "expense_date",
+            "payment_status",
+            "notes",
+        )
+        labels = {
+            "branch": "Chi nhánh",
+            "name": "Khoản chi",
+            "category": "Nhóm chi phí",
+            "expense_date": "Ngày phát sinh",
+            "payment_status": "Trạng thái chi",
+            "notes": "Ghi chú",
+        }
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "Ví dụ: Tiền điện tháng này"}),
+            "category": forms.TextInput(attrs={"placeholder": "Ví dụ: Điện nước, vật tư, sửa chữa"}),
+            "expense_date": forms.DateInput(attrs={"type": "date"}),
+            "notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, user, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["branch"].queryset = revenue_branch_queryset(user)
+        self.fields["branch"].empty_label = "Chọn chi nhánh"

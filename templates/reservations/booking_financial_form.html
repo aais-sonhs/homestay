@@ -1,0 +1,44 @@
+{% extends "housekeeping/base.html" %}
+{% load housekeeping_display %}
+{% block title %}Tài chính {{ booking.code }} | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Tài chính booking {{ booking.code }}</h1>
+        <p class="muted">{{ booking.branch.name }} · phòng {{ booking.room.code }} · {{ booking.get_status_display }}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'reservations:booking-list' %}">Quay lại Booking</a>
+        <a class="button secondary" href="{% url 'reservations:revenue-daily' %}">Xem doanh thu</a>
+    </div>
+</div>
+
+<section class="card entity-form-card">
+    <div class="booking-automation-note">
+        <strong>Chỉ cập nhật số liệu tài chính</strong>
+        <span>Thao tác này không đổi phòng, lịch ở hay các công việc buồng phòng. Báo cáo ghi nhận booking vào ngày trả phòng.</span>
+    </div>
+    <form method="post" class="entity-form" novalidate>
+        {% csrf_token %}
+        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+        {% if form.errors %}<div class="form-error-summary" role="alert"><strong>Chưa thể lưu tài chính</strong><span>Vui lòng kiểm tra các khoản tiền bên dưới.</span></div>{% endif %}
+        {{ form.non_field_errors }}
+        {% for field in form.visible_fields %}
+        <div class="field entity-form-row{% if field.errors %} has-error{% endif %}">
+            <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            {{ field.errors }}
+        </div>
+        {% endfor %}
+        <div class="notice">
+            <strong>Hiện tại:</strong>
+            giá trị {{ booking.total_amount|money_vi }} đ · đã thu {{ booking.paid_amount|money_vi }} đ · còn phải thu {{ booking.outstanding_amount|money_vi }} đ.
+        </div>
+        <div class="actions entity-form-actions">
+            <button type="submit">Lưu tài chính</button>
+            <a class="button secondary" href="{% url 'reservations:booking-list' %}">Hủy</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

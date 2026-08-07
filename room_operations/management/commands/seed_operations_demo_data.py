@@ -1,5 +1,6 @@
 import base64
 from datetime import timedelta
+from decimal import Decimal
 from io import StringIO
 
 from django.core.files.base import ContentFile
@@ -13,10 +14,12 @@ from housekeeping.models import (
     Booking,
     BookingChangeLog,
     BookingSpecialRequest,
+    CapitalEntry,
     HousekeepingTask,
     IssueTicket,
     Notification,
     NotificationRecipient,
+    OperatingExpense,
     OutboxEvent,
     QCTask,
     SupplyLocation,
@@ -196,6 +199,10 @@ class Command(BaseCommand):
                 "guest_name": "Nguyễn Minh Anh",
                 "guest_phone": "0909000101",
                 "guest_count": 3,
+                "room_charge": Decimal("2400000.00"),
+                "service_charge": Decimal("300000.00"),
+                "discount_amount": Decimal("200000.00"),
+                "paid_amount": Decimal("1000000.00"),
                 "requests": TODAY_REQUESTS,
                 "task_statuses": {
                     HousekeepingTask.TaskType.CHECKIN_PREPARATION: HousekeepingTask.Status.IN_PROGRESS,
@@ -212,6 +219,10 @@ class Command(BaseCommand):
                 "guest_name": "Trần Gia Đình",
                 "guest_phone": "0909000102",
                 "guest_count": 4,
+                "room_charge": Decimal("1800000.00"),
+                "service_charge": Decimal("160000.00"),
+                "discount_amount": Decimal("0.00"),
+                "paid_amount": Decimal("1960000.00"),
                 "requests": (
                     {
                         "request_type": BookingSpecialRequest.RequestType.HOUSEKEEPING,
@@ -236,6 +247,10 @@ class Command(BaseCommand):
                 "guest_name": "Lê Hoàng Nam",
                 "guest_phone": "0909000103",
                 "guest_count": 2,
+                "room_charge": Decimal("0.00"),
+                "service_charge": Decimal("0.00"),
+                "discount_amount": Decimal("0.00"),
+                "paid_amount": Decimal("0.00"),
                 "requests": (),
                 "task_statuses": {
                     HousekeepingTask.TaskType.CHECKIN_PREPARATION: HousekeepingTask.Status.UNASSIGNED,
@@ -252,6 +267,10 @@ class Command(BaseCommand):
                 "guest_name": "Phạm Thảo Vy",
                 "guest_phone": "0909000104",
                 "guest_count": 2,
+                "room_charge": Decimal("1600000.00"),
+                "service_charge": Decimal("250000.00"),
+                "discount_amount": Decimal("0.00"),
+                "paid_amount": Decimal("500000.00"),
                 "requests": (
                     {
                         "request_type": BookingSpecialRequest.RequestType.AMENITY,
@@ -276,6 +295,10 @@ class Command(BaseCommand):
                 "guest_name": "Võ Quang Huy",
                 "guest_phone": "0909000105",
                 "guest_count": 2,
+                "room_charge": Decimal("1400000.00"),
+                "service_charge": Decimal("180000.00"),
+                "discount_amount": Decimal("80000.00"),
+                "paid_amount": Decimal("1500000.00"),
                 "requests": (
                     {
                         "request_type": BookingSpecialRequest.RequestType.OTHER,
@@ -300,6 +323,10 @@ class Command(BaseCommand):
                 "guest_name": "Đỗ Thu Hà",
                 "guest_phone": "0909000106",
                 "guest_count": 1,
+                "room_charge": Decimal("900000.00"),
+                "service_charge": Decimal("0.00"),
+                "discount_amount": Decimal("0.00"),
+                "paid_amount": Decimal("0.00"),
                 "requests": (),
                 "task_statuses": {
                     HousekeepingTask.TaskType.CHECKIN_PREPARATION: HousekeepingTask.Status.CANCELLED,
@@ -342,6 +369,7 @@ class Command(BaseCommand):
         issues = self._seed_issue_and_blocker_cases(rooms, tasks, bookings, users, now)
         stop_sells = self._seed_stop_sell_cases(rooms, issues, users, now)
         self._seed_photos_and_notifications(tasks, issues, users)
+        self._seed_cost_cases(branches, users, now)
 
         demo_bookings = Booking.objects.filter(code__startswith="DEMO-BK-")
         booking_tasks = HousekeepingTask.objects.filter(booking__in=demo_bookings).count()
@@ -355,6 +383,45 @@ class Command(BaseCommand):
             "blockers": demo_blockers.count(),
             "stop_sells": demo_stop_sells.count(),
         }
+
+    def _seed_cost_cases(self, branches, users, now):
+        today = timezone.localdate()
+        cases = (
+            (branches["DALAT"], "DEMO Vốn đầu tư phòng mẫu", Decimal("50000000.00"), "Chủ chi nhánh", "Vốn đầu tư ban đầu"),
+            (branches["HCM"], "DEMO Vốn mở rộng khu S", Decimal("80000000.00"), "Nhà đầu tư", "Vốn bổ sung"),
+        )
+        for branch, title, amount, source, notes in cases:
+            CapitalEntry.objects.get_or_create(
+                branch=branch,
+                title=title,
+                capital_date=today,
+                defaults={
+                    "amount": amount,
+                    "source": source,
+                    "notes": notes,
+                    "created_by": users["admin"],
+                    "updated_by": users["manager"],
+                },
+            )
+        expenses = (
+            (branches["DALAT"], "DEMO Tiền điện tháng này", "Điện nước", Decimal("3200000.00"), OperatingExpense.PaymentStatus.PAID),
+            (branches["DALAT"], "DEMO Mua khăn bổ sung", "Vật tư", Decimal("1500000.00"), OperatingExpense.PaymentStatus.PLANNED),
+            (branches["HCM"], "DEMO Sửa khóa phòng S203", "Sửa chữa", Decimal("2800000.00"), OperatingExpense.PaymentStatus.PAID),
+        )
+        for branch, name, category, amount, payment_status in expenses:
+            OperatingExpense.objects.get_or_create(
+                branch=branch,
+                name=name,
+                expense_date=today,
+                defaults={
+                    "category": category,
+                    "amount": amount,
+                    "payment_status": payment_status,
+                    "notes": "Dữ liệu mẫu do seed_operations_demo_data quản lý.",
+                    "created_by": users["admin"],
+                    "updated_by": users["manager"],
+                },
+            )
 
     def _seed_rooms(self, branches):
         rooms = {}
@@ -400,6 +467,10 @@ class Command(BaseCommand):
         booking.guest_name = spec["guest_name"]
         booking.guest_phone = spec["guest_phone"]
         booking.guest_count = spec["guest_count"]
+        booking.room_charge = spec["room_charge"]
+        booking.service_charge = spec["service_charge"]
+        booking.discount_amount = spec["discount_amount"]
+        booking.paid_amount = spec["paid_amount"]
         booking.source = Booking.Source.MANUAL_SALES
         booking.created_by = users["sales"]
         booking.updated_by = users["manager"]
@@ -712,6 +783,12 @@ class Command(BaseCommand):
             "guestName": booking.guest_name,
             "guestPhone": booking.guest_phone,
             "guestCount": booking.guest_count,
+            "roomCharge": str(booking.room_charge),
+            "serviceCharge": str(booking.service_charge),
+            "discountAmount": str(booking.discount_amount),
+            "paidAmount": str(booking.paid_amount),
+            "totalAmount": str(booking.total_amount),
+            "outstandingAmount": str(booking.outstanding_amount),
             "specialRequests": booking.special_requests,
             "version": booking.version,
         }

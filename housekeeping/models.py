@@ -288,6 +288,30 @@ class Booking(models.Model):
     guest_phone = models.CharField(max_length=30, blank=True)
     guest_count = models.PositiveSmallIntegerField(default=1)
     special_requests = models.TextField(blank=True)
+    room_charge = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Tổng tiền phòng của cả kỳ lưu trú.",
+    )
+    service_charge = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Phụ thu và dịch vụ tính thêm cho booking.",
+    )
+    discount_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Tổng số tiền giảm giá của booking.",
+    )
+    paid_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Tổng số tiền khách đã thanh toán.",
+    )
     source = models.CharField(
         max_length=20,
         choices=Source.choices,
@@ -324,10 +348,145 @@ class Booking(models.Model):
     class Meta:
         db_table = "housekeeping_bookings"
         ordering = ["-checkin_at", "code"]
-        constraints = [models.UniqueConstraint(fields=("branch", "code"), name="unique_branch_booking_code")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("branch", "code"),
+                name="unique_branch_booking_code",
+            ),
+            models.CheckConstraint(
+                check=(
+                    models.Q(room_charge__gte=0)
+                    & models.Q(service_charge__gte=0)
+                    & models.Q(discount_amount__gte=0)
+                    & models.Q(paid_amount__gte=0)
+                ),
+                name="booking_money_values_nonneg",
+            ),
+            models.CheckConstraint(
+                check=models.Q(
+                    discount_amount__lte=models.F("room_charge")
+                    + models.F("service_charge")
+                ),
+                name="booking_discount_within_total",
+            ),
+            models.CheckConstraint(
+                check=models.Q(
+                    paid_amount__lte=models.F("room_charge")
+                    + models.F("service_charge")
+                    - models.F("discount_amount")
+                ),
+                name="booking_paid_within_total",
+            ),
+        ]
+
+    @property
+    def total_amount(self):
+        return self.room_charge + self.service_charge - self.discount_amount
+
+    @property
+    def outstanding_amount(self):
+        return self.total_amount - self.paid_amount
 
     def __str__(self):
         return f"{self.code} - {self.room}"
+
+
+class CapitalEntry(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.PROTECT,
+        related_name="capital_entries",
+    )
+    title = models.CharField(max_length=180)
+    amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    capital_date = models.DateField(default=timezone.localdate, db_index=True)
+    source = models.CharField(max_length=180, blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_capital_entries",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_capital_entries",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "housekeeping_capital_entries"
+        ordering = ["-capital_date", "-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(amount__gte=0),
+                name="capital_entry_amount_nonneg",
+            ),
+        ]
+        indexes = [models.Index(fields=("branch", "capital_date"), name="capital_branch_date_idx")]
+
+    def __str__(self):
+        return f"{self.title} - {self.capital_date:%d/%m/%Y}"
+
+
+class OperatingExpense(models.Model):
+    class PaymentStatus(models.TextChoices):
+        PLANNED = "PLANNED", "Dự kiến"
+        PAID = "PAID", "Đã chi"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.PROTECT,
+        related_name="operating_expenses",
+    )
+    name = models.CharField(max_length=180)
+    category = models.CharField(max_length=100, blank=True)
+    amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    expense_date = models.DateField(default=timezone.localdate, db_index=True)
+    payment_status = models.CharField(
+        max_length=10,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PAID,
+        db_index=True,
+    )
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_operating_expenses",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_operating_expenses",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "housekeeping_operating_expenses"
+        ordering = ["-expense_date", "-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(amount__gte=0),
+                name="operating_expense_amount_nonneg",
+            ),
+        ]
+        indexes = [models.Index(fields=("branch", "expense_date"), name="expense_branch_date_idx")]
+
+    def __str__(self):
+        return f"{self.name} - {self.expense_date:%d/%m/%Y}"
 
 
 class BookingSpecialRequest(models.Model):

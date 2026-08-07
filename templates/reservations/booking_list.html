@@ -30,7 +30,7 @@
                 <td>{{ row.booking.checkout_at|date:"H:i d/m/Y" }}</td>
                 <td><span class="status-badge" data-status="{{ row.booking.status }}">{{ row.booking.get_status_display }}</span></td>
                 <td>{{ row.booking.created_by.display_name|default:"Dữ liệu cũ" }}</td>
-                <td>{% if row.canManage %}<a class="button secondary" href="{% url 'reservations:booking-update' row.booking.id %}">Sửa lịch</a>{% else %}<span class="muted">Chỉ đọc</span>{% endif %}</td>
+                <td><div class="entity-actions">{% if row.canManage %}<a class="button secondary" href="{% url 'reservations:booking-update' row.booking.id %}">Sửa lịch</a>{% endif %}{% if row.canEditFinance %}<a class="button secondary" href="{% url 'reservations:booking-financial-update' row.booking.id %}">Tài chính</a>{% endif %}{% if not row.canManage and not row.canEditFinance %}<span class="muted">Chỉ đọc</span>{% endif %}</div></td>
             </tr>
             {% empty %}<tr><td colspan="7" class="empty">Chưa có booking phù hợp bộ lọc.</td></tr>{% endfor %}
             </tbody>

@@ -25,6 +25,12 @@
         {% if form.errors %}<div class="form-error-summary" role="alert"><strong>Chưa thể lưu booking</strong><span>Vui lòng kiểm tra thông tin được đánh dấu bên dưới.</span></div>{% endif %}
         {{ form.non_field_errors }}
         {% for field in form.visible_fields %}
+        {% if field.name == "room_charge" %}
+        <div class="entity-form-section-heading">
+            <strong>Tài chính booking</strong>
+            <span>Số liệu này được tổng hợp vào menu Doanh thu theo ngày trả phòng.</span>
+        </div>
+        {% endif %}
         <div class="field entity-form-row{% if field.errors %} has-error{% endif %}">
             <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
             {{ field }}

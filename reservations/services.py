@@ -1,5 +1,6 @@
 import uuid
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -14,7 +15,7 @@ from housekeeping.services import (
 from organizations.models import Branch, Room
 from room_operations.selectors import find_room_stop_sell_conflict
 
-from .selectors import can_create_booking_for_branch
+from .selectors import can_create_booking_for_branch, can_manage_revenue_for_branch
 from .special_requests import (
     SpecialRequestValidationError,
     booking_special_request_items,
@@ -34,6 +35,31 @@ class BookingCreationError(BookingOperationError):
     pass
 
 
+def _booking_financial_values(cleaned_data, current=None):
+    values = {}
+    for field_name in (
+        "room_charge",
+        "service_charge",
+        "discount_amount",
+        "paid_amount",
+    ):
+        default = getattr(current, field_name) if current is not None else Decimal("0.00")
+        value = cleaned_data.get(field_name, default)
+        values[field_name] = value if value is not None else Decimal("0.00")
+    if any(value < 0 for value in values.values()):
+        raise BookingOperationError("Các khoản tiền của booking không được là số âm.")
+    gross_amount = values["room_charge"] + values["service_charge"]
+    if values["discount_amount"] > gross_amount:
+        raise BookingOperationError(
+            "Tiền giảm giá không được lớn hơn tiền phòng và phụ thu."
+        )
+    if values["paid_amount"] > gross_amount - values["discount_amount"]:
+        raise BookingOperationError(
+            "Số tiền đã thu không được lớn hơn tổng giá trị booking."
+        )
+    return values
+
+
 def _booking_snapshot(booking):
     return {
         "bookingId": str(booking.id),
@@ -46,6 +72,12 @@ def _booking_snapshot(booking):
         "guestName": booking.guest_name,
         "guestPhone": booking.guest_phone,
         "guestCount": booking.guest_count,
+        "roomCharge": str(booking.room_charge),
+        "serviceCharge": str(booking.service_charge),
+        "discountAmount": str(booking.discount_amount),
+        "paidAmount": str(booking.paid_amount),
+        "totalAmount": str(booking.total_amount),
+        "outstandingAmount": str(booking.outstanding_amount),
         "specialRequests": booking.special_requests,
         "specialRequestItems": serialize_booking_special_requests(booking),
         "version": booking.version,
@@ -180,6 +212,10 @@ def create_booking(actor, cleaned_data, context=None):
         request_items = _request_items_from_cleaned_data(cleaned_data)
     except SpecialRequestValidationError as error:
         raise BookingCreationError(str(error)) from error
+    try:
+        financial_values = _booking_financial_values(cleaned_data)
+    except BookingOperationError as error:
+        raise BookingCreationError(str(error)) from error
 
     booking = Booking.objects.create(
         branch=branch,
@@ -191,6 +227,7 @@ def create_booking(actor, cleaned_data, context=None):
         guest_name=str(cleaned_data.get("guest_name") or "").strip(),
         guest_phone=str(cleaned_data.get("guest_phone") or "").strip(),
         guest_count=cleaned_data.get("guest_count") or 1,
+        **financial_values,
         special_requests=special_request_summary(request_items),
         source=Booking.Source.MANUAL_SALES,
         created_by=actor,
@@ -261,6 +298,7 @@ def update_booking(actor, booking_id, cleaned_data, requested_version, context=N
         request_items = _request_items_from_cleaned_data(cleaned_data)
     except SpecialRequestValidationError as error:
         raise BookingOperationError(str(error)) from error
+    financial_values = _booking_financial_values(cleaned_data, current=booking)
 
     values = {
         "room": room,
@@ -269,6 +307,7 @@ def update_booking(actor, booking_id, cleaned_data, requested_version, context=N
         "guest_count": cleaned_data.get("guest_count") or 1,
         "checkin_at": cleaned_data.get("checkin_at"),
         "checkout_at": cleaned_data.get("checkout_at"),
+        **financial_values,
         "special_requests": special_request_summary(request_items),
     }
     desired_matches_current = all(
@@ -333,6 +372,75 @@ def update_booking(actor, booking_id, cleaned_data, requested_version, context=N
         },
     )
     return booking, tasks
+
+
+@transaction.atomic
+def update_booking_financials(
+    actor,
+    booking_id,
+    cleaned_data,
+    requested_version,
+    context=None,
+):
+    context = context or {}
+    try:
+        booking = (
+            Booking.objects.select_for_update(of=("self",))
+            .select_related("branch", "room")
+            .get(pk=booking_id)
+        )
+    except (Booking.DoesNotExist, ValueError):
+        raise BookingOperationError("Không tìm thấy booking.") from None
+    if not can_manage_revenue_for_branch(actor, booking.branch):
+        raise BookingOperationError(
+            "Bạn không có quyền cập nhật tài chính booking này."
+        )
+    if booking.status == Booking.Status.CANCELLED:
+        raise BookingOperationError("Không thể cập nhật tài chính của booking đã hủy.")
+
+    financial_values = _booking_financial_values(cleaned_data, current=booking)
+    if all(
+        getattr(booking, field_name) == value
+        for field_name, value in financial_values.items()
+    ):
+        return booking
+    _validated_version(booking, requested_version)
+
+    before = _booking_snapshot(booking)
+    for field_name, value in financial_values.items():
+        setattr(booking, field_name, value)
+    booking.updated_by = actor
+    booking.version += 1
+    booking.save(
+        update_fields=[
+            *financial_values.keys(),
+            "updated_by",
+            "version",
+            "updated_at",
+        ]
+    )
+    _record_booking_change(
+        booking,
+        actor,
+        BookingChangeLog.Action.CHANGED,
+        context,
+        before=before,
+        reason="Cập nhật tài chính booking",
+    )
+    OutboxEvent.objects.get_or_create(
+        deduplication_key=f"booking:{booking.id}:financials:v{booking.version}"[:120],
+        defaults={
+            "event_type": "BOOKING_FINANCIALS_CHANGED",
+            "aggregate_type": "BOOKING",
+            "aggregate_id": str(booking.id),
+            "payload": {
+                "before": before,
+                "after": _booking_snapshot(booking),
+                "changedById": str(actor.id),
+            },
+        },
+    )
+    return booking
 
 
 @transaction.atomic

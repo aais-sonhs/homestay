@@ -41,10 +41,11 @@
                 <a href="#phong"><span>08</span>Lịch &amp; trạng thái phòng</a>
                 <a href="#stop-sell"><span>09</span>Blocker &amp; dừng bán</a>
                 <a href="#man-hinh-web"><span>10</span>Các màn hình web</a>
-                <a href="#mobile-api"><span>11</span>Mobile &amp; API</a>
-                <a href="#bao-mat"><span>12</span>Bảo mật &amp; dữ liệu</a>
-                <a href="#trang-thai"><span>13</span>Tra cứu trạng thái</a>
-                <a href="#xu-ly-loi"><span>14</span>Xử lý tình huống</a>
+                <a href="#tai-chinh"><span>11</span>Doanh thu, chi phí &amp; lợi nhuận</a>
+                <a href="#mobile-api"><span>12</span>Mobile &amp; API</a>
+                <a href="#bao-mat"><span>13</span>Bảo mật &amp; dữ liệu</a>
+                <a href="#trang-thai"><span>14</span>Tra cứu trạng thái</a>
+                <a href="#xu-ly-loi"><span>15</span>Xử lý tình huống</a>
             </nav>
         </aside>
 
@@ -185,13 +186,14 @@
                     <li><b>1</b><div><strong>Chọn chi nhánh và phòng</strong><p>Chỉ chọn phòng thuộc đúng chi nhánh. Hệ thống kiểm tra lịch trùng và khoảng dừng bán có hiệu lực.</p></div></li>
                     <li><b>2</b><div><strong>Nhập thời gian lưu trú</strong><p>Check-in phải trước checkout. Thời gian này được dùng để lập lịch chuẩn bị và dọn phòng.</p></div></li>
                     <li><b>3</b><div><strong>Nhập thông tin khách cần thiết</strong><p>Tên, số điện thoại và số khách chỉ hiển thị cho vai trò có quyền xem dữ liệu khách.</p></div></li>
-                    <li><b>4</b><div><strong>Thêm yêu cầu có cấu trúc</strong><p>Chọn loại, giai đoạn áp dụng, ưu tiên, mô tả và số lượng nếu có.</p></div></li>
-                    <li><b>5</b><div><strong>Lưu và kiểm tra công việc liên kết</strong><p>Hệ thống tạo việc chuẩn bị check-in và dọn sau checkout, sau đó đưa vào lịch điều phối.</p></div></li>
+                    <li><b>4</b><div><strong>Nhập tài chính booking</strong><p>Nhập tổng tiền phòng của kỳ ở, phụ thu/dịch vụ, giảm giá và số tiền đã thu. Hệ thống kiểm tra không cho giảm giá hoặc đã thu vượt giá trị booking.</p></div></li>
+                    <li><b>5</b><div><strong>Thêm yêu cầu có cấu trúc</strong><p>Chọn loại, giai đoạn áp dụng, ưu tiên, mô tả và số lượng nếu có.</p></div></li>
+                    <li><b>6</b><div><strong>Lưu và kiểm tra công việc liên kết</strong><p>Hệ thống tạo việc chuẩn bị check-in và dọn sau checkout, sau đó đưa vào lịch điều phối.</p></div></li>
                 </ol>
                 <div class="doc-grid doc-grid-two">
                     <div class="doc-subcard">
                         <h3>Khi sửa booking</h3>
-                        <p>Phòng và lịch của các công việc liên kết được cập nhật nếu công việc chưa bắt đầu. Nếu dữ liệu đã được người khác thay đổi, hệ thống dùng phiên bản để ngăn ghi đè.</p>
+                        <p>Phòng và lịch của các công việc liên kết được cập nhật nếu công việc chưa bắt đầu. Nếu dữ liệu đã được người khác thay đổi, hệ thống dùng phiên bản để ngăn ghi đè. Với booking đã nhận/trả phòng, chủ hoặc quản lý dùng nút <strong>Tài chính</strong> để cập nhật thanh toán mà không đổi lịch dọn.</p>
                     </div>
                     <div class="doc-subcard">
                         <h3>Khi hủy booking</h3>
@@ -204,7 +206,21 @@
                     <span>Hỗ trợ tiếp cận</span><span>Buồng phòng</span><span>Trang trí</span><span>Khác</span>
                 </div>
                 <p class="doc-muted">Yêu cầu có thể áp dụng trước check-in, trong kỳ ở, khi checkout hoặc toàn bộ kỳ ở. Bản chụp yêu cầu được gắn vào công việc để nhân viên luôn thấy đúng yêu cầu tại thời điểm vận hành.</p>
-                <div class="doc-actions"><a class="button secondary" href="{% url 'reservations:booking-list' %}">Mở danh sách booking</a></div>
+                <h3>Doanh thu từ booking</h3>
+                <div class="doc-grid doc-grid-three">
+                    <div class="doc-subcard"><h3>Giá trị booking</h3><p><strong>Tiền phòng + phụ thu/dịch vụ − giảm giá.</strong> Hệ thống không tự đoán giá từ số đêm để tránh sai chính sách giá của từng chi nhánh.</p></div>
+                    <div class="doc-subcard"><h3>Đã thu và công nợ</h3><p>“Đã thu” gồm tiền cọc và thanh toán đã nhận. “Còn phải thu” là giá trị booking trừ số tiền đã thu.</p></div>
+                    <div class="doc-subcard"><h3>Ngày ghi nhận báo cáo</h3><p>Booking chưa hủy được tổng hợp theo <strong>ngày trả phòng</strong>. Booking chưa nhập giá được đếm riêng để quản lý bổ sung.</p></div>
+                </div>
+                <div class="doc-note"><strong>Quyền xem doanh thu:</strong> nhà sáng lập/quản trị viên xem toàn hệ thống; chủ chi nhánh và quản lý chỉ xem các chi nhánh mình quản lý. Kinh doanh, CSKH, tạp vụ, QC, kho và kỹ thuật không được mở báo cáo này.</div>
+                <h3>Chi phí và vốn</h3>
+                <p>Nhóm <strong>Chi phí và vốn</strong> có ba màn hình: Tổng hợp theo năm, Vốn ban đầu và Chi phí vận hành. Chi phí vận hành có nhóm chi phí, ngày phát sinh, trạng thái <strong>Dự kiến/Đã chi</strong> và bộ lọc chi nhánh. Số liệu chỉ dành cho nhà sáng lập, chủ chi nhánh và quản lý.</p>
+                <p><strong>Lợi nhuận</strong> được tính riêng từ doanh thu booking trừ chi phí vận hành đã chi; khoản chi còn Dự kiến chưa làm giảm lợi nhuận. Báo cáo có thể lọc theo năm và chi nhánh.</p>
+                <div class="doc-actions">
+                    <a class="button secondary" href="{% url 'reservations:booking-list' %}">Mở danh sách booking</a>
+                    {% if request.user.is_superuser or request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}<a class="button secondary" href="{% url 'reservations:revenue-daily' %}">Mở báo cáo doanh thu</a>{% endif %}
+                    {% if request.user.is_superuser or request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}<a class="button secondary" href="{% url 'reservations:costs-dashboard' %}">Mở chi phí và vốn</a>{% endif %}
+                </div>
             </section>
 
             <section id="cong-viec" class="doc-section">
@@ -487,6 +503,14 @@
                             <tr><td><a href="{% url 'housekeeping:operations-dashboard' %}"><strong>Điều phối</strong></a></td><td>Tình hình SLA, tải công việc và rủi ro cần ưu tiên.</td><td><code>/housekeeping/operations/</code></td></tr>
                             <tr><td><a href="{% url 'housekeeping:support-queue' %}"><strong>Kho và Kỹ thuật</strong></a></td><td>Hàng chờ vật tư, sự cố và trạng thái xử lý.</td><td><code>/housekeeping/support/</code></td></tr>
                             <tr><td><a href="{% url 'reservations:booking-list' %}"><strong>Booking</strong></a></td><td>Quản lý lịch ở và yêu cầu khách.</td><td><code>/bookings/</code></td></tr>
+                            {% if request.user.is_superuser or request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}
+                            <tr><td><a href="{% url 'reservations:revenue-daily' %}"><strong>Doanh thu theo ngày</strong></a></td><td>Giá trị booking, đã thu và còn phải thu theo ngày trả phòng.</td><td><code>/reports/revenue/daily/</code></td></tr>
+                            <tr><td><a href="{% url 'reservations:revenue-monthly' %}"><strong>Doanh thu theo tháng</strong></a></td><td>Tổng hợp cùng số liệu theo tháng trong năm.</td><td><code>/reports/revenue/monthly/</code></td></tr>
+                            <tr><td><a href="{% url 'reservations:costs-dashboard' %}"><strong>Chi phí và vốn</strong></a></td><td>Tổng hợp vốn ban đầu, chi phí đã chi và khoản dự kiến theo năm.</td><td><code>/reports/costs/</code></td></tr>
+                            <tr><td><a href="{% url 'reservations:capital-list' %}"><strong>Vốn ban đầu</strong></a></td><td>Ghi nhận, lọc và cập nhật nguồn vốn theo chi nhánh.</td><td><code>/reports/costs/capital/</code></td></tr>
+                            <tr><td><a href="{% url 'reservations:expense-list' %}"><strong>Chi phí vận hành</strong></a></td><td>Ghi nhận điện nước, vật tư, sửa chữa và các khoản chi khác.</td><td><code>/reports/costs/operating/</code></td></tr>
+                            <tr><td><a href="{% url 'reservations:profit-dashboard' %}"><strong>Lợi nhuận</strong></a></td><td>Doanh thu booking trừ chi phí vận hành đã chi, tổng hợp theo tháng.</td><td><code>/reports/profit/</code></td></tr>
+                            {% endif %}
                             <tr><td><a href="{% url 'room_operations:schedule' %}"><strong>Lịch vận hành</strong></a></td><td>Đối chiếu check-in, checkout và công việc theo ngày.</td><td><code>/operations/schedule/</code></td></tr>
                             <tr><td><a href="{% url 'room_operations:room-readiness' %}"><strong>Trạng thái phòng</strong></a></td><td>Bảng sẵn sàng và hồ sơ vận hành 360°.</td><td><code>/operations/rooms/</code></td></tr>
                             <tr><td><a href="{% url 'room_operations:stop-sell-list' %}"><strong>Dừng bán phòng</strong></a></td><td>Blocker, stop-sell và quy trình mở lại.</td><td><code>/operations/stop-sell/</code></td></tr>
@@ -497,13 +521,37 @@
                 </div>
                 <p class="doc-muted">Thanh bên chỉ hiển thị một số mục theo vai trò. Máy chủ vẫn kiểm tra quyền ở từng thao tác; biết đường dẫn không đồng nghĩa có quyền truy cập.</p>
                 <div class="doc-note">
-                    <strong>Phân trang dữ liệu:</strong> các danh sách lớn được phân trang phía máy chủ và giữ nguyên bộ lọc khi chuyển trang. Công việc, yêu cầu khách lưu trú, booking, chi nhánh, nhân sự, thông báo và các hàng chờ mặc định 20 dòng/trang; Trạng thái phòng 18 thẻ/trang; Nhật ký hoạt động 25 dòng/trang. Các bảng độc lập trên Dashboard, Kho/Kỹ thuật và Lịch vận hành có nút chuyển trang riêng.
+                    <strong>Phân trang dữ liệu:</strong> các danh sách lớn được phân trang phía máy chủ và giữ nguyên bộ lọc khi chuyển trang. Công việc, yêu cầu khách lưu trú, booking, báo cáo doanh thu, vốn ban đầu, chi phí vận hành, chi nhánh, nhân sự, thông báo và các hàng chờ mặc định 20 dòng/trang; Trạng thái phòng 18 thẻ/trang; Nhật ký hoạt động 25 dòng/trang. Các bảng độc lập trên Dashboard, Kho/Kỹ thuật và Lịch vận hành có nút chuyển trang riêng.
                 </div>
+            </section>
+
+            <section id="tai-chinh" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">11</span>
+                    <div>
+                        <p class="doc-kicker">Báo cáo quản trị</p>
+                        <h2>Doanh thu, chi phí và lợi nhuận</h2>
+                    </div>
+                </div>
+                <p class="doc-lead">Ba nhóm báo cáo dùng chung phạm vi chi nhánh của tài khoản quản lý. Doanh thu lấy từ booking, chi phí lấy từ các khoản đã ghi nhận và lợi nhuận được tính minh bạch từ hai nguồn này.</p>
+                <div class="doc-grid doc-grid-three">
+                    <div class="doc-subcard"><h3>Doanh thu</h3><p>Giá trị booking = tiền phòng + phụ thu/dịch vụ − giảm giá. Booking bị hủy không được tính; ngày ghi nhận là ngày trả phòng.</p><a class="button secondary" href="{% url 'reservations:revenue-monthly' %}">Mở doanh thu</a></div>
+                    <div class="doc-subcard"><h3>Chi phí và vốn</h3><p>Vốn ban đầu được theo dõi riêng. Chi phí vận hành có nhóm, ngày phát sinh và trạng thái <strong>Dự kiến/Đã chi</strong>.</p><a class="button secondary" href="{% url 'reservations:costs-dashboard' %}">Mở chi phí và vốn</a></div>
+                    <div class="doc-subcard"><h3>Lợi nhuận</h3><p><strong>Lợi nhuận = doanh thu booking − chi phí vận hành đã chi.</strong> Khoản chi còn Dự kiến chưa làm giảm lợi nhuận.</p><a class="button secondary" href="{% url 'reservations:profit-dashboard' %}">Mở lợi nhuận</a></div>
+                </div>
+                <h3>Cách đọc báo cáo lợi nhuận</h3>
+                <ol class="doc-steps">
+                    <li><b>1</b><div><strong>Chọn năm và chi nhánh</strong><p>Để xem toàn hệ thống, chọn “Tất cả chi nhánh”. Chủ chi nhánh và quản lý chỉ thấy phạm vi được phân quyền.</p></div></li>
+                    <li><b>2</b><div><strong>Đối chiếu doanh thu</strong><p>Kiểm tra booking đã nhập tiền phòng, phụ thu, giảm giá và số tiền đã thu. Booking chưa nhập giá sẽ được cảnh báo riêng.</p></div></li>
+                    <li><b>3</b><div><strong>Kiểm tra chi phí</strong><p>Chuyển khoản chi sang “Đã chi” sau khi thanh toán thực tế. Khoản “Dự kiến” vẫn hiển thị ở Chi phí và vốn nhưng chưa trừ vào lợi nhuận.</p></div></li>
+                    <li><b>4</b><div><strong>Đọc lợi nhuận theo tháng</strong><p>Bảng ghép doanh thu theo tháng trả phòng với chi phí đã chi theo tháng phát sinh; đây là số liệu quản trị nội bộ, chưa thay thế sổ kế toán/thuế.</p></div></li>
+                </ol>
+                <div class="doc-callout doc-callout-info"><strong>Quyền truy cập tài chính</strong><p>Nhà sáng lập xem toàn hệ thống; chủ chi nhánh và quản lý xem các chi nhánh được giao. Kinh doanh, CSKH, tạp vụ, QC, kho và kỹ thuật không được mở báo cáo tài chính.</p></div>
             </section>
 
             <section id="mobile-api" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">11</span>
+                    <span class="doc-number">12</span>
                     <div>
                         <p class="doc-kicker">Ứng dụng Bliss Home</p>
                         <h2>Mobile và kết nối API</h2>
@@ -556,7 +604,7 @@
 
             <section id="bao-mat" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">12</span>
+                    <span class="doc-number">13</span>
                     <div>
                         <p class="doc-kicker">An toàn vận hành</p>
                         <h2>Bảo mật, nhật ký và tính nhất quán dữ liệu</h2>
@@ -595,7 +643,7 @@
 
             <section id="trang-thai" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">13</span>
+                    <span class="doc-number">14</span>
                     <div>
                         <p class="doc-kicker">Tra cứu nhanh</p>
                         <h2>Các trạng thái nghiệp vụ</h2>
@@ -635,7 +683,7 @@
 
             <section id="xu-ly-loi" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">14</span>
+                    <span class="doc-number">15</span>
                     <div>
                         <p class="doc-kicker">Hỗ trợ người dùng</p>
                         <h2>Xử lý các tình huống thường gặp</h2>

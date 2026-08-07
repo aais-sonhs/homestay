@@ -1,0 +1,31 @@
+{% extends "housekeeping/base.html" %}
+{% load housekeeping_display %}
+{% block title %}Chi phí và vốn | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading revenue-page-heading">
+    <div><h1>Chi phí và vốn</h1><p class="muted">Theo dõi vốn ban đầu, chi phí vận hành và dòng tiền theo năm.</p></div>
+    <div class="revenue-tabs"><a class="button secondary" href="{% url 'reservations:capital-list' %}">Vốn ban đầu</a><a class="button secondary" href="{% url 'reservations:expense-list' %}">Chi phí vận hành</a></div>
+</div>
+
+<form class="card toolbar operations-filter revenue-filter" method="get">
+    <label class="field"><span class="field-label">Năm</span><input type="number" name="year" min="2000" max="2100" value="{{ filters.year }}"></label>
+    <label class="field grow"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if filters.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+    <button type="submit">Xem tổng hợp</button>
+</form>
+
+<div class="stat-grid revenue-summary-grid">
+    <div class="stat violet">{% include "shared/metric_icon.html" with icon="booking" %}<span class="label">Vốn ban đầu</span><strong class="money-value">{{ summary.capital_total|money_vi }} đ</strong><span class="stat-note">Tổng vốn ghi nhận trong năm</span></div>
+    <div class="stat danger">{% include "shared/metric_icon.html" with icon="risk" %}<span class="label">Tổng chi phí</span><strong class="money-value">{{ summary.expense_total|money_vi }} đ</strong><span class="stat-note">Đã chi và dự kiến</span></div>
+    <div class="stat success">{% include "shared/metric_icon.html" with icon="ready" %}<span class="label">Đã chi</span><strong class="money-value">{{ summary.paid_expense_total|money_vi }} đ</strong><span class="stat-note">Chi phí đã thanh toán</span></div>
+    <div class="stat warning">{% include "shared/metric_icon.html" with icon="clock" %}<span class="label">Dự kiến chi</span><strong class="money-value">{{ summary.planned_expense_total|money_vi }} đ</strong><span class="stat-note">Chưa chuyển sang đã chi</span></div>
+    <div class="stat info">{% include "shared/metric_icon.html" with icon="progress" %}<span class="label">Dòng tiền còn lại</span><strong class="money-value">{{ summary.net_cash|money_vi }} đ</strong><span class="stat-note">Vốn − khoản đã chi</span></div>
+</div>
+
+<section class="card entity-list-card revenue-table-card">
+    <div class="section-heading"><div><h2>Tổng hợp theo tháng</h2><p class="muted">Chỉ hiển thị các tháng có phát sinh vốn hoặc chi phí.</p></div></div>
+    <div class="table-wrap"><table class="operations-table"><thead><tr><th>Tháng</th><th>Vốn ban đầu</th><th>Chi phí vận hành</th><th>Chênh lệch</th></tr></thead><tbody>
+        {% for row in rows %}<tr><td><strong>{{ row.period|date:"m/Y" }}</strong></td><td>{{ row.capital_total|money_vi }} đ</td><td class="revenue-outstanding">{{ row.expense_total|money_vi }} đ</td><td class="revenue-paid">{{ row.net_total|money_vi }} đ</td></tr>{% empty %}<tr><td colspan="4" class="empty">Chưa có dữ liệu vốn hoặc chi phí trong năm đã chọn.</td></tr>{% endfor %}
+    </tbody></table></div>
+</section>
+<p class="muted revenue-source-note">Dòng tiền còn lại chỉ mang tính theo dõi vốn và chi phí đã ghi nhận, chưa phải báo cáo lợi nhuận kế toán.</p>
+{% endblock %}

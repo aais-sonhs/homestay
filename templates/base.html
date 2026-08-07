@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
     {% include "shared/favicon.html" %}
-    <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}?v=20260807-3">
+    <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}?v=20260808-1">
     <title>{% block title %}Buồng phòng | Bliss Home{% endblock %}</title>
     {% block extra_head %}{% endblock %}
 </head>
@@ -50,9 +50,52 @@
 
             <span class="nav-section-label">Điều hành phòng</span>
             {% if request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' or request.user.role == 'sales' or request.user.role == 'customer_service' %}
-            <a class="nav-link" href="{% url 'reservations:booking-list' %}"{% if request.resolver_match.namespace == 'reservations' %} aria-current="page"{% endif %} title="Booking">
+            <a class="nav-link" href="{% url 'reservations:booking-list' %}"{% if request.resolver_match.url_name == 'booking-list' or request.resolver_match.url_name == 'booking-create' or request.resolver_match.url_name == 'booking-update' or request.resolver_match.url_name == 'booking-financial-update' or request.resolver_match.url_name == 'booking-cancel' %} aria-current="page"{% endif %} title="Booking">
                 <svg class="nav-icon icon-indigo" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M8 2v4M16 2v4M3 9h18M8 13h3M8 17h6"/></svg>
                 <span>Booking</span>
+            </a>
+            {% endif %}
+            {% if request.user.is_superuser or request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}
+            <details class="nav-group"{% if request.resolver_match.url_name == 'revenue-daily' or request.resolver_match.url_name == 'revenue-monthly' %} open{% endif %}>
+                <summary title="Doanh thu">
+                    <span class="nav-group-main">
+                        <svg class="nav-icon icon-teal" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m6 14v-7m5 7V3"/><path d="m4 7 5-4 6 6 5-6"/></svg>
+                        <span>Doanh thu</span>
+                    </span>
+                    <svg class="nav-group-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                </summary>
+                <div class="nav-submenu">
+                    <a class="nav-link" href="{% url 'reservations:revenue-daily' %}"{% if request.resolver_match.url_name == 'revenue-daily' %} aria-current="page"{% endif %} title="Doanh thu theo ngày">
+                        <svg class="nav-icon icon-teal" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3M8 17h6"/></svg>
+                        <span>Theo ngày</span>
+                    </a>
+                    <a class="nav-link" href="{% url 'reservations:revenue-monthly' %}"{% if request.resolver_match.url_name == 'revenue-monthly' %} aria-current="page"{% endif %} title="Doanh thu theo tháng">
+                        <svg class="nav-icon icon-teal" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M7 14h2M11 14h2M15 14h2M7 18h2M11 18h2"/></svg>
+                        <span>Theo tháng</span>
+                    </a>
+                </div>
+            </details>
+            {% endif %}
+            {% if request.user.is_superuser or request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}
+            <details class="nav-group"{% if request.resolver_match.url_name == 'costs-dashboard' or request.resolver_match.url_name == 'capital-list' or request.resolver_match.url_name == 'capital-create' or request.resolver_match.url_name == 'capital-update' or request.resolver_match.url_name == 'expense-list' or request.resolver_match.url_name == 'expense-create' or request.resolver_match.url_name == 'expense-update' %} open{% endif %}>
+                <summary title="Chi phí và vốn">
+                    <span class="nav-group-main">
+                        <svg class="nav-icon icon-orange" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v13H3z"/><path d="M3 7l3-4h12l3 4M8 12h8M8 16h5"/></svg>
+                        <span>Chi phí và vốn</span>
+                    </span>
+                    <svg class="nav-group-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                </summary>
+                <div class="nav-submenu">
+                    <a class="nav-link" href="{% url 'reservations:costs-dashboard' %}"{% if request.resolver_match.url_name == 'costs-dashboard' %} aria-current="page"{% endif %} title="Tổng hợp chi phí và vốn"><svg class="nav-icon icon-orange" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m6 14v-7m5 7V3"/><path d="m4 7 5-4 6 6 5-6"/></svg><span>Tổng hợp</span></a>
+                    <a class="nav-link" href="{% url 'reservations:capital-list' %}"{% if request.resolver_match.url_name == 'capital-list' or request.resolver_match.url_name == 'capital-create' or request.resolver_match.url_name == 'capital-update' %} aria-current="page"{% endif %} title="Vốn ban đầu"><svg class="nav-icon icon-orange" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c-.7-.8-1.7-1.2-3-1.2-1.6 0-2.7.8-2.7 2 0 3 5.7 1.2 5.7 4 0 1.3-1.2 2.2-3 2.2-1.3 0-2.4-.5-3.1-1.3"/></svg><span>Vốn ban đầu</span></a>
+                    <a class="nav-link" href="{% url 'reservations:expense-list' %}"{% if request.resolver_match.url_name == 'expense-list' or request.resolver_match.url_name == 'expense-create' or request.resolver_match.url_name == 'expense-update' %} aria-current="page"{% endif %} title="Chi phí vận hành"><svg class="nav-icon icon-orange" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Chi phí vận hành</span></a>
+                </div>
+            </details>
+            {% endif %}
+            {% if request.user.is_superuser or request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}
+            <a class="nav-link" href="{% url 'reservations:profit-dashboard' %}"{% if request.resolver_match.url_name == 'profit-dashboard' %} aria-current="page"{% endif %} title="Lợi nhuận">
+                <svg class="nav-icon icon-blue" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16"/><path d="m7 15 3-4 3 2 5-7"/><path d="M18 6h-4m4 0v4"/></svg>
+                <span>Lợi nhuận</span>
             </a>
             {% endif %}
             <a class="nav-link" href="{% url 'room_operations:schedule' %}"{% if request.resolver_match.namespace == 'room_operations' and request.resolver_match.url_name == 'schedule' %} aria-current="page"{% endif %} title="Lịch vận hành">
@@ -118,6 +161,9 @@
                 {% if request.resolver_match.url_name == 'branch-staff-list' or request.resolver_match.url_name == 'branch-staff-create' %}NHÂN SỰ CHI NHÁNH
                 {% elif request.resolver_match.url_name == 'branch-owner-list' or request.resolver_match.url_name == 'branch-owner-create' or request.resolver_match.url_name == 'branch-owner-update' %}TÀI KHOẢN CHỦ CHI NHÁNH
                 {% elif request.resolver_match.namespace == 'organizations' %}QUẢN LÝ CHI NHÁNH
+                {% elif request.resolver_match.url_name == 'revenue-daily' or request.resolver_match.url_name == 'revenue-monthly' %}BÁO CÁO DOANH THU
+                {% elif request.resolver_match.url_name == 'costs-dashboard' or request.resolver_match.url_name == 'capital-list' or request.resolver_match.url_name == 'capital-create' or request.resolver_match.url_name == 'capital-update' or request.resolver_match.url_name == 'expense-list' or request.resolver_match.url_name == 'expense-create' or request.resolver_match.url_name == 'expense-update' %}CHI PHÍ VÀ VỐN
+                {% elif request.resolver_match.url_name == 'profit-dashboard' %}BÁO CÁO LỢI NHUẬN
                 {% elif request.resolver_match.namespace == 'reservations' %}QUẢN LÝ BOOKING
                 {% elif request.resolver_match.namespace == 'room_operations' %}TRUNG TÂM VẬN HÀNH PHÒNG
                 {% elif request.resolver_match.url_name == 'operations-dashboard' %}TRUNG TÂM ĐIỀU PHỐI

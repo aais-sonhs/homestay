@@ -1,0 +1,73 @@
+{% extends "housekeeping/base.html" %}
+{% load housekeeping_display %}
+{% block title %}{{ page_title }} | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading revenue-page-heading">
+    <div>
+        <h1>{{ page_title }}</h1>
+        <p class="muted">{{ page_description }}</p>
+    </div>
+    <div class="revenue-tabs" aria-label="Kiểu báo cáo doanh thu">
+        <a class="button{% if report_mode != 'daily' %} secondary{% endif %}" href="{% url 'reservations:revenue-daily' %}">Theo ngày</a>
+        <a class="button{% if report_mode != 'monthly' %} secondary{% endif %}" href="{% url 'reservations:revenue-monthly' %}">Theo tháng</a>
+    </div>
+</div>
+
+<form class="card toolbar operations-filter revenue-filter" method="get">
+    {% if report_mode == "daily" %}
+    <label class="field"><span class="field-label">Từ ngày</span><input type="date" name="from_date" value="{{ filters.from_date }}"></label>
+    <label class="field"><span class="field-label">Đến ngày</span><input type="date" name="to_date" value="{{ filters.to_date }}"></label>
+    {% else %}
+    <label class="field"><span class="field-label">Năm</span><input type="number" name="year" min="2000" max="2100" value="{{ filters.year }}"></label>
+    {% endif %}
+    <label class="field grow"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if filters.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+    <button type="submit">Xem báo cáo</button>
+</form>
+
+<div class="stat-grid revenue-summary-grid">
+    <div class="stat info">{% include "shared/metric_icon.html" with icon="booking" %}<span class="label">Booking trong kỳ</span><strong>{{ summary.booking_count }}</strong><span class="stat-note">{{ summary.priced_booking_count }} booking đã nhập giá</span></div>
+    <div class="stat violet">{% include "shared/metric_icon.html" with icon="progress" %}<span class="label">Giá trị booking</span><strong class="money-value">{{ summary.total_amount|money_vi }} đ</strong><span class="stat-note">Tiền phòng + phụ thu − giảm giá</span></div>
+    <div class="stat success">{% include "shared/metric_icon.html" with icon="ready" %}<span class="label">Đã thu</span><strong class="money-value">{{ summary.paid_amount|money_vi }} đ</strong><span class="stat-note">Tiền cọc và thanh toán đã nhận</span></div>
+    <div class="stat warning">{% include "shared/metric_icon.html" with icon="clock" %}<span class="label">Còn phải thu</span><strong class="money-value">{{ summary.outstanding_amount|money_vi }} đ</strong><span class="stat-note">Công nợ booking trong kỳ</span></div>
+    <div class="stat{% if summary.unpriced_booking_count %} danger{% endif %}">{% include "shared/metric_icon.html" with icon="risk" %}<span class="label">Chưa nhập giá</span><strong>{{ summary.unpriced_booking_count }}</strong><span class="stat-note">Cần bổ sung trong màn hình Booking</span></div>
+</div>
+
+{% if summary.unpriced_booking_count %}
+<div class="notice revenue-data-note">
+    <strong>Còn {{ summary.unpriced_booking_count }} booking chưa có giá trị.</strong>
+    Mở Booking → Tài chính để nhập tiền phòng, phụ thu, giảm giá và số tiền đã thu; báo cáo không tự ước tính giá phòng.
+</div>
+{% endif %}
+
+<section class="card entity-list-card revenue-table-card">
+    <div class="table-wrap">
+        <table class="operations-table">
+            <thead>
+                <tr>
+                    <th>{% if report_mode == "daily" %}Ngày trả phòng{% else %}Tháng trả phòng{% endif %}</th>
+                    <th>Số booking</th>
+                    <th>Giá trị booking</th>
+                    <th>Đã thu</th>
+                    <th>Còn phải thu</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td><strong>{% if report_mode == "daily" %}{{ row.period|date:"d/m/Y" }}{% else %}Tháng {{ row.period|date:"m/Y" }}{% endif %}</strong></td>
+                    <td>{{ row.booking_count }}</td>
+                    <td><strong>{{ row.total_amount|money_vi }} đ</strong></td>
+                    <td class="revenue-paid">{{ row.collected_total|money_vi }} đ</td>
+                    <td class="revenue-outstanding">{{ row.balance_total|money_vi }} đ</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="empty">Chưa có booking trả phòng trong kỳ và chi nhánh đã chọn.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "shared/pagination.html" %}
+</section>
+
+<p class="muted revenue-source-note">Nguồn số liệu: booking chưa hủy, ghi nhận vào ngày trả phòng. Báo cáo chỉ hiển thị trong phạm vi chi nhánh mà tài khoản được quyền quản lý.</p>
+{% endblock %}
