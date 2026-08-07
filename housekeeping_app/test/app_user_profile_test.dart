@@ -34,6 +34,12 @@ void main() {
       name: 'Tạp vụ Đà Lạt',
       role: 'housekeeping',
     );
+    const customerService = AppUserProfile(
+      id: 'cskh-1',
+      username: 'cskh',
+      name: 'CSKH Đà Lạt',
+      role: 'customer_service',
+    );
 
     expect(owner.isManagement, isTrue);
     expect(owner.roleLabel, 'Chủ chi nhánh');
@@ -41,6 +47,8 @@ void main() {
     expect(qc.isManagement, isFalse);
     expect(housekeeper.isQc, isFalse);
     expect(housekeeper.isManagement, isFalse);
+    expect(customerService.isCustomerService, isTrue);
+    expect(customerService.roleLabel, 'Chăm sóc khách hàng');
   });
 
   test(

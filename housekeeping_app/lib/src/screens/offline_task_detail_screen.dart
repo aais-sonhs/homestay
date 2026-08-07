@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -10,6 +11,7 @@ import '../api/housekeeping_api.dart';
 import '../device/device_evidence.dart';
 import '../offline/models.dart';
 import '../presentation/task_presentation.dart';
+import '../theme/app_theme.dart';
 import '../widgets/checklist_editor.dart';
 
 class OnlineTaskDetailScreen extends StatefulWidget {
@@ -33,7 +35,9 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
   List<LocalMediaPreview> _localMedia = const [];
   int _pending = 0;
   bool _loading = true;
+  bool _busy = false;
   String? _notice;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -42,23 +46,42 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     if (mounted) setState(() => _loading = true);
     try {
-      _task = await widget.api.taskDetail(widget.taskId);
-      _notice = null;
+      final task = await widget.api.taskDetail(widget.taskId);
+      if (!mounted || generation != _loadGeneration) return;
+      if (_note.text.isEmpty && task['note'] is String) {
+        _note.text = task['note']! as String;
+      }
+      setState(() {
+        _task = task;
+        _notice = null;
+        _pending = 0;
+        _localMedia = const [];
+        _loading = false;
+      });
     } on Object catch (error) {
-      _notice = 'Không tải được công việc từ máy chủ: $error';
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _notice = 'Không tải được công việc từ máy chủ: $error';
+        _loading = false;
+      });
     }
-    if (_note.text.isEmpty && _task?['note'] is String) {
-      _note.text = _task!['note']! as String;
-    }
-    _pending = 0;
-    _localMedia = const [];
-    if (mounted) setState(() => _loading = false);
   }
 
   Map get _capabilities => _task?['capabilities'] as Map? ?? const {};
   bool _can(String capability) => _capabilities[capability] == true;
+
+  Future<void> _runExclusive(Future<void> Function() action) async {
+    if (_busy || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   Future<void> _queueOperation(
     String operation,
@@ -305,6 +328,33 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
     );
   }
 
+  Future<void> _reviewQc(bool approved) async {
+    final result = await showDialog<_QcReviewResult>(
+      context: context,
+      builder: (context) => _QcReviewDialog(approved: approved),
+    );
+    if (result == null || !mounted) return;
+    try {
+      await widget.api.reviewQc(
+        taskId: widget.taskId,
+        version: (_task?['version'] as num?)?.toInt() ?? 1,
+        approved: approved,
+        reason: result.reason,
+        note: result.note,
+      );
+      await _load();
+      if (mounted) {
+        setState(
+          () => _notice = approved
+              ? 'Đã duyệt công việc đạt chất lượng.'
+              : 'Đã chuyển công việc về làm lại.',
+        );
+      }
+    } on Object catch (error) {
+      if (mounted) setState(() => _notice = 'Không thể cập nhật QC: $error');
+    }
+  }
+
   Future<void> _sync() async {
     if (mounted) setState(() => _notice = 'Đang tải dữ liệu mới nhất…');
     await _load();
@@ -330,6 +380,28 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
       );
     }
     final room = task['room'] as Map? ?? const {};
+    final interactive = !_loading && !_busy;
+    final actions = _ActionPanel(
+      task: task,
+      canAccept: interactive && _can('accept'),
+      canStart: interactive && _can('start'),
+      canPause: interactive && _can('pause'),
+      canResume: interactive && _can('resume'),
+      canUpdate: interactive && _can('update'),
+      canComplete: interactive && _can('complete') && _pending == 0,
+      canQcReview: interactive && _can('qcReview'),
+      pending: _pending,
+      onAccept: () => unawaited(_runExclusive(_accept)),
+      onStart: () => unawaited(_runExclusive(_start)),
+      onPause: () => unawaited(_runExclusive(_pause)),
+      onResume: () => unawaited(_runExclusive(_resume)),
+      onSupply: () => unawaited(_runExclusive(_queueSupply)),
+      onIssue: () => unawaited(_runExclusive(_queueIssue)),
+      onComplete: () => unawaited(_runExclusive(_showCompletion)),
+      onQcApprove: () => unawaited(_runExclusive(() => _reviewQc(true))),
+      onQcReject: () => unawaited(_runExclusive(() => _reviewQc(false))),
+      onSync: () => unawaited(_runExclusive(_sync)),
+    );
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -339,8 +411,8 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
             Text(
               viCodeLabel(task['taskType']),
               style: const TextStyle(
-                color: Color(0xff94a3b8),
-                fontSize: 10,
+                color: BlissAppTheme.muted,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -349,7 +421,9 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
         actions: [
           IconButton(
             tooltip: 'Tải lại từ máy chủ',
-            onPressed: _sync,
+            onPressed: interactive
+                ? () => unawaited(_runExclusive(_sync))
+                : null,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -361,12 +435,13 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
             : null,
       ),
       body: RefreshIndicator(
-        onRefresh: () => _load(),
+        onRefresh: _busy ? () async {} : _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
             if (_notice != null) _InfoBanner(text: _notice!),
             _TaskHeader(task: task, pending: _pending),
+            actions,
             _GeneralSection(task: task),
             _RoomSection(task: task),
             _SlaSection(task: task),
@@ -375,40 +450,23 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
               _ReworkSection(task: task),
             _ChecklistSection(
               task: task,
-              editable: _can('update'),
-              onEdit: _editChecklist,
+              editable: interactive && _can('update'),
+              onEdit: (item) =>
+                  unawaited(_runExclusive(() => _editChecklist(item))),
             ),
             _PhotoSection(
               task: task,
               localMedia: _localMedia,
-              canAdd: _can('update') || _can('qcReview'),
-              onAdd: _addPhoto,
+              canAdd: interactive && (_can('update') || _can('qcReview')),
+              onAdd: () => unawaited(_runExclusive(_addPhoto)),
             ),
             _SupportSection(task: task),
             _NoteSection(
               controller: _note,
-              canEdit: _can('update'),
-              onSave: _saveNote,
+              canEdit: interactive && _can('update'),
+              onSave: () => unawaited(_runExclusive(_saveNote)),
             ),
             _TimelineSection(task: task),
-            _ActionPanel(
-              task: task,
-              canAccept: _can('accept'),
-              canStart: _can('start'),
-              canPause: _can('pause'),
-              canResume: _can('resume'),
-              canUpdate: _can('update'),
-              canComplete: _can('complete') && _pending == 0,
-              pending: _pending,
-              onAccept: _accept,
-              onStart: _start,
-              onPause: _pause,
-              onResume: _resume,
-              onSupply: _queueSupply,
-              onIssue: _queueIssue,
-              onComplete: _showCompletion,
-              onSync: _sync,
-            ),
           ],
         ),
       ),
@@ -426,20 +484,20 @@ class _InfoBanner extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: const Color(0xffeef2ff),
+        color: BlissAppTheme.brandSoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xffc7d2fe)),
+        border: Border.all(color: const Color(0xff99f6e4)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: Color(0xff4f46e5)),
+          const Icon(Icons.info_outline_rounded, color: BlissAppTheme.brand),
           const SizedBox(width: 9),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(
-                color: Color(0xff3730a3),
-                fontSize: 12,
+                color: BlissAppTheme.brandDark,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -463,19 +521,12 @@ class _TaskHeader extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(28),
           gradient: const LinearGradient(
-            colors: [Color(0xff312e81), Color(0xff4f46e5), Color(0xff7c3aed)],
+            colors: [BlissAppTheme.brandDark, Color(0xff0d9488)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x304f46e5),
-              blurRadius: 26,
-              offset: Offset(0, 13),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,7 +560,7 @@ class _TaskHeader extends StatelessWidget {
                         view.taskTypeLabel,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: 21,
                           height: 1.25,
                           fontWeight: FontWeight.w800,
                         ),
@@ -518,8 +569,8 @@ class _TaskHeader extends StatelessWidget {
                       Text(
                         '${view.roomCode} · ${view.code}',
                         style: const TextStyle(
-                          color: Color(0xffc7d2fe),
-                          fontSize: 11,
+                          color: Color(0xffccfbf1),
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -539,8 +590,8 @@ class _TaskHeader extends StatelessWidget {
                   child: Text(
                     view.statusLabel,
                     style: const TextStyle(
-                      color: Color(0xff4338ca),
-                      fontSize: 9,
+                      color: BlissAppTheme.brandDark,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -559,7 +610,7 @@ class _TaskHeader extends StatelessWidget {
                   'Ưu tiên ${view.priorityLabel}',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -591,8 +642,8 @@ class _TaskHeader extends StatelessWidget {
                 const Text(
                   'Tiến độ công việc',
                   style: TextStyle(
-                    color: Color(0xffddd6fe),
-                    fontSize: 10,
+                    color: Color(0xffccfbf1),
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -601,7 +652,7 @@ class _TaskHeader extends StatelessWidget {
                   '${view.progress}%',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -625,7 +676,7 @@ class _TaskHeader extends StatelessWidget {
                 Icon(
                   pending == 0 ? Icons.cloud_done : Icons.cloud_upload_outlined,
                   size: 16,
-                  color: const Color(0xffc7d2fe),
+                  color: const Color(0xffccfbf1),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -633,8 +684,8 @@ class _TaskHeader extends StatelessWidget {
                       ? '${view.checklistDone}/${view.checklistTotal} mục · Dữ liệu máy chủ'
                       : '$pending thay đổi chưa xử lý',
                   style: const TextStyle(
-                    color: Color(0xffddd6fe),
-                    fontSize: 10,
+                    color: Color(0xffccfbf1),
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -676,7 +727,7 @@ class _InlineWarning extends StatelessWidget {
             text,
             style: TextStyle(
               color: dark ? Colors.white : null,
-              fontSize: 11,
+              fontSize: 14,
               fontWeight: dark ? FontWeight.w600 : null,
             ),
           ),
@@ -1223,6 +1274,7 @@ class _ActionPanel extends StatelessWidget {
     required this.canResume,
     required this.canUpdate,
     required this.canComplete,
+    required this.canQcReview,
     required this.pending,
     required this.onAccept,
     required this.onStart,
@@ -1231,6 +1283,8 @@ class _ActionPanel extends StatelessWidget {
     required this.onSupply,
     required this.onIssue,
     required this.onComplete,
+    required this.onQcApprove,
+    required this.onQcReject,
     required this.onSync,
   });
   final Map<String, Object?> task;
@@ -1240,6 +1294,7 @@ class _ActionPanel extends StatelessWidget {
   final bool canResume;
   final bool canUpdate;
   final bool canComplete;
+  final bool canQcReview;
   final int pending;
   final VoidCallback onAccept;
   final VoidCallback onStart;
@@ -1248,24 +1303,19 @@ class _ActionPanel extends StatelessWidget {
   final VoidCallback onSupply;
   final VoidCallback onIssue;
   final VoidCallback onComplete;
+  final VoidCallback onQcApprove;
+  final VoidCallback onQcReject;
   final VoidCallback onSync;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 2, bottom: 12),
+    padding: const EdgeInsets.only(top: 2, bottom: 14),
     child: Container(
-      padding: const EdgeInsets.all(17),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(21),
-        border: Border.all(color: const Color(0xffdcdffc)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x124f46e5),
-            blurRadius: 22,
-            offset: Offset(0, 10),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: BlissAppTheme.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1277,12 +1327,12 @@ class _ActionPanel extends StatelessWidget {
                 height: 39,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xffe9e8ff),
+                  color: BlissAppTheme.brandSoft,
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: const Icon(
                   Icons.touch_app_outlined,
-                  color: Color(0xff4f46e5),
+                  color: BlissAppTheme.brand,
                   size: 21,
                 ),
               ),
@@ -1349,6 +1399,18 @@ class _ActionPanel extends StatelessWidget {
                   icon: const Icon(Icons.build_outlined),
                   label: const Text('Báo sự cố'),
                 ),
+              if (canQcReview)
+                FilledButton.icon(
+                  onPressed: onQcApprove,
+                  icon: const Icon(Icons.verified_outlined),
+                  label: const Text('Duyệt đạt'),
+                ),
+              if (canQcReview)
+                OutlinedButton.icon(
+                  onPressed: onQcReject,
+                  icon: const Icon(Icons.replay_rounded),
+                  label: const Text('Yêu cầu làm lại'),
+                ),
             ],
           ),
           if (pending > 0) ...[
@@ -1364,7 +1426,7 @@ class _ActionPanel extends StatelessWidget {
                 'Không thể hoàn thành cuối.',
                 style: const TextStyle(
                   color: Color(0xff92400e),
-                  fontSize: 11,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1392,6 +1454,109 @@ class _ActionPanel extends StatelessWidget {
   bool get _couldCompleteTask => task['status'] == 'IN_PROGRESS';
 }
 
+final class _QcReviewResult {
+  const _QcReviewResult({required this.reason, required this.note});
+
+  final String reason;
+  final String note;
+}
+
+class _QcReviewDialog extends StatefulWidget {
+  const _QcReviewDialog({required this.approved});
+
+  final bool approved;
+
+  @override
+  State<_QcReviewDialog> createState() => _QcReviewDialogState();
+}
+
+class _QcReviewDialogState extends State<_QcReviewDialog> {
+  final _reason = TextEditingController();
+  final _note = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final reason = _reason.text.trim();
+    if (!widget.approved && reason.isEmpty) {
+      setState(() => _error = 'Vui lòng nhập lý do yêu cầu làm lại.');
+      return;
+    }
+    Navigator.pop(
+      context,
+      _QcReviewResult(reason: reason, note: _note.text.trim()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: Icon(
+      widget.approved ? Icons.verified_outlined : Icons.replay_rounded,
+    ),
+    title: Text(
+      widget.approved ? 'Duyệt công việc đạt?' : 'Yêu cầu thực hiện lại?',
+    ),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.approved
+                ? 'Phòng sẽ được xác nhận đạt chất lượng nếu không còn sự cố chặn.'
+                : 'Công việc sẽ quay về trạng thái làm lại và nhân viên được giao sẽ nhận thông báo.',
+          ),
+          if (!widget.approved) ...[
+            const SizedBox(height: 14),
+            TextField(
+              controller: _reason,
+              autofocus: true,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Lý do không đạt',
+                hintText: 'Ví dụ: Sàn phòng còn bẩn, cần vệ sinh lại',
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          TextField(
+            controller: _note,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Ghi chú QC (không bắt buộc)',
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Hủy'),
+      ),
+      FilledButton(
+        onPressed: _submit,
+        child: Text(widget.approved ? 'Xác nhận đạt' : 'Chuyển làm lại'),
+      ),
+    ],
+  );
+}
+
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
     required this.title,
@@ -1414,29 +1579,29 @@ class _SectionCard extends StatelessWidget {
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           initiallyExpanded: initiallyExpanded,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
           leading: Container(
-            width: 38,
-            height: 38,
+            width: 44,
+            height: 44,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xffeef2ff),
-              borderRadius: BorderRadius.circular(12),
+              color: BlissAppTheme.brandSoft,
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: const Color(0xff4f46e5), size: 20),
+            child: Icon(icon, color: BlissAppTheme.brand, size: 23),
           ),
           title: Text(
             title,
             style: const TextStyle(
-              color: Color(0xff172033),
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+              color: BlissAppTheme.ink,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
             ),
           ),
           trailing: trailing,
           shape: const Border(),
           collapsedShape: const Border(),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 2, 16, 17),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
           children: [Align(alignment: Alignment.centerLeft, child: child)],
         ),
       ),
@@ -1460,11 +1625,11 @@ class _FactsGrid extends StatelessWidget {
                 ? (constraints.maxWidth - 10) / 2
                 : constraints.maxWidth,
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xfff8fafc),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xffedf0f5)),
+                color: const Color(0xfff8faf8),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: BlissAppTheme.line),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1472,8 +1637,8 @@ class _FactsGrid extends StatelessWidget {
                   Text(
                     entry.key,
                     style: const TextStyle(
-                      color: Color(0xff94a3b8),
-                      fontSize: 9,
+                      color: BlissAppTheme.muted,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                       letterSpacing: .15,
                     ),
@@ -1484,8 +1649,9 @@ class _FactsGrid extends StatelessWidget {
                         ? '—'
                         : '${entry.value}',
                     style: const TextStyle(
-                      color: Color(0xff334155),
-                      fontSize: 12,
+                      color: BlissAppTheme.ink,
+                      fontSize: 16,
+                      height: 1.35,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

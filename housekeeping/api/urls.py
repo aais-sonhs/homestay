@@ -4,6 +4,12 @@ from . import views
 
 
 urlpatterns = [
+    path("guest-requests", views.guest_request_list, name="api-guest-request-list"),
+    path("guest-requests/", views.guest_request_list),
+    path("guest-requests/options", views.guest_request_options, name="api-guest-request-options"),
+    path("guest-requests/options/", views.guest_request_options),
+    path("guest-requests/<uuid:request_id>", views.guest_request_detail, name="api-guest-request-detail"),
+    path("guest-requests/<uuid:request_id>/", views.guest_request_detail),
     path("dashboard/sla", views.sla_dashboard, name="api-sla-dashboard"),
     path("dashboard/performance", views.performance_dashboard, name="api-performance-dashboard"),
     path("notifications", views.notification_list, name="api-notification-list"),
@@ -50,6 +56,21 @@ urlpatterns = [
         name="api-qc-round-review",
     ),
 ]
+
+for guest_action in ("accept", "start", "complete", "cancel", "assign"):
+    urlpatterns += [
+        path(
+            f"guest-requests/<uuid:request_id>/{guest_action}",
+            views.guest_request_action,
+            {"action": guest_action},
+            name=f"api-guest-request-{guest_action}",
+        ),
+        path(
+            f"guest-requests/<uuid:request_id>/{guest_action}/",
+            views.guest_request_action,
+            {"action": guest_action},
+        ),
+    ]
 
 for action in ("accept", "start", "reject", "return", "pause", "resume", "complete", "cancel"):
     urlpatterns.append(

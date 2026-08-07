@@ -1,0 +1,40 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Tạo yêu cầu khách lưu trú | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><a class="back-link" href="{% url 'housekeeping:guest-request-list' %}">← Danh sách yêu cầu</a><h1>Tạo yêu cầu khách lưu trú</h1><p class="muted">Nhập yêu cầu CSKH nhận từ Zalo, điện thoại hoặc lễ tân.</p></div>
+</div>
+<form method="post" class="card form-card" id="guest-request-form">
+    {% csrf_token %}
+    <div class="form-grid">
+        <label class="field"><span class="field-label">Booking đang lưu trú *</span><select name="bookingId" id="booking-select" required><option value="">Chọn phòng / booking</option>{% for booking in bookings %}<option value="{{ booking.id }}" data-branch="{{ booking.branch_id }}" data-room="{{ booking.room_id }}"{% if request.POST.bookingId == booking.id|stringformat:'s' %} selected{% endif %}>{{ booking.branch.name }} · Phòng {{ booking.room.code }} · {{ booking.code }}{% if booking.guest_name %} · {{ booking.guest_name }}{% endif %}</option>{% endfor %}</select></label>
+        <input type="hidden" name="branchId" id="branch-id" value="{{ request.POST.branchId }}">
+        <input type="hidden" name="roomId" id="room-id" value="{{ request.POST.roomId }}">
+        <label class="field"><span class="field-label">Loại yêu cầu *</span><select name="requestType" required>{% for value,label in request_types %}<option value="{{ value }}"{% if request.POST.requestType == value or not request.POST.requestType and value == 'WATER' %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field grow-2"><span class="field-label">Nội dung khách yêu cầu *</span><textarea name="description" rows="3" maxlength="500" required placeholder="Ví dụ: Giao thêm 2 chai nước suối cho khách">{{ request.POST.description }}</textarea></label>
+        <label class="field"><span class="field-label">Số lượng *</span><input type="number" name="quantity" min="1" max="999" value="{{ request.POST.quantity|default:'1' }}" required></label>
+        <label class="field"><span class="field-label">Đơn vị</span><input name="unit" maxlength="30" value="{{ request.POST.unit }}" placeholder="chai, cái, bộ..."></label>
+        <label class="field"><span class="field-label">Kênh tiếp nhận</span><select name="source">{% for value,label in sources %}<option value="{{ value }}"{% if request.POST.source == value or not request.POST.source and value == 'ZALO' %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Mức ưu tiên</span><select name="priority">{% for value,label in priorities %}<option value="{{ value }}"{% if request.POST.priority == value or not request.POST.priority and value == 'NORMAL' %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Hạn phục vụ</span><input type="datetime-local" name="dueAt" value="{{ request.POST.dueAt }}"><small class="muted">Để trống: hệ thống tự đặt 10–30 phút theo ưu tiên.</small></label>
+        {% if can_assign %}<label class="field"><span class="field-label">Giao ngay cho tạp vụ</span><select name="assigneeId"><option value="">Để quản lý phân công sau</option>{% for assignee in assignees %}<option value="{{ assignee.id }}"{% if request.POST.assigneeId == assignee.id|stringformat:'s' %} selected{% endif %}>{{ assignee.display_name }}</option>{% endfor %}</select></label>{% endif %}
+    </div>
+    <div class="toolbar"><button type="submit">Tạo yêu cầu</button><a class="button secondary" href="{% url 'housekeeping:guest-request-list' %}">Hủy</a></div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+    const booking = document.getElementById('booking-select');
+    const branch = document.getElementById('branch-id');
+    const room = document.getElementById('room-id');
+    const sync = () => {
+        const option = booking.options[booking.selectedIndex];
+        branch.value = option?.dataset.branch || '';
+        room.value = option?.dataset.room || '';
+    };
+    booking.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

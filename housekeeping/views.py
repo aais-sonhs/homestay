@@ -30,11 +30,25 @@ from .dashboard import build_performance_dashboard, build_sla_dashboard
 from .models import (
     Booking,
     ChecklistVersion,
+    GuestServiceRequest,
     HousekeepingActivityLog,
     HousekeepingTask,
     IssueTicket,
     NotificationRecipient,
     SupplyRequest,
+)
+from .guest_requests import (
+    CREATOR_ROLES as GUEST_REQUEST_CREATOR_ROLES,
+    accept_guest_request,
+    assign_guest_request,
+    cancel_guest_request,
+    complete_guest_request,
+    create_guest_request,
+    eligible_housekeepers,
+    filtered_guest_request_queryset,
+    guest_request_capabilities,
+    guest_request_for_user,
+    start_guest_request,
 )
 from .notifications import mark_notification_read
 from .selectors import task_queryset_for_user
@@ -74,6 +88,154 @@ def _allowed_branches(user):
         allowed_ids = user.branch_memberships.filter(is_active=True).values_list("branch_id", flat=True)
         branches = branches.filter(id__in=allowed_ids)
     return branches
+
+
+@login_required
+def guest_request_list(request):
+    try:
+        queryset = filtered_guest_request_queryset(request.user, request.GET)
+        page_context = paginate_context(
+            request,
+            queryset,
+            context_object_name="guest_requests",
+            per_page=20,
+        )
+    except HousekeepingError as error:
+        messages.error(request, error.message)
+        return redirect("dashboard")
+    return render(
+        request,
+        "housekeeping/guest_request_list.html",
+        {
+            **page_context,
+            "branches": _allowed_branches(request.user),
+            "statuses": GuestServiceRequest.Status.choices,
+            "request_types": GuestServiceRequest.RequestType.choices,
+            "can_create": request.user.role in GUEST_REQUEST_CREATOR_ROLES,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def guest_request_create(request):
+    if request.user.role not in GUEST_REQUEST_CREATOR_ROLES:
+        messages.error(request, "Bạn không có quyền tạo yêu cầu khách lưu trú.")
+        return redirect("housekeeping:guest-request-list")
+    branches = _allowed_branches(request.user)
+    branch_ids = branches.values_list("id", flat=True)
+    bookings = (
+        Booking.objects.filter(
+            branch_id__in=branch_ids,
+            status=Booking.Status.CHECKED_IN,
+        )
+        .select_related("branch", "room")
+        .order_by("branch__name", "room__code", "-checkin_at")
+    )
+    if request.method == "POST":
+        try:
+            item = create_guest_request(
+                request.user,
+                {
+                    "branchId": request.POST.get("branchId"),
+                    "roomId": request.POST.get("roomId"),
+                    "bookingId": request.POST.get("bookingId"),
+                    "requestType": request.POST.get("requestType"),
+                    "description": request.POST.get("description"),
+                    "quantity": request.POST.get("quantity"),
+                    "unit": request.POST.get("unit"),
+                    "source": request.POST.get("source"),
+                    "priority": request.POST.get("priority"),
+                    "dueAt": request.POST.get("dueAt"),
+                    "assigneeId": request.POST.get("assigneeId") or None,
+                },
+            )
+        except HousekeepingError as error:
+            messages.error(request, error.message)
+        else:
+            messages.success(request, f"Đã tạo yêu cầu {item.code} cho phòng {item.room.code}.")
+            return redirect("housekeeping:guest-request-detail", request_id=item.id)
+    return render(
+        request,
+        "housekeeping/guest_request_create.html",
+        {
+            "branches": branches,
+            "bookings": bookings,
+            "request_types": GuestServiceRequest.RequestType.choices,
+            "priorities": GuestServiceRequest.Priority.choices,
+            "sources": GuestServiceRequest.Source.choices,
+            "assignees": eligible_housekeepers(request.user)
+            if request.user.role in MANAGEMENT_ROLES
+            else User.objects.none(),
+            "can_assign": request.user.role in MANAGEMENT_ROLES,
+        },
+    )
+
+
+@login_required
+def guest_request_detail(request, request_id):
+    try:
+        item = guest_request_for_user(request.user, request_id)
+    except HousekeepingError as error:
+        messages.error(request, error.message)
+        return redirect("housekeeping:guest-request-list")
+    return render(
+        request,
+        "housekeeping/guest_request_detail.html",
+        {
+            "guest_request": item,
+            "capabilities": guest_request_capabilities(request.user, item),
+            "assignees": eligible_housekeepers(request.user).filter(
+                branch_memberships__branch=item.branch,
+                branch_memberships__is_active=True,
+            )
+            if request.user.role in MANAGEMENT_ROLES
+            else User.objects.none(),
+            "events": item.events.select_related("user"),
+        },
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def guest_request_web_action(request, request_id, action):
+    operations = {
+        "accept": lambda: accept_guest_request(
+            request.user, request_id, request.POST.get("version")
+        ),
+        "start": lambda: start_guest_request(
+            request.user, request_id, request.POST.get("version")
+        ),
+        "complete": lambda: complete_guest_request(
+            request.user,
+            request_id,
+            request.POST.get("version"),
+            request.POST.get("note"),
+        ),
+        "cancel": lambda: cancel_guest_request(
+            request.user,
+            request_id,
+            request.POST.get("version"),
+            request.POST.get("reason"),
+        ),
+        "assign": lambda: assign_guest_request(
+            request.user,
+            request_id,
+            request.POST.get("assigneeId"),
+            request.POST.get("version"),
+            request.POST.get("note"),
+        ),
+    }
+    if action not in operations:
+        messages.error(request, "Thao tác yêu cầu không hợp lệ.")
+        return redirect("housekeeping:guest-request-list")
+    try:
+        item = operations[action]()
+    except HousekeepingError as error:
+        messages.error(request, error.message)
+    else:
+        messages.success(request, f"Đã cập nhật yêu cầu {item.code}.")
+    return redirect("housekeeping:guest-request-detail", request_id=request_id)
 
 
 @login_required

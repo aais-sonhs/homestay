@@ -1,0 +1,41 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}{{ guest_request.code }} | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="grow"><a class="back-link" href="{% url 'housekeeping:guest-request-list' %}">← Danh sách yêu cầu</a><h1>{{ guest_request.room.code }} · {{ guest_request.code }}</h1><span class="muted">{{ guest_request.branch.name }} · Booking {{ guest_request.booking.code }}</span></div>
+    <div><span class="pill{% if guest_request.status == 'NEW' %} warn{% elif guest_request.status == 'COMPLETED' %} success{% elif guest_request.status == 'CANCELLED' %} danger{% endif %}">{{ guest_request.get_status_display }}</span></div>
+</div>
+
+<div class="detail-grid">
+    <section class="card grow-2">
+        <span class="label">Khách yêu cầu</span>
+        <h2>{{ guest_request.description }}</h2>
+        <div class="summary-grid">
+            <div><span class="label">Loại</span><strong>{{ guest_request.get_request_type_display }}</strong></div>
+            <div><span class="label">Số lượng</span><strong>{{ guest_request.quantity }} {{ guest_request.unit }}</strong></div>
+            <div><span class="label">Nguồn</span><strong>{{ guest_request.get_source_display }}</strong></div>
+            <div><span class="label">Ưu tiên</span><strong>{{ guest_request.get_priority_display }}</strong></div>
+            <div><span class="label">Tạo lúc</span><strong>{{ guest_request.created_at|date:"H:i d/m/Y" }}</strong></div>
+            <div><span class="label">Hạn phục vụ</span><strong>{{ guest_request.due_at|date:"H:i d/m/Y" }}</strong>{% if guest_request.is_overdue %}<br><span class="pill danger">⚠ Quá hạn</span>{% endif %}</div>
+            <div><span class="label">CSKH tiếp nhận</span><strong>{% if guest_request.requested_by %}{{ guest_request.requested_by.display_name }}{% else %}—{% endif %}</strong></div>
+            <div><span class="label">Người thực hiện</span><strong>{% if guest_request.assignee %}{{ guest_request.assignee.display_name }}{% else %}Chưa phân công{% endif %}</strong></div>
+        </div>
+        {% if guest_request.resolution_note %}<div class="notice success"><strong>Kết quả:</strong> {{ guest_request.resolution_note }}</div>{% endif %}
+        {% if guest_request.cancellation_reason %}<div class="notice danger"><strong>Lý do hủy:</strong> {{ guest_request.cancellation_reason }}</div>{% endif %}
+    </section>
+
+    <aside class="card">
+        <h2>Thao tác</h2>
+        {% if capabilities.assign %}
+        <form method="post" action="{% url 'housekeeping:guest-request-action' guest_request.id 'assign' %}" class="stack-form">{% csrf_token %}<input type="hidden" name="version" value="{{ guest_request.version }}"><label class="field"><span class="field-label">Phân công tạp vụ</span><select name="assigneeId" required><option value="">Chọn nhân viên</option>{% for assignee in assignees %}<option value="{{ assignee.id }}"{% if guest_request.assignee_id == assignee.id %} selected{% endif %}>{{ assignee.display_name }}</option>{% endfor %}</select></label><button>Giao việc</button></form>
+        {% endif %}
+        {% if capabilities.accept %}<form method="post" action="{% url 'housekeeping:guest-request-action' guest_request.id 'accept' %}">{% csrf_token %}<input type="hidden" name="version" value="{{ guest_request.version }}"><button class="wide">Nhận yêu cầu</button></form>{% endif %}
+        {% if capabilities.start %}<form method="post" action="{% url 'housekeeping:guest-request-action' guest_request.id 'start' %}">{% csrf_token %}<input type="hidden" name="version" value="{{ guest_request.version }}"><button class="wide">Bắt đầu thực hiện</button></form>{% endif %}
+        {% if capabilities.complete %}<form method="post" action="{% url 'housekeeping:guest-request-action' guest_request.id 'complete' %}" class="stack-form">{% csrf_token %}<input type="hidden" name="version" value="{{ guest_request.version }}"><label class="field"><span class="field-label">Ghi chú kết quả</span><textarea name="note" rows="2" placeholder="Đã giao tận tay khách"></textarea></label><button class="wide">Xác nhận đã giao khách</button></form>{% endif %}
+        {% if capabilities.cancel %}<details class="danger-zone"><summary>Hủy yêu cầu</summary><form method="post" action="{% url 'housekeeping:guest-request-action' guest_request.id 'cancel' %}" class="stack-form">{% csrf_token %}<input type="hidden" name="version" value="{{ guest_request.version }}"><label class="field"><span class="field-label">Lý do hủy *</span><textarea name="reason" required rows="2"></textarea></label><button class="danger">Hủy yêu cầu</button></form></details>{% endif %}
+        {% if not capabilities.assign and not capabilities.accept and not capabilities.start and not capabilities.complete and not capabilities.cancel %}<p class="muted">Yêu cầu không còn thao tác khả dụng.</p>{% endif %}
+    </aside>
+</div>
+
+<section class="card" style="margin-top:16px"><h2>Lịch sử xử lý</h2><div class="timeline">{% for event in events %}<div class="timeline-item"><strong>{{ event.action }}</strong><span>{{ event.created_at|date:"H:i d/m/Y" }} · {% if event.user %}{{ event.user.display_name }}{% else %}Hệ thống{% endif %}</span>{% if event.note %}<p>{{ event.note }}</p>{% endif %}</div>{% empty %}<p class="muted">Chưa có lịch sử.</p>{% endfor %}</div></section>
+{% endblock %}

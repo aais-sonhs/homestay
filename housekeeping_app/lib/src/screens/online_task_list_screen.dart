@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../api/housekeeping_api.dart';
 import '../offline/models.dart';
 import '../presentation/task_presentation.dart';
+import '../theme/app_theme.dart';
 import '../widgets/task_card.dart';
 import 'notification_screen.dart';
 import 'offline_task_detail_screen.dart';
@@ -17,6 +18,7 @@ class OnlineTaskListScreen extends StatefulWidget {
     this.title = 'Công việc buồng phòng',
     this.initialTab = HousekeepingTaskTab.mine,
     this.availableTabs = HousekeepingTaskTab.values,
+    this.active = true,
     super.key,
   });
 
@@ -25,6 +27,7 @@ class OnlineTaskListScreen extends StatefulWidget {
   final String title;
   final HousekeepingTaskTab initialTab;
   final List<HousekeepingTaskTab> availableTabs;
+  final bool active;
 
   @override
   State<OnlineTaskListScreen> createState() => _OnlineTaskListScreenState();
@@ -38,6 +41,7 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
   bool _loading = true;
   int _unreadNotifications = 0;
   String? _error;
+  int _loadGeneration = 0;
 
   Map<String, String> get _filters => {
     ..._tab.apiFilters,
@@ -50,23 +54,53 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
     _tab = widget.availableTabs.contains(widget.initialTab)
         ? widget.initialTab
         : widget.availableTabs.first;
-    _load();
-    _loadUnreadNotifications();
-    _poller = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _load(silent: true),
-    );
+    if (widget.active) {
+      _load();
+      _loadUnreadNotifications();
+      _startPolling();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant OnlineTaskListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active == widget.active) return;
+    if (widget.active) {
+      _load();
+      _loadUnreadNotifications();
+      _startPolling();
+    } else {
+      _loadGeneration++;
+      _poller?.cancel();
+      _poller = null;
+    }
+  }
+
+  void _startPolling() {
+    _poller?.cancel();
+    _poller = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (widget.active) _load(silent: true);
+    });
   }
 
   Future<void> _load({bool silent = false}) async {
+    final generation = ++_loadGeneration;
+    final filters = Map<String, String>.from(_filters);
     if (!silent && mounted) setState(() => _loading = true);
     try {
-      _tasks = await widget.api.tasks(filters: _filters);
-      _error = null;
+      final tasks = await widget.api.tasks(filters: filters);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _tasks = tasks;
+        _error = null;
+        _loading = false;
+      });
     } on Object catch (error) {
-      _error = 'Không tải được dữ liệu từ máy chủ: $error';
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _error = 'Không tải được dữ liệu từ máy chủ: $error';
+        _loading = false;
+      });
     }
   }
 
@@ -136,20 +170,7 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
     final views = _tasks.map(TaskViewData.new).toList(growable: false);
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.title),
-            const Text(
-              'Dữ liệu trực tiếp từ Bliss Home',
-              style: TextStyle(
-                color: Color(0xff94a3b8),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
+        title: _BrandAppBarTitle(subtitle: widget.title),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 3),
@@ -163,11 +184,6 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
               ),
             ),
           ),
-          IconButton(
-            tooltip: 'Tải lại',
-            onPressed: _loading ? null : _load,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
           PopupMenuButton<String>(
             tooltip: 'Tài khoản',
             icon: Container(
@@ -175,13 +191,13 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
               height: 34,
               alignment: Alignment.center,
               decoration: const BoxDecoration(
-                color: Color(0xffe9e8ff),
+                color: BlissAppTheme.brandSoft,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.person_outline_rounded,
                 size: 20,
-                color: Color(0xff4f46e5),
+                color: BlissAppTheme.brand,
               ),
             ),
             onSelected: (value) {
@@ -216,7 +232,7 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 5),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 5),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -225,13 +241,13 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
                       count: views.length,
                       loading: _loading,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xffe6eaf2)),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: BlissAppTheme.line),
                       ),
                       child: Column(
                         children: [
@@ -256,17 +272,17 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
                           ),
                           const SizedBox(height: 11),
                           SizedBox(
-                            height: 40,
+                            height: 48,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: widget.availableTabs.length,
                               separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 7),
+                                  const SizedBox(width: 8),
                               itemBuilder: (context, index) {
                                 final tab = widget.availableTabs[index];
                                 return ChoiceChip(
                                   selected: _tab == tab,
-                                  avatar: Icon(_tabIcon(tab), size: 16),
+                                  avatar: Icon(_tabIcon(tab), size: 19),
                                   label: Text(tab.label),
                                   onSelected: (_) {
                                     setState(() => _tab = tab);
@@ -283,7 +299,7 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
                       const SizedBox(height: 12),
                       _TaskError(message: _error!, onRetry: () => _load()),
                     ],
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
                     Row(
                       children: [
                         Expanded(
@@ -308,13 +324,13 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
                             height: 36,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: const Color(0xffecfdf5),
+                              color: BlissAppTheme.brandSoft,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
                               Icons.cloud_done_outlined,
                               size: 19,
-                              color: Color(0xff059669),
+                              color: BlissAppTheme.brand,
                             ),
                           ),
                       ],
@@ -341,7 +357,7 @@ class _OnlineTaskListScreenState extends State<OnlineTaskListScreen> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 7, 16, 110),
+                padding: const EdgeInsets.fromLTRB(16, 7, 16, 32),
                 sliver: SliverList.builder(
                   itemCount: views.length,
                   itemBuilder: (context, index) => HousekeepingTaskCard(
@@ -368,6 +384,60 @@ IconData _tabIcon(HousekeepingTaskTab tab) => switch (tab) {
   HousekeepingTaskTab.done => Icons.check_circle_outline_rounded,
 };
 
+class _BrandAppBarTitle extends StatelessWidget {
+  const _BrandAppBarTitle({required this.subtitle});
+
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Container(
+        width: 38,
+        height: 38,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(color: BlissAppTheme.line),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset('assets/branding/app_icon.png', fit: BoxFit.cover),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Bliss Home',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: BlissAppTheme.brandDark,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: BlissAppTheme.muted,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
 class _TaskOverview extends StatelessWidget {
   const _TaskOverview({
     required this.title,
@@ -381,37 +451,30 @@ class _TaskOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(19),
+    padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(23),
+      borderRadius: BorderRadius.circular(28),
       gradient: const LinearGradient(
-        colors: [Color(0xff3730a3), Color(0xff4f46e5), Color(0xff7c3aed)],
+        colors: [BlissAppTheme.brandDark, Color(0xff0d9488)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x304f46e5),
-          blurRadius: 26,
-          offset: Offset(0, 13),
-        ),
-      ],
     ),
     child: Row(
       children: [
         Container(
-          width: 50,
-          height: 50,
+          width: 54,
+          height: 54,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: .14),
-            borderRadius: BorderRadius.circular(17),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withValues(alpha: .16)),
           ),
           child: const Icon(
             Icons.assignment_turned_in_outlined,
             color: Colors.white,
-            size: 27,
+            size: 29,
           ),
         ),
         const SizedBox(width: 14),
@@ -422,8 +485,8 @@ class _TaskOverview extends StatelessWidget {
               const Text(
                 'Công việc hôm nay',
                 style: TextStyle(
-                  color: Color(0xffc7d2fe),
-                  fontSize: 11,
+                  color: Color(0xffccfbf1),
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -434,20 +497,20 @@ class _TaskOverview extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
           ),
         ),
         Container(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          constraints: const BoxConstraints(minWidth: 54, minHeight: 54),
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(17),
           ),
           child: loading
               ? const SizedBox.square(
@@ -457,9 +520,9 @@ class _TaskOverview extends StatelessWidget {
               : Text(
                   '$count',
                   style: const TextStyle(
-                    color: Color(0xff4f46e5),
-                    fontSize: 21,
-                    fontWeight: FontWeight.w800,
+                    color: BlissAppTheme.brandDark,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
         ),
@@ -490,7 +553,11 @@ class _TaskError extends StatelessWidget {
             message,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Color(0xff991b1b), fontSize: 11),
+            style: const TextStyle(
+              color: Color(0xff991b1b),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         IconButton(
@@ -519,12 +586,12 @@ class _TaskEmpty extends StatelessWidget {
           height: 78,
           alignment: Alignment.center,
           decoration: const BoxDecoration(
-            color: Color(0xffe9e8ff),
+            color: BlissAppTheme.brandSoft,
             shape: BoxShape.circle,
           ),
           child: const Icon(
             Icons.assignment_turned_in_outlined,
-            color: Color(0xff4f46e5),
+            color: BlissAppTheme.brand,
             size: 36,
           ),
         ),

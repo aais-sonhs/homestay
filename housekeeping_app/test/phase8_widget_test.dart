@@ -1,5 +1,6 @@
 import 'package:bliss_housekeeping_app/src/offline/models.dart';
 import 'package:bliss_housekeeping_app/src/presentation/task_presentation.dart';
+import 'package:bliss_housekeeping_app/src/theme/app_theme.dart';
 import 'package:bliss_housekeeping_app/src/widgets/checklist_editor.dart';
 import 'package:bliss_housekeeping_app/src/widgets/conflict_resolution_sheet.dart';
 import 'package:bliss_housekeeping_app/src/widgets/task_card.dart';
@@ -65,6 +66,34 @@ void main() {
       );
     },
   );
+
+  testWidgets('task card remains readable on a small phone', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: BlissAppTheme.light(),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: HousekeepingTaskCard(
+              task: TaskViewData(richTask()),
+              sync: const TaskSyncSummary(conflict: 1),
+              now: DateTime.parse('2026-08-05T10:00:00+07:00'),
+              onTap: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Phòng A101'), findsOneWidget);
+    expect(find.text('Mở'), findsOneWidget);
+  });
 
   testWidgets('conflict screen shows base local server before resolution', (
     tester,

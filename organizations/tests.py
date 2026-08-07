@@ -425,6 +425,20 @@ class BranchStaffApiTests(TestCase):
             HTTP_AUTHORIZATION=f"Bearer {token.key}",
         )
 
+    def api_assign_existing(self, token, **overrides):
+        payload = {
+            "identifier": "self.registered@example.com",
+            "branchId": str(self.branch.id),
+            "roleKey": "housekeeping",
+        }
+        payload.update(overrides)
+        return self.client.post(
+            reverse("organizations:api-staff-assign-existing"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token.key}",
+        )
+
     def test_owner_lists_only_staff_in_owned_branches(self):
         response = self.api_get(self.owner_token)
 
@@ -480,11 +494,75 @@ class BranchStaffApiTests(TestCase):
         self.assertEqual(forbidden.status_code, 403)
         self.assertEqual(forbidden.json()["code"], "STAFF_ROLE_NOT_ALLOWED")
 
+    def test_owner_assigns_self_registered_account_and_preserves_password(self):
+        account = User.objects.create_user(
+            username="self-registered",
+            first_name="Người dùng tự đăng ký",
+            email="self.registered@example.com",
+            phone_number="0945678901",
+            password="Original@2026Safe",
+        )
+
+        response = self.api_assign_existing(self.owner_token, roleKey="qc")
+
+        self.assertEqual(response.status_code, 201, response.content)
+        account.refresh_from_db()
+        self.assertEqual(account.role, User.Role.QC)
+        self.assertTrue(account.check_password("Original@2026Safe"))
+        membership = BranchMembership.objects.get(user=account, branch=self.branch)
+        self.assertEqual(membership.membership_role, BranchMembership.MembershipRole.QC)
+        self.assertTrue(response.json()["data"]["existingAccountAssigned"])
+
+    def test_manager_cannot_assign_manager_role_to_existing_account(self):
+        account = User.objects.create_user(
+            username="self-registered-manager",
+            email="self.registered@example.com",
+            phone_number="0956789012",
+            password="Original@2026Safe",
+        )
+
+        response = self.api_assign_existing(self.manager_token, roleKey="manager")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "STAFF_ROLE_NOT_ALLOWED")
+        account.refresh_from_db()
+        self.assertEqual(account.role, User.Role.HOUSEKEEPING)
+        self.assertFalse(BranchMembership.objects.filter(user=account).exists())
+
+    def test_existing_account_cannot_be_assigned_to_a_second_branch(self):
+        response = self.api_assign_existing(
+            self.owner_token,
+            identifier=self.housekeeper.email,
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "STAFF_ACCOUNT_ALREADY_ASSIGNED")
+
+    def test_disabled_existing_account_cannot_be_assigned(self):
+        User.objects.create_user(
+            username="disabled-self-registered",
+            email="self.registered@example.com",
+            phone_number="0967890123",
+            password="Original@2026Safe",
+            disabled_by_admin=True,
+        )
+
+        response = self.api_assign_existing(self.owner_token)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "STAFF_ACCOUNT_NOT_ASSIGNABLE")
+
     def test_field_staff_cannot_open_staff_management(self):
         response = self.api_get(self.outsider_token)
+        assign_response = self.api_assign_existing(self.outsider_token)
 
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["code"], "STAFF_MANAGEMENT_NOT_ALLOWED")
+        self.assertEqual(assign_response.status_code, 403)
+        self.assertEqual(
+            assign_response.json()["code"],
+            "STAFF_MANAGEMENT_NOT_ALLOWED",
+        )
 
     def test_superadmin_and_founder_do_not_create_subordinate_staff(self):
         for token in (self.superadmin_token, self.founder_token):

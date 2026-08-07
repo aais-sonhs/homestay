@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/housekeeping_api.dart';
 import '../presentation/task_presentation.dart';
+import '../theme/app_theme.dart';
 
 class RoomReadinessScreen extends StatefulWidget {
   const RoomReadinessScreen({required this.api, super.key});
@@ -18,6 +19,7 @@ class _RoomReadinessScreenState extends State<RoomReadinessScreen> {
   String _state = '';
   bool _loading = true;
   String? _error;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -32,22 +34,32 @@ class _RoomReadinessScreenState extends State<RoomReadinessScreen> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
+    final query = _search.text;
+    final state = _state;
     if (mounted) setState(() => _loading = true);
     try {
-      final data = await widget.api.roomReadiness(
-        query: _search.text,
-        state: _state,
+      final data = await widget.api.roomReadiness(query: query, state: state);
+      final summary = Map<String, Object?>.from(
+        data['summary'] as Map? ?? const {},
       );
-      _summary = Map<String, Object?>.from(data['summary'] as Map? ?? const {});
-      _rooms = (data['items'] as List? ?? const [])
+      final rooms = (data['items'] as List? ?? const [])
           .whereType<Map>()
           .map((row) => Map<String, Object?>.from(row))
           .toList(growable: false);
-      _error = null;
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _summary = summary;
+        _rooms = rooms;
+        _error = null;
+        _loading = false;
+      });
     } on Object catch (error) {
-      _error = 'Không tải được trạng thái phòng: $error';
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _error = 'Không tải được trạng thái phòng: $error';
+        _loading = false;
+      });
     }
   }
 
@@ -179,7 +191,7 @@ class _RoomReadinessScreenState extends State<RoomReadinessScreen> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 110),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
               sliver: SliverList.builder(
                 itemCount: _rooms.length,
                 itemBuilder: (context, index) => _RoomReadinessCard(
@@ -212,19 +224,12 @@ class _RoomSummary extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(28),
       gradient: const LinearGradient(
-        colors: [Color(0xff1d4ed8), Color(0xff4f46e5)],
+        colors: [BlissAppTheme.brandDark, Color(0xff0d9488)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x332563eb),
-          blurRadius: 28,
-          offset: Offset(0, 14),
-        ),
-      ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,11 +307,7 @@ class _RoomReadinessCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [accent.withValues(alpha: .11), Colors.white],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: Colors.white,
               border: Border(left: BorderSide(color: accent, width: 4)),
             ),
             child: Column(
@@ -322,8 +323,8 @@ class _RoomReadinessCard extends StatelessWidget {
                           Text(
                             '${room['code'] ?? ''} · ${room['name'] ?? ''}',
                             style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                           Text(
@@ -381,7 +382,7 @@ class _RoomReadinessCard extends StatelessWidget {
                       '${blockers.length > 1 ? ' · +${blockers.length - 1} blocker' : ''}',
                       style: const TextStyle(
                         color: Color(0xff991b1b),
-                        fontSize: 12,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -411,7 +412,7 @@ class _StateBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
       color: color.withValues(alpha: .12),
       borderRadius: BorderRadius.circular(999),
@@ -429,8 +430,8 @@ class _StateBadge extends StatelessWidget {
           label,
           style: TextStyle(
             color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ],
@@ -448,12 +449,12 @@ class _RoomFact extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 16, color: color),
+      Icon(icon, size: 18, color: color),
       const SizedBox(width: 4),
       Text(
         label,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 14,
           color: color,
           fontWeight: FontWeight.w600,
         ),

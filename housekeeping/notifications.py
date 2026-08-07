@@ -104,6 +104,76 @@ def notify_task(
 
 
 @transaction.atomic
+def notify_guest_request(
+    guest_request,
+    notification_type,
+    title,
+    body,
+    *,
+    deduplication_key,
+    users=None,
+    roles=None,
+    payload=None,
+):
+    recipient_ids = set()
+    if users:
+        recipient_ids.update(
+            user.id for user in users if user and user.is_active and not user.is_deleted
+        )
+    if roles:
+        recipient_ids.update(
+            users_for_branch_roles(guest_request.branch_id, roles).values_list("id", flat=True)
+        )
+    if not recipient_ids:
+        return None
+    deduplication_key = str(deduplication_key)[:120]
+    outbox, created = OutboxEvent.objects.get_or_create(
+        deduplication_key=deduplication_key,
+        defaults={
+            "event_type": notification_type,
+            "aggregate_type": "GUEST_SERVICE_REQUEST",
+            "aggregate_id": str(guest_request.id),
+            "payload": payload or {},
+        },
+    )
+    if not created:
+        return Notification.objects.filter(
+            object_type="GUEST_SERVICE_REQUEST",
+            object_id=str(guest_request.id),
+            notification_type=notification_type,
+            payload__deduplicationKey=deduplication_key,
+        ).first()
+    notification_payload = {
+        **(payload or {}),
+        "deduplicationKey": deduplication_key,
+        "guestRequestId": str(guest_request.id),
+    }
+    notification = Notification.objects.create(
+        branch=guest_request.branch,
+        notification_type=notification_type,
+        title=localized_system_text(title),
+        body=localized_system_text(body),
+        object_type="GUEST_SERVICE_REQUEST",
+        object_id=str(guest_request.id),
+        payload=notification_payload,
+    )
+    NotificationRecipient.objects.bulk_create(
+        [
+            NotificationRecipient(notification=notification, user_id=user_id)
+            for user_id in recipient_ids
+        ],
+        ignore_conflicts=True,
+    )
+    outbox.payload = {
+        **outbox.payload,
+        "notificationId": str(notification.id),
+        "recipientIds": [str(user_id) for user_id in recipient_ids],
+    }
+    outbox.save(update_fields=["payload"])
+    return notification
+
+
+@transaction.atomic
 def mark_notification_read(user, recipient_id):
     try:
         recipient = NotificationRecipient.objects.select_for_update().select_related("notification").get(

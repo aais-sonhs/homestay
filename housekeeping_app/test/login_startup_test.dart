@@ -1,4 +1,5 @@
 import 'package:bliss_housekeeping_app/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -15,6 +16,11 @@ void main() {
   });
 
   testWidgets('opens account registration from login', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(const BlissHomeApp());
     await tester.pump();
 

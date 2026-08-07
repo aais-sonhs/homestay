@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../api/housekeeping_api.dart';
 import '../presentation/task_presentation.dart';
 import '../security/secure_store.dart';
+import '../theme/app_theme.dart';
 import 'offline_task_detail_screen.dart';
 
 class ManagementDashboardScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   Map<String, Object?> _performance = const {};
   bool _loading = true;
   String? _error;
+  int _loadGeneration = 0;
 
   Map get _summary => _sla['summary'] as Map? ?? const {};
   List<Map<String, Object?>> get _riskTasks =>
@@ -56,6 +58,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     if (mounted) setState(() => _loading = true);
     try {
       final date = TaskFilters.dateOnly(DateTime.now());
@@ -63,13 +66,19 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
         widget.api.slaDashboard(date: date),
         widget.api.performanceDashboard(date: date),
       ]);
-      _sla = result[0];
-      _performance = result[1];
-      _error = null;
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _sla = result[0];
+        _performance = result[1];
+        _error = null;
+        _loading = false;
+      });
     } on Object catch (error) {
-      _error = 'Không tải được dashboard: $error';
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _error = 'Không tải được dashboard: $error';
+        _loading = false;
+      });
     }
   }
 
@@ -178,7 +187,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                     label: 'Tổng công việc',
                     value: _count('totalTasks'),
                     icon: Icons.assignment_outlined,
-                    color: const Color(0xff4f46e5),
+                    color: BlissAppTheme.brand,
                   ),
                   _DashboardMetric(
                     width: width,
@@ -285,19 +294,12 @@ class _WelcomeCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(28),
       gradient: const LinearGradient(
-        colors: [Color(0xff4338ca), Color(0xff7c3aed)],
+        colors: [BlissAppTheme.brandDark, Color(0xff0d9488)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x334f46e5),
-          blurRadius: 28,
-          offset: Offset(0, 14),
-        ),
-      ],
     ),
     child: Row(
       children: [
@@ -326,7 +328,7 @@ class _WelcomeCard extends StatelessWidget {
             children: [
               const Text(
                 'Chào ngày mới,',
-                style: TextStyle(color: Color(0xffddd6fe)),
+                style: TextStyle(color: Color(0xffccfbf1), fontSize: 14),
               ),
               const SizedBox(height: 2),
               Text(
@@ -369,15 +371,11 @@ class _DashboardMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: width,
-    constraints: const BoxConstraints(minHeight: 142),
+    constraints: const BoxConstraints(minHeight: 148),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      gradient: LinearGradient(
-        colors: [color.withValues(alpha: .14), Colors.white],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
       border: Border.all(color: color.withValues(alpha: .14)),
     ),
     child: Column(
@@ -409,7 +407,7 @@ class _DashboardMetric extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: color,
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -588,8 +586,8 @@ class _PerformanceTile extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       leading: CircleAvatar(
-        backgroundColor: const Color(0xffeef2ff),
-        foregroundColor: const Color(0xff4f46e5),
+        backgroundColor: BlissAppTheme.brandSoft,
+        foregroundColor: BlissAppTheme.brand,
         child: Text(
           '${employee['name'] ?? '?'}'.characters.first.toUpperCase(),
         ),

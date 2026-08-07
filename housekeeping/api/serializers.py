@@ -3,7 +3,7 @@ from django.utils import timezone
 from accounts.models import User
 from common.access import Capability, can_view_booking_guest, decide_task_capability
 from common.display import localized_system_text
-from housekeeping.models import HousekeepingTask, TaskChecklistItem
+from housekeeping.models import GuestServiceRequest, HousekeepingTask, TaskChecklistItem
 
 
 def iso_datetime(value):
@@ -18,6 +18,74 @@ def user_data(user):
         "username": user.username,
         "name": user.get_full_name() or user.username,
     }
+
+
+def guest_request_data(item, user, *, detail=False):
+    from housekeeping.guest_requests import guest_request_capabilities
+
+    can_view_guest = can_view_booking_guest(user, item.branch)
+    data = {
+        "id": str(item.id),
+        "requestId": str(item.id),
+        "code": item.code,
+        "branch": {
+            "id": str(item.branch_id),
+            "code": item.branch.code,
+            "name": item.branch.name,
+        },
+        "room": {
+            "id": str(item.room_id),
+            "code": item.room.code,
+            "name": item.room.name,
+            "floor": item.room.floor,
+            "area": item.room.area,
+        },
+        "booking": {
+            "id": str(item.booking_id),
+            "code": item.booking.code,
+            "guestName": item.booking.guest_name if can_view_guest else None,
+            "guestPhone": item.booking.guest_phone if can_view_guest else None,
+        },
+        "requestType": item.request_type,
+        "requestTypeLabel": item.get_request_type_display(),
+        "description": item.description,
+        "quantity": item.quantity,
+        "unit": item.unit,
+        "source": item.source,
+        "sourceLabel": item.get_source_display(),
+        "priority": item.priority,
+        "priorityLabel": item.get_priority_display(),
+        "status": item.status,
+        "statusLabel": item.get_status_display(),
+        "requestedBy": user_data(item.requested_by),
+        "assignee": user_data(item.assignee),
+        "assignedBy": user_data(item.assigned_by),
+        "dueAt": iso_datetime(item.due_at),
+        "createdAt": iso_datetime(item.created_at),
+        "acceptedAt": iso_datetime(item.accepted_at),
+        "startedAt": iso_datetime(item.started_at),
+        "completedAt": iso_datetime(item.completed_at),
+        "cancelledAt": iso_datetime(item.cancelled_at),
+        "cancellationReason": item.cancellation_reason,
+        "resolutionNote": item.resolution_note,
+        "isOverdue": item.is_overdue,
+        "version": item.version,
+        "capabilities": guest_request_capabilities(user, item),
+    }
+    if detail:
+        data["timeline"] = [
+            {
+                "action": event.action,
+                "fromStatus": event.from_status,
+                "toStatus": event.to_status,
+                "note": event.note,
+                "metadata": event.metadata,
+                "user": user_data(event.user),
+                "createdAt": iso_datetime(event.created_at),
+            }
+            for event in item.events.select_related("user").all()
+        ]
+    return data
 
 
 def _allowed(user, task, capability):

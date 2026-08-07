@@ -406,6 +406,159 @@ class BookingSpecialRequest(models.Model):
         return self.description
 
 
+class GuestServiceRequest(models.Model):
+    """A request raised by an in-house guest and dispatched to field staff."""
+
+    class RequestType(models.TextChoices):
+        WATER = "WATER", "Nước uống"
+        TOWEL = "TOWEL", "Khăn"
+        AMENITY = "AMENITY", "Đồ dùng trong phòng"
+        HOUSEKEEPING = "HOUSEKEEPING", "Dọn phòng theo yêu cầu"
+        MAINTENANCE = "MAINTENANCE", "Hỗ trợ thiết bị"
+        OTHER = "OTHER", "Yêu cầu khác"
+
+    class Source(models.TextChoices):
+        ZALO = "ZALO", "Zalo"
+        PHONE = "PHONE", "Điện thoại"
+        FRONT_DESK = "FRONT_DESK", "Lễ tân"
+        OTHER = "OTHER", "Kênh khác"
+
+    class Priority(models.TextChoices):
+        LOW = "LOW", "Thấp"
+        NORMAL = "NORMAL", "Bình thường"
+        HIGH = "HIGH", "Cao"
+        URGENT = "URGENT", "Khẩn cấp"
+
+    class Status(models.TextChoices):
+        NEW = "NEW", "Chờ tiếp nhận"
+        ASSIGNED = "ASSIGNED", "Đã phân công"
+        ACCEPTED = "ACCEPTED", "Đã nhận việc"
+        IN_PROGRESS = "IN_PROGRESS", "Đang thực hiện"
+        COMPLETED = "COMPLETED", "Đã giao khách"
+        CANCELLED = "CANCELLED", "Đã hủy"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=30, unique=True)
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.PROTECT,
+        related_name="guest_service_requests",
+    )
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.PROTECT,
+        related_name="guest_service_requests",
+    )
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.PROTECT,
+        related_name="guest_service_requests",
+    )
+    request_type = models.CharField(
+        max_length=24,
+        choices=RequestType.choices,
+        db_index=True,
+    )
+    description = models.CharField(max_length=500)
+    quantity = models.PositiveSmallIntegerField(default=1)
+    unit = models.CharField(max_length=30, blank=True)
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        default=Source.ZALO,
+        db_index=True,
+    )
+    priority = models.CharField(
+        max_length=10,
+        choices=Priority.choices,
+        default=Priority.NORMAL,
+        db_index=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.NEW,
+        db_index=True,
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_guest_service_requests",
+    )
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_guest_service_requests",
+    )
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dispatched_guest_service_requests",
+    )
+    due_at = models.DateTimeField(db_index=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True)
+    resolution_note = models.TextField(blank=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "housekeeping_guest_service_requests"
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=("branch", "status", "due_at"),
+                name="hk_guest_req_queue_idx",
+            ),
+            models.Index(
+                fields=("assignee", "status"),
+                name="hk_guest_req_worker_idx",
+            ),
+        ]
+
+    @property
+    def is_overdue(self):
+        return bool(
+            self.status not in {self.Status.COMPLETED, self.Status.CANCELLED}
+            and self.due_at < timezone.now()
+        )
+
+    def __str__(self):
+        return f"{self.code} - {self.room}"
+
+
+class GuestServiceRequestEvent(models.Model):
+    request = models.ForeignKey(
+        GuestServiceRequest,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+    action = models.CharField(max_length=40, db_index=True)
+    from_status = models.CharField(max_length=20, blank=True)
+    to_status = models.CharField(max_length=20, blank=True)
+    note = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "housekeeping_guest_service_request_events"
+        ordering = ["created_at", "id"]
+
+
 class BookingChangeLog(models.Model):
     class Action(models.TextChoices):
         CREATED = "CREATED", "Tạo booking"

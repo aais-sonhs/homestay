@@ -5,14 +5,28 @@ import uuid
 
 from django.utils import timezone
 
+from accounts.models import User
 from housekeeping.dashboard import build_performance_dashboard, build_sla_dashboard
 from common.idempotency import execute_idempotent
 from housekeeping.models import (
+    Booking,
+    GuestServiceRequest,
     HousekeepingTask,
     IssueTicket,
     NotificationRecipient,
     OfflineMutationReceipt,
     SupplyRequest,
+)
+from housekeeping.guest_requests import (
+    CREATOR_ROLES as GUEST_REQUEST_CREATOR_ROLES,
+    accept_guest_request,
+    assign_guest_request,
+    cancel_guest_request,
+    complete_guest_request,
+    create_guest_request,
+    filtered_guest_request_queryset,
+    guest_request_for_user,
+    start_guest_request,
 )
 from housekeeping.notifications import mark_notification_read
 from housekeeping.selectors import task_queryset_for_user
@@ -57,12 +71,15 @@ from .auth import api_authenticated
 from .errors import APIError, api_endpoint, parse_json, success_response
 from .query import filtered_task_queryset, task_for_detail
 from .serializers import (
+    guest_request_data,
     issue_data,
     mutation_task_data,
     notification_data,
     supply_request_data,
     task_data,
 )
+from organizations.models import BranchMembership
+from organizations.selectors import branch_queryset_for_user
 
 
 def _pagination(request):
@@ -78,6 +95,183 @@ def _pagination(request):
             details={"pageMin": 1, "limitMin": 1, "limitMax": 100},
         )
     return page, limit
+
+
+@api_endpoint("GET", "POST")
+@api_authenticated
+def guest_request_list(request):
+    if request.method == "POST":
+        payload = parse_json(request)
+
+        def mutate():
+            item = create_guest_request(request.user, payload)
+            return guest_request_data(item, request.user, detail=True), item.version
+
+        data, replayed, _receipt = execute_idempotent(
+            user=request.user,
+            task=None,
+            idempotency_key=request.headers.get("Idempotency-Key"),
+            operation="CREATE_GUEST_REQUEST",
+            payload=payload,
+            base_version=None,
+            mutation=mutate,
+        )
+        return success_response(
+            request,
+            data,
+            status=200 if replayed else 201,
+            replayed=replayed,
+        )
+
+    queryset = filtered_guest_request_queryset(request.user, request.GET)
+    page, limit = _pagination(request)
+    total = queryset.count()
+    total_pages = math.ceil(total / limit) if total else 0
+    offset = (page - 1) * limit
+    items = list(queryset[offset : offset + limit]) if offset < total else []
+    return success_response(
+        request,
+        [guest_request_data(item, request.user) for item in items],
+        pagination={
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "totalPages": total_pages,
+            "hasNext": page < total_pages,
+            "hasPrevious": page > 1 and total > 0,
+        },
+    )
+
+
+@api_endpoint("GET")
+@api_authenticated
+def guest_request_options(request):
+    if request.user.role not in GUEST_REQUEST_CREATOR_ROLES:
+        raise HousekeepingError(
+            "GUEST_REQUEST_ACCESS_DENIED",
+            "Bạn không có quyền tạo yêu cầu khách lưu trú.",
+            status=403,
+        )
+    branches = list(branch_queryset_for_user(request.user))
+    branch_ids = [branch.id for branch in branches]
+    bookings = Booking.objects.select_related("branch", "room").filter(
+        branch_id__in=branch_ids,
+        status=Booking.Status.CHECKED_IN,
+    ).order_by("branch__name", "room__code", "-checkin_at")
+    memberships = BranchMembership.objects.select_related("user", "branch").filter(
+        branch_id__in=branch_ids,
+        is_active=True,
+        user__is_active=True,
+        user__is_deleted=False,
+        user__role=User.Role.HOUSEKEEPING,
+        membership_role__in={
+            BranchMembership.MembershipRole.HOUSEKEEPER,
+            BranchMembership.MembershipRole.HOUSEKEEPING_LEAD,
+        },
+    ).order_by("branch__name", "user__first_name", "user__username")
+    return success_response(
+        request,
+        {
+            "branches": [
+                {"id": str(branch.id), "code": branch.code, "name": branch.name}
+                for branch in branches
+            ],
+            "bookings": [
+                {
+                    "id": str(booking.id),
+                    "code": booking.code,
+                    "branchId": str(booking.branch_id),
+                    "room": {
+                        "id": str(booking.room_id),
+                        "code": booking.room.code,
+                        "name": booking.room.name,
+                    },
+                    "guestName": booking.guest_name,
+                    "guestPhone": booking.guest_phone,
+                }
+                for booking in bookings
+            ],
+            "assignees": [
+                {
+                    "id": str(membership.user_id),
+                    "branchId": str(membership.branch_id),
+                    "name": membership.user.display_name,
+                }
+                for membership in memberships
+            ],
+            "requestTypes": [
+                {"value": value, "label": label}
+                for value, label in GuestServiceRequest.RequestType.choices
+            ],
+            "priorities": [
+                {"value": value, "label": label}
+                for value, label in GuestServiceRequest.Priority.choices
+            ],
+            "sources": [
+                {"value": value, "label": label}
+                for value, label in GuestServiceRequest.Source.choices
+            ],
+        },
+    )
+
+
+@api_endpoint("GET")
+@api_authenticated
+def guest_request_detail(request, request_id):
+    item = guest_request_for_user(request.user, request_id)
+    return success_response(request, guest_request_data(item, request.user, detail=True))
+
+
+@api_endpoint("POST")
+@api_authenticated
+def guest_request_action(request, request_id, action):
+    payload = parse_json(request)
+    operations = {
+        "accept": lambda: accept_guest_request(
+            request.user, request_id, payload.get("version")
+        ),
+        "start": lambda: start_guest_request(
+            request.user, request_id, payload.get("version")
+        ),
+        "complete": lambda: complete_guest_request(
+            request.user,
+            request_id,
+            payload.get("version"),
+            payload.get("note"),
+        ),
+        "cancel": lambda: cancel_guest_request(
+            request.user,
+            request_id,
+            payload.get("version"),
+            payload.get("reason"),
+        ),
+        "assign": lambda: assign_guest_request(
+            request.user,
+            request_id,
+            payload.get("assigneeId"),
+            payload.get("version"),
+            payload.get("note"),
+        ),
+    }
+    if action not in operations:
+        raise HousekeepingError(
+            "GUEST_REQUEST_INVALID_ACTION", "Thao tác yêu cầu không hợp lệ.", status=404
+        )
+
+    def mutate():
+        item = operations[action]()
+        return guest_request_data(item, request.user, detail=True), item.version
+
+    data, replayed, _receipt = execute_idempotent(
+        user=request.user,
+        task=None,
+        idempotency_key=request.headers.get("Idempotency-Key"),
+        operation=f"GUEST_REQUEST_{action.upper()}",
+        payload=payload,
+        base_version=payload.get("version"),
+        mutation=mutate,
+    )
+    return success_response(request, data, replayed=replayed)
 
 
 def _mutation_task(task_id):

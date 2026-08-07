@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/housekeeping_api.dart';
+import '../theme/app_theme.dart';
 
 class StaffManagementScreen extends StatefulWidget {
   const StaffManagementScreen({required this.api, super.key});
@@ -19,6 +20,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   String? _selectedBranchId;
   bool _loading = true;
   String? _error;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -33,34 +35,45 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
+    final selectedBranchId = _selectedBranchId;
+    final query = _query.text;
     if (mounted) setState(() => _loading = true);
     try {
       final data = await widget.api.staff(
-        branchId: _selectedBranchId,
-        query: _query.text,
+        branchId: selectedBranchId,
+        query: query,
       );
       final branches = (data['branches'] as List? ?? const [])
           .whereType<Map>()
           .map(_StaffBranch.fromMap)
           .toList(growable: false);
-      if (_selectedBranchId != null &&
-          !branches.any((branch) => branch.id == _selectedBranchId)) {
-        _selectedBranchId = null;
-      }
-      _branches = branches;
-      _roles = (data['roleOptions'] as List? ?? const [])
+      final roles = (data['roleOptions'] as List? ?? const [])
           .whereType<Map>()
           .map(_StaffRole.fromMap)
           .toList(growable: false);
-      _members = (data['items'] as List? ?? const [])
+      final members = (data['items'] as List? ?? const [])
           .whereType<Map>()
           .map(_StaffMember.fromMap)
           .toList(growable: false);
-      _error = null;
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        if (_selectedBranchId != null &&
+            !branches.any((branch) => branch.id == _selectedBranchId)) {
+          _selectedBranchId = null;
+        }
+        _branches = branches;
+        _roles = roles;
+        _members = members;
+        _error = null;
+        _loading = false;
+      });
     } on Object catch (error) {
-      _error = error.toString();
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -90,6 +103,25 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     await _load();
   }
 
+  Future<void> _openAssignExisting() async {
+    if (_branches.isEmpty) return;
+    final assigned = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => _AssignExistingStaffScreen(
+          api: widget.api,
+          branches: _branches,
+          roles: _roles,
+          initialBranchId: _selectedBranchId,
+        ),
+      ),
+    );
+    if (assigned != true || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã gán tài khoản vào chi nhánh.')),
+    );
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -100,14 +132,19 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           Text(
             'Tài khoản và quyền làm việc',
             style: TextStyle(
-              color: Color(0xff94a3b8),
-              fontSize: 10,
+              color: BlissAppTheme.muted,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
       actions: [
+        IconButton(
+          tooltip: 'Gán tài khoản đã đăng ký',
+          onPressed: _loading || _branches.isEmpty ? null : _openAssignExisting,
+          icon: const Icon(Icons.person_search_rounded),
+        ),
         IconButton(
           tooltip: 'Tải lại',
           onPressed: _loading ? null : _load,
@@ -270,7 +307,7 @@ class _CreateStaffScreenState extends State<_CreateStaffScreen> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _submitting) return;
     setState(() {
       _submitting = true;
       _error = null;
@@ -512,8 +549,8 @@ class _CreateStaffScreenState extends State<_CreateStaffScreen> {
                             const Text(
                               'Mật khẩu cần có chữ hoa, chữ thường, số và ký tự đặc biệt.',
                               style: TextStyle(
-                                color: Color(0xff64748b),
-                                fontSize: 12,
+                                color: BlissAppTheme.muted,
+                                fontSize: 14,
                               ),
                             ),
                           ],
@@ -538,6 +575,206 @@ class _CreateStaffScreenState extends State<_CreateStaffScreen> {
                       _submitting
                           ? 'Đang tạo tài khoản...'
                           : 'Tạo và gán chi nhánh',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _AssignExistingStaffScreen extends StatefulWidget {
+  const _AssignExistingStaffScreen({
+    required this.api,
+    required this.branches,
+    required this.roles,
+    this.initialBranchId,
+  });
+
+  final HousekeepingApi api;
+  final List<_StaffBranch> branches;
+  final List<_StaffRole> roles;
+  final String? initialBranchId;
+
+  @override
+  State<_AssignExistingStaffScreen> createState() =>
+      _AssignExistingStaffScreenState();
+}
+
+class _AssignExistingStaffScreenState
+    extends State<_AssignExistingStaffScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _identifier = TextEditingController();
+  late String _branchId;
+  late String _roleKey;
+  bool _submitting = false;
+  String? _error;
+
+  _StaffBranch get _branch =>
+      widget.branches.firstWhere((branch) => branch.id == _branchId);
+
+  List<_StaffRole> get _availableRoles => widget.roles
+      .where((role) => role.key != 'manager' || _branch.canCreateManager)
+      .toList(growable: false);
+
+  @override
+  void initState() {
+    super.initState();
+    _branchId =
+        widget.branches.any((branch) => branch.id == widget.initialBranchId)
+        ? widget.initialBranchId!
+        : widget.branches.first.id;
+    final available = _availableRoles;
+    _roleKey = available.any((role) => role.key == 'housekeeping')
+        ? 'housekeeping'
+        : available.first.key;
+  }
+
+  @override
+  void dispose() {
+    _identifier.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate() || _submitting) return;
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await widget.api.assignExistingStaff(
+        identifier: _identifier.text.trim(),
+        branchId: _branchId,
+        roleKey: _roleKey,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } on Object catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Gán tài khoản đã đăng ký'),
+      bottom: _submitting
+          ? const PreferredSize(
+              preferredSize: Size.fromHeight(3),
+              child: LinearProgressIndicator(),
+            )
+          : null,
+    ),
+    body: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'Nhập email hoặc số điện thoại người dùng đã tự đăng ký. Mật khẩu của họ được giữ nguyên.',
+                          ),
+                          const SizedBox(height: 18),
+                          TextFormField(
+                            controller: _identifier,
+                            enabled: !_submitting,
+                            autofocus: true,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Email hoặc số điện thoại',
+                              prefixIcon: Icon(Icons.manage_search_rounded),
+                            ),
+                            validator: (value) => (value ?? '').trim().isEmpty
+                                ? 'Vui lòng nhập tài khoản cần gán.'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+                          DropdownButtonFormField<String>(
+                            initialValue: _branchId,
+                            decoration: const InputDecoration(
+                              labelText: 'Chi nhánh',
+                              prefixIcon: Icon(Icons.apartment_rounded),
+                            ),
+                            items: [
+                              for (final branch in widget.branches)
+                                DropdownMenuItem(
+                                  value: branch.id,
+                                  child: Text(branch.name),
+                                ),
+                            ],
+                            onChanged: _submitting
+                                ? null
+                                : (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      _branchId = value;
+                                      if (!_availableRoles.any(
+                                        (role) => role.key == _roleKey,
+                                      )) {
+                                        _roleKey = _availableRoles.first.key;
+                                      }
+                                    });
+                                  },
+                          ),
+                          const SizedBox(height: 14),
+                          DropdownButtonFormField<String>(
+                            key: ValueKey('assign-role-$_branchId-$_roleKey'),
+                            initialValue: _roleKey,
+                            decoration: const InputDecoration(
+                              labelText: 'Vai trò',
+                              prefixIcon: Icon(
+                                Icons.admin_panel_settings_outlined,
+                              ),
+                            ),
+                            items: [
+                              for (final role in _availableRoles)
+                                DropdownMenuItem(
+                                  value: role.key,
+                                  child: Text(role.label),
+                                ),
+                            ],
+                            onChanged: _submitting
+                                ? null
+                                : (value) {
+                                    if (value != null) {
+                                      setState(() => _roleKey = value);
+                                    }
+                                  },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    _StaffError(message: _error!, onRetry: _submit),
+                  ],
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: _submitting ? null : _submit,
+                    icon: const Icon(Icons.person_add_alt_1_rounded),
+                    label: Text(
+                      _submitting
+                          ? 'Đang gán tài khoản...'
+                          : 'Gán vào chi nhánh',
                     ),
                   ),
                 ],
@@ -634,19 +871,12 @@ class _StaffHero extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(23),
+      borderRadius: BorderRadius.circular(28),
       gradient: const LinearGradient(
-        colors: [Color(0xff0f766e), Color(0xff0d9488), Color(0xff14b8a6)],
+        colors: [BlissAppTheme.brandDark, Color(0xff0d9488)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x330d9488),
-          blurRadius: 28,
-          offset: Offset(0, 14),
-        ),
-      ],
     ),
     child: Row(
       children: [
@@ -680,7 +910,7 @@ class _StaffHero extends StatelessWidget {
                 'trên $branchCount chi nhánh được quản lý',
                 style: const TextStyle(
                   color: Color(0xffccfbf1),
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -776,7 +1006,7 @@ class _StaffCard extends StatelessWidget {
             height: 48,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xffeef2ff),
+              color: BlissAppTheme.brandSoft,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
@@ -784,7 +1014,7 @@ class _StaffCard extends StatelessWidget {
                   ? 'N'
                   : member.name.characters.first.toUpperCase(),
               style: const TextStyle(
-                color: Color(0xff4338ca),
+                color: BlissAppTheme.brandDark,
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
               ),
@@ -821,7 +1051,7 @@ class _StaffCard extends StatelessWidget {
                           color: member.isActive
                               ? const Color(0xff047857)
                               : const Color(0xff64748b),
-                          fontSize: 10,
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -832,8 +1062,8 @@ class _StaffCard extends StatelessWidget {
                 Text(
                   member.roleLabel,
                   style: const TextStyle(
-                    color: Color(0xff4f46e5),
-                    fontSize: 12,
+                    color: BlissAppTheme.brand,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -872,14 +1102,14 @@ class _StaffLine extends StatelessWidget {
     padding: const EdgeInsets.only(top: 4),
     child: Row(
       children: [
-        Icon(icon, size: 15, color: const Color(0xff94a3b8)),
+        Icon(icon, size: 18, color: BlissAppTheme.muted),
         const SizedBox(width: 7),
         Expanded(
           child: Text(
             text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Color(0xff64748b), fontSize: 12),
+            style: const TextStyle(color: BlissAppTheme.muted, fontSize: 14),
           ),
         ),
       ],
@@ -894,9 +1124,9 @@ class _CreateStaffHero extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(23),
+      borderRadius: BorderRadius.circular(28),
       gradient: const LinearGradient(
-        colors: [Color(0xff3730a3), Color(0xff4f46e5), Color(0xff7c3aed)],
+        colors: [BlissAppTheme.brandDark, Color(0xff0d9488)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
@@ -920,7 +1150,7 @@ class _CreateStaffHero extends StatelessWidget {
               SizedBox(height: 3),
               Text(
                 'Tài khoản sẽ dùng được ngay sau khi tạo.',
-                style: TextStyle(color: Color(0xffe0e7ff), fontSize: 12),
+                style: TextStyle(color: Color(0xffccfbf1), fontSize: 14),
               ),
             ],
           ),
@@ -951,7 +1181,7 @@ class _StaffError extends StatelessWidget {
         Expanded(
           child: Text(
             message,
-            style: const TextStyle(color: Color(0xff991b1b), fontSize: 12),
+            style: const TextStyle(color: Color(0xff991b1b), fontSize: 14),
           ),
         ),
         TextButton(onPressed: onRetry, child: const Text('Thử lại')),

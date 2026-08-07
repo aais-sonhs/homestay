@@ -110,6 +110,8 @@ final class AppUserProfile {
 
   bool get isQc => role == 'qc';
 
+  bool get isCustomerService => role == 'customer_service';
+
   String get roleLabel => switch (role) {
     'founder' => 'Quản trị hệ thống',
     'branch_owner' => 'Chủ chi nhánh',

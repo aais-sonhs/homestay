@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/housekeeping_api.dart';
 import '../presentation/task_presentation.dart';
+import '../theme/app_theme.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({required this.api, this.onTaskSelected, super.key});
@@ -17,6 +18,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   List<Map<String, Object?>> _items = const [];
   bool _loading = true;
   String? _error;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -25,18 +27,26 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     if (mounted) setState(() => _loading = true);
     try {
       final response = await widget.api.notifications();
-      _items = (response['items'] as List? ?? const [])
+      final items = (response['items'] as List? ?? const [])
           .whereType<Map>()
           .map((item) => Map<String, Object?>.from(item))
           .toList(growable: false);
-      _error = null;
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _items = items;
+        _error = null;
+        _loading = false;
+      });
     } on Object catch (error) {
-      _error = 'Không tải được thông báo: $error';
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _error = 'Không tải được thông báo: $error';
+        _loading = false;
+      });
     }
   }
 
@@ -75,8 +85,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
           Text(
             'Cập nhật vận hành mới nhất',
             style: TextStyle(
-              color: Color(0xff94a3b8),
-              fontSize: 10,
+              color: BlissAppTheme.muted,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -101,7 +111,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           _NotificationHero(
             total: _items.length,
@@ -136,19 +146,12 @@ class _NotificationHero extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(19),
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(23),
+      borderRadius: BorderRadius.circular(28),
       gradient: const LinearGradient(
-        colors: [Color(0xff0f766e), Color(0xff0d9488), Color(0xff14b8a6)],
+        colors: [BlissAppTheme.brandDark, Color(0xff0d9488)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x2b0d9488),
-          blurRadius: 26,
-          offset: Offset(0, 13),
-        ),
-      ],
     ),
     child: Row(
       children: [
@@ -175,8 +178,8 @@ class _NotificationHero extends StatelessWidget {
                 unread == 0 ? 'Bạn đã xem hết' : '$unread thông báo chưa đọc',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 3),
@@ -184,7 +187,7 @@ class _NotificationHero extends StatelessWidget {
                 '$total thông báo trong danh sách',
                 style: const TextStyle(
                   color: Color(0xffccfbf1),
-                  fontSize: 11,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -205,12 +208,12 @@ class _NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final unread = item['readAt'] == null;
     final hasTask = item['taskId'] != null;
-    final color = unread ? const Color(0xff4f46e5) : const Color(0xff64748b);
+    final color = unread ? BlissAppTheme.brand : BlissAppTheme.muted;
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(19),
         side: BorderSide(
-          color: unread ? const Color(0xffdcdffc) : const Color(0xffe6eaf2),
+          color: unread ? const Color(0xff99f6e4) : BlissAppTheme.line,
         ),
       ),
       child: InkWell(
@@ -247,8 +250,8 @@ class _NotificationCard extends StatelessWidget {
                           child: Text(
                             '${item['title'] ?? 'Thông báo'}',
                             style: TextStyle(
-                              color: const Color(0xff172033),
-                              fontSize: 14,
+                              color: BlissAppTheme.ink,
+                              fontSize: 16,
                               fontWeight: unread
                                   ? FontWeight.w800
                                   : FontWeight.w700,
@@ -260,7 +263,7 @@ class _NotificationCard extends StatelessWidget {
                             width: 8,
                             height: 8,
                             decoration: const BoxDecoration(
-                              color: Color(0xff4f46e5),
+                              color: BlissAppTheme.brand,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -278,15 +281,15 @@ class _NotificationCard extends StatelessWidget {
                       children: [
                         const Icon(
                           Icons.schedule_rounded,
-                          size: 14,
-                          color: Color(0xff94a3b8),
+                          size: 17,
+                          color: BlissAppTheme.muted,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           shortDateTime(item['createdAt']),
                           style: const TextStyle(
-                            color: Color(0xff94a3b8),
-                            fontSize: 10,
+                            color: BlissAppTheme.muted,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -295,7 +298,7 @@ class _NotificationCard extends StatelessWidget {
                           const Icon(
                             Icons.arrow_forward_rounded,
                             size: 18,
-                            color: Color(0xff4f46e5),
+                            color: BlissAppTheme.brand,
                           ),
                       ],
                     ),
@@ -329,7 +332,7 @@ class _NotificationError extends StatelessWidget {
         Expanded(
           child: Text(
             message,
-            style: const TextStyle(color: Color(0xff991b1b), fontSize: 11),
+            style: const TextStyle(color: Color(0xff991b1b), fontSize: 14),
           ),
         ),
       ],

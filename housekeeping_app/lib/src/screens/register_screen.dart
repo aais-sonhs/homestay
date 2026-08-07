@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/housekeeping_api.dart';
+import '../theme/app_theme.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({required this.api, super.key});
@@ -36,7 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _submitting) return;
     setState(() {
       _submitting = true;
       _error = null;
@@ -72,8 +73,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Text(
             'Bliss Home',
             style: TextStyle(
-              color: Color(0xff94a3b8),
-              fontSize: 10,
+              color: BlissAppTheme.muted,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -137,7 +138,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       'Tài khoản mới chưa được gán chi nhánh. Hãy liên hệ quản trị viên để được cấp vai trò và phạm vi làm việc.',
                       style: TextStyle(
                         color: Color(0xff92400e),
-                        fontSize: 12,
+                        fontSize: 14,
                         height: 1.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -176,23 +177,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(23),
+                    borderRadius: BorderRadius.circular(28),
                     gradient: const LinearGradient(
-                      colors: [
-                        Color(0xff3730a3),
-                        Color(0xff4f46e5),
-                        Color(0xff7c3aed),
-                      ],
+                      colors: [BlissAppTheme.brandDark, Color(0xff0d9488)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x304f46e5),
-                        blurRadius: 26,
-                        offset: Offset(0, 13),
-                      ),
-                    ],
                   ),
                   child: const Row(
                     children: [
@@ -214,8 +204,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             Text(
                               'Tạo tài khoản an toàn trong vài bước.',
                               style: TextStyle(
-                                color: Color(0xffddd6fe),
-                                fontSize: 11,
+                                color: Color(0xffccfbf1),
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -346,7 +336,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           'Ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.',
                           style: TextStyle(
                             color: Color(0xff64748b),
-                            fontSize: 10,
+                            fontSize: 14,
                             height: 1.45,
                           ),
                         ),
@@ -416,7 +406,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     _error!,
                                     style: const TextStyle(
                                       color: Color(0xff991b1b),
-                                      fontSize: 11,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),

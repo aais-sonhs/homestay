@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../api/housekeeping_api.dart';
 import '../presentation/task_presentation.dart';
 import '../security/secure_store.dart';
+import 'guest_request_screen.dart';
 import 'management_dashboard_screen.dart';
 import 'notification_screen.dart';
 import 'offline_task_detail_screen.dart';
@@ -42,10 +43,13 @@ class InternalWorkspaceScreen extends StatelessWidget {
       );
     }
     if (user.role == 'housekeeping') {
-      return OnlineTaskListScreen(
+      return _HousekeepingWorkspace(api: api, user: user, onSignOut: onSignOut);
+    }
+    if (user.isCustomerService) {
+      return _CustomerServiceWorkspace(
         api: api,
+        user: user,
         onSignOut: onSignOut,
-        title: 'Công việc buồng phòng',
       );
     }
     return _UnsupportedWorkspace(user: user, onSignOut: onSignOut);
@@ -68,6 +72,26 @@ class _ManagementWorkspace extends StatefulWidget {
 
 class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
   int _index = 0;
+  final Set<int> _visitedIndexes = {0};
+  HousekeepingTaskTab _taskInitialTab = HousekeepingTaskTab.inProgress;
+  int _taskListRevision = 0;
+
+  void _selectIndex(int value) {
+    if (_index == value) return;
+    setState(() {
+      _index = value;
+      _visitedIndexes.add(value);
+    });
+  }
+
+  void _openTaskList(HousekeepingTaskTab tab) {
+    setState(() {
+      _taskInitialTab = tab;
+      _taskListRevision++;
+      _index = 1;
+      _visitedIndexes.add(1);
+    });
+  }
 
   Future<void> _openTask(String taskId) => Navigator.of(context).push(
     MaterialPageRoute<void>(
@@ -83,20 +107,23 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      ManagementDashboardScreen(
+    Widget pageAt(int index) => switch (index) {
+      0 => ManagementDashboardScreen(
+        key: const ValueKey('management-dashboard'),
         api: widget.api,
         user: widget.user,
-        onOpenTasks: () => setState(() => _index = 1),
-        onOpenQc: () => setState(() => _index = 3),
+        onOpenTasks: () => _openTaskList(HousekeepingTaskTab.inProgress),
+        onOpenQc: () => _openTaskList(HousekeepingTaskTab.waitingQc),
         onOpenStaff: _openStaff,
         onSignOut: widget.onSignOut,
       ),
-      OnlineTaskListScreen(
+      1 => OnlineTaskListScreen(
+        key: ValueKey('management-task-list-$_taskListRevision'),
         api: widget.api,
         onSignOut: widget.onSignOut,
+        active: _index == 1,
         title: 'Điều phối công việc',
-        initialTab: HousekeepingTaskTab.inProgress,
+        initialTab: _taskInitialTab,
         availableTabs: const [
           HousekeepingTaskTab.available,
           HousekeepingTaskTab.inProgress,
@@ -106,25 +133,34 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
           HousekeepingTaskTab.done,
         ],
       ),
-      RoomReadinessScreen(api: widget.api),
-      OnlineTaskListScreen(
+      2 => RoomReadinessScreen(
+        key: const ValueKey('management-room-readiness'),
         api: widget.api,
-        onSignOut: widget.onSignOut,
-        title: 'Kiểm tra chất lượng',
-        initialTab: HousekeepingTaskTab.waitingQc,
-        availableTabs: const [
-          HousekeepingTaskTab.waitingQc,
-          HousekeepingTaskTab.rework,
-          HousekeepingTaskTab.done,
-        ],
       ),
-      NotificationScreen(api: widget.api, onTaskSelected: _openTask),
-    ];
+      3 => GuestRequestScreen(
+        key: const ValueKey('management-guest-requests'),
+        api: widget.api,
+        user: widget.user,
+        active: _index == 3,
+      ),
+      4 => NotificationScreen(
+        key: const ValueKey('management-notifications'),
+        api: widget.api,
+        onTaskSelected: _openTask,
+      ),
+      _ => const SizedBox.shrink(),
+    };
+    final pages = List<Widget>.generate(
+      5,
+      (index) => _visitedIndexes.contains(index)
+          ? pageAt(index)
+          : const SizedBox.shrink(),
+    );
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
+        onDestinationSelected: _selectIndex,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -142,9 +178,9 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
             label: 'Phòng',
           ),
           NavigationDestination(
-            icon: Icon(Icons.fact_check_outlined),
-            selectedIcon: Icon(Icons.fact_check),
-            label: 'QC',
+            icon: Icon(Icons.room_service_outlined),
+            selectedIcon: Icon(Icons.room_service),
+            label: 'Yêu cầu',
           ),
           NavigationDestination(
             icon: Icon(Icons.notifications_outlined),
@@ -155,6 +191,120 @@ class _ManagementWorkspaceState extends State<_ManagementWorkspace> {
       ),
     );
   }
+}
+
+class _HousekeepingWorkspace extends StatefulWidget {
+  const _HousekeepingWorkspace({
+    required this.api,
+    required this.user,
+    required this.onSignOut,
+  });
+  final HousekeepingApi api;
+  final AppUserProfile user;
+  final AsyncCallback onSignOut;
+
+  @override
+  State<_HousekeepingWorkspace> createState() => _HousekeepingWorkspaceState();
+}
+
+class _HousekeepingWorkspaceState extends State<_HousekeepingWorkspace> {
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: IndexedStack(
+      index: _index,
+      children: [
+        OnlineTaskListScreen(
+          api: widget.api,
+          onSignOut: widget.onSignOut,
+          title: 'Công việc buồng phòng',
+          active: _index == 0,
+        ),
+        GuestRequestScreen(
+          api: widget.api,
+          user: widget.user,
+          onSignOut: widget.onSignOut,
+          active: _index == 1,
+        ),
+      ],
+    ),
+    bottomNavigationBar: NavigationBar(
+      selectedIndex: _index,
+      onDestinationSelected: (value) => setState(() => _index = value),
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.cleaning_services_outlined),
+          selectedIcon: Icon(Icons.cleaning_services),
+          label: 'Dọn phòng',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.room_service_outlined),
+          selectedIcon: Icon(Icons.room_service),
+          label: 'Khách gọi',
+        ),
+      ],
+    ),
+  );
+}
+
+class _CustomerServiceWorkspace extends StatefulWidget {
+  const _CustomerServiceWorkspace({
+    required this.api,
+    required this.user,
+    required this.onSignOut,
+  });
+  final HousekeepingApi api;
+  final AppUserProfile user;
+  final AsyncCallback onSignOut;
+
+  @override
+  State<_CustomerServiceWorkspace> createState() =>
+      _CustomerServiceWorkspaceState();
+}
+
+class _CustomerServiceWorkspaceState extends State<_CustomerServiceWorkspace> {
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: IndexedStack(
+      index: _index,
+      children: [
+        GuestRequestScreen(
+          api: widget.api,
+          user: widget.user,
+          onSignOut: widget.onSignOut,
+          active: _index == 0,
+        ),
+        RoomReadinessScreen(
+          api: widget.api,
+        ),
+        NotificationScreen(api: widget.api),
+      ],
+    ),
+    bottomNavigationBar: NavigationBar(
+      selectedIndex: _index,
+      onDestinationSelected: (value) => setState(() => _index = value),
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.room_service_outlined),
+          selectedIcon: Icon(Icons.room_service),
+          label: 'Yêu cầu',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.meeting_room_outlined),
+          selectedIcon: Icon(Icons.meeting_room),
+          label: 'Phòng',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.notifications_outlined),
+          selectedIcon: Icon(Icons.notifications),
+          label: 'Thông báo',
+        ),
+      ],
+    ),
+  );
 }
 
 class _UnsupportedWorkspace extends StatelessWidget {

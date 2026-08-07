@@ -36,14 +36,15 @@
                 <a href="#chi-nhanh"><span>03</span>Chi nhánh &amp; tổ chức</a>
                 <a href="#booking"><span>04</span>Booking</a>
                 <a href="#cong-viec"><span>05</span>Công việc buồng phòng</a>
-                <a href="#qc-ho-tro"><span>06</span>QC, kho &amp; kỹ thuật</a>
-                <a href="#phong"><span>07</span>Lịch &amp; trạng thái phòng</a>
-                <a href="#stop-sell"><span>08</span>Blocker &amp; dừng bán</a>
-                <a href="#man-hinh-web"><span>09</span>Các màn hình web</a>
-                <a href="#mobile-api"><span>10</span>Mobile &amp; API</a>
-                <a href="#bao-mat"><span>11</span>Bảo mật &amp; dữ liệu</a>
-                <a href="#trang-thai"><span>12</span>Tra cứu trạng thái</a>
-                <a href="#xu-ly-loi"><span>13</span>Xử lý tình huống</a>
+                <a href="#khach-yeu-cau"><span>06</span>Yêu cầu khách lưu trú</a>
+                <a href="#qc-ho-tro"><span>07</span>QC, kho &amp; kỹ thuật</a>
+                <a href="#phong"><span>08</span>Lịch &amp; trạng thái phòng</a>
+                <a href="#stop-sell"><span>09</span>Blocker &amp; dừng bán</a>
+                <a href="#man-hinh-web"><span>10</span>Các màn hình web</a>
+                <a href="#mobile-api"><span>11</span>Mobile &amp; API</a>
+                <a href="#bao-mat"><span>12</span>Bảo mật &amp; dữ liệu</a>
+                <a href="#trang-thai"><span>13</span>Tra cứu trạng thái</a>
+                <a href="#xu-ly-loi"><span>14</span>Xử lý tình huống</a>
             </nav>
         </aside>
 
@@ -110,7 +111,7 @@
                             <tr><td><strong>Chủ chi nhánh</strong></td><td>Các chi nhánh sở hữu</td><td>Điều hành booking, phòng, đội ngũ, hiệu suất và các tình huống vận hành.</td></tr>
                             <tr><td><strong>Quản lý</strong></td><td>Chi nhánh được gán</td><td>Tạo/phân công việc, điều phối, xử lý ngoại lệ, xác nhận mở lại phòng.</td></tr>
                             <tr><td><strong>Kinh doanh</strong></td><td>Chi nhánh được gán</td><td>Tạo, sửa, hủy booking và ghi nhận yêu cầu đặc biệt của khách.</td></tr>
-                            <tr><td><strong>CSKH</strong></td><td>Phạm vi được cấp</td><td>Theo dõi booking và yêu cầu khách cần phối hợp với vận hành.</td></tr>
+                            <tr><td><strong>CSKH</strong></td><td>Phạm vi được cấp</td><td>Tiếp nhận Zalo/điện thoại, tạo và theo dõi yêu cầu phục vụ của khách đang lưu trú.</td></tr>
                             <tr><td><strong>Nhân viên buồng phòng</strong></td><td>Việc/ca/khu vực được giao</td><td>Nhận việc, xác minh phòng, checklist, ảnh, yêu cầu vật tư và báo sự cố.</td></tr>
                             <tr><td><strong>Kiểm tra chất lượng</strong></td><td>Hàng chờ QC được gán</td><td>Kiểm tra kết quả, duyệt đạt hoặc yêu cầu làm lại theo từng vòng.</td></tr>
                             <tr><td><strong>Kho</strong></td><td>Chi nhánh/điểm kho được gán</td><td>Tiếp nhận, cấp hoặc từ chối yêu cầu vật tư và ghi chú xử lý.</td></tr>
@@ -242,9 +243,127 @@
                 </div>
             </section>
 
-            <section id="qc-ho-tro" class="doc-section">
+            <section id="khach-yeu-cau" class="doc-section">
                 <div class="doc-section-heading">
                     <span class="doc-number">06</span>
+                    <div>
+                        <p class="doc-kicker">Nghiệp vụ quan trọng · phục vụ trong kỳ ở</p>
+                        <h2>Khách gọi thêm nước, khăn hoặc đồ dùng phòng</h2>
+                    </div>
+                </div>
+                <p class="doc-lead">
+                    Khi khách đang thuê phòng và nhắn Zalo/điện thoại xin thêm nước, khăn, đồ dùng hoặc dọn thêm,
+                    CSKH phải tạo một <strong>Yêu cầu khách lưu trú</strong>. Hệ thống chuyển yêu cầu vào hàng việc của
+                    tạp vụ, theo dõi hạn phục vụ và lưu lại người đã xử lý.
+                </p>
+
+                <div class="doc-callout doc-callout-danger">
+                    <strong>Không tạo nhầm nghiệp vụ</strong>
+                    <p>
+                        Không tạo thành <strong>Công việc dọn phòng</strong> và không dùng nút <strong>Thiếu vật tư</strong>.
+                        “Thiếu vật tư” chỉ dùng khi nhân viên đang làm một task buồng phòng nhưng kho chưa cấp đủ đồ;
+                        còn trường hợp này là khách chủ động gọi thêm dịch vụ trong thời gian lưu trú.
+                    </p>
+                </div>
+
+                <h3>Ví dụ thực tế</h3>
+                <div class="doc-note">
+                    <strong>20:10 — Khách phòng DL-101 nhắn Zalo:</strong>
+                    “Cho chị thêm 2 chai nước và 1 khăn tắm nhé.”<br>
+                    CSKH mở <strong>Khách yêu cầu → Tạo yêu cầu</strong>, chọn booking đang ở phòng DL-101,
+                    nhập nội dung và số lượng. Nếu cần theo dõi riêng thời điểm giao, nên tạo hai yêu cầu:
+                    <strong>2 chai nước</strong> và <strong>1 khăn tắm</strong>.
+                </div>
+
+                <h3>Luồng xử lý chuẩn</h3>
+                <div class="doc-flow doc-flow-five" aria-label="Luồng xử lý yêu cầu khách lưu trú">
+                    <div><b>1</b><strong>Khách liên hệ</strong><small>CSKH đọc lại đúng phòng, món đồ và số lượng</small></div>
+                    <div><b>2</b><strong>CSKH tạo yêu cầu</strong><small>Chọn booking đang nhận phòng và kênh Zalo/điện thoại</small></div>
+                    <div><b>3</b><strong>Điều phối</strong><small>Quản lý phân công hoặc tạp vụ nhận yêu cầu đang mở</small></div>
+                    <div><b>4</b><strong>Tạp vụ thực hiện</strong><small>Bấm Nhận việc, Bắt đầu rồi mang đồ tới đúng phòng</small></div>
+                    <div><b>5</b><strong>Đóng yêu cầu</strong><small>Bấm Đã giao khách; CSKH theo dõi và phản hồi khách</small></div>
+                </div>
+
+                <h3>Ai làm gì?</h3>
+                <div class="doc-table-wrap">
+                    <table class="doc-table">
+                        <thead><tr><th>Vai trò</th><th>Thao tác được phép</th><th>Nguyên tắc</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>CSKH</strong></td><td>Tạo, theo dõi và hủy yêu cầu do mình tiếp nhận.</td><td>Nhập đúng booking, phòng, nội dung khách nói và kênh liên hệ.</td></tr>
+                            <tr><td><strong>Quản lý / Chủ chi nhánh</strong></td><td>Xem toàn chi nhánh, phân công hoặc đổi tạp vụ, hủy yêu cầu.</td><td>Ưu tiên yêu cầu khẩn/quá hạn và xử lý khi chưa có người nhận.</td></tr>
+                            <tr><td><strong>Tạp vụ</strong></td><td>Xem yêu cầu phù hợp, nhận việc, bắt đầu và xác nhận đã giao.</td><td>Không bấm “Đã giao khách” trước khi đồ đã tới đúng phòng.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Thông tin CSKH cần nhập</h3>
+                <div class="doc-grid doc-grid-two">
+                    <div>
+                        <ul class="doc-list">
+                            <li><strong>Booking đang lưu trú:</strong> hệ thống tự xác định chi nhánh và phòng.</li>
+                            <li><strong>Loại yêu cầu:</strong> nước, khăn, đồ dùng phòng, dọn thêm, thiết bị hoặc khác.</li>
+                            <li><strong>Nội dung:</strong> ghi nguyên ý khách, ngắn gọn và đủ để người giao hiểu.</li>
+                            <li><strong>Số lượng và đơn vị:</strong> ví dụ 2 chai, 1 cái, 1 bộ.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul class="doc-list">
+                            <li><strong>Kênh tiếp nhận:</strong> Zalo, điện thoại, lễ tân hoặc kênh khác.</li>
+                            <li><strong>Mức ưu tiên:</strong> chọn theo ảnh hưởng thực tế, không đánh dấu khẩn cho mọi yêu cầu.</li>
+                            <li><strong>Hạn phục vụ:</strong> có thể để hệ thống tự tính hoặc chọn thời gian khách yêu cầu.</li>
+                            <li><strong>Người thực hiện:</strong> quản lý có thể giao ngay; CSKH có thể để hàng chờ điều phối.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3>Thời hạn mặc định</h3>
+                <div class="doc-table-wrap">
+                    <table class="doc-table">
+                        <thead><tr><th>Mức ưu tiên</th><th>Hạn mặc định</th><th>Ví dụ sử dụng</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>Khẩn cấp</strong></td><td>10 phút</td><td>Khách đang chờ vật dụng thiết yếu hoặc yêu cầu ảnh hưởng trực tiếp trải nghiệm.</td></tr>
+                            <tr><td><strong>Cao</strong></td><td>15 phút</td><td>Khách cần khăn/nước sớm và đã nhắc thời gian.</td></tr>
+                            <tr><td><strong>Bình thường</strong></td><td>20 phút</td><td>Nước, khăn hoặc đồ dùng bổ sung thông thường.</td></tr>
+                            <tr><td><strong>Thấp</strong></td><td>30 phút</td><td>Yêu cầu không gấp hoặc khách đồng ý nhận sau.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Ý nghĩa trạng thái</h3>
+                <div class="doc-table-wrap">
+                    <table class="doc-table">
+                        <thead><tr><th>Trạng thái</th><th>Ý nghĩa</th><th>Việc tiếp theo</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>Chờ tiếp nhận</strong></td><td>CSKH đã tạo nhưng chưa có người nhận.</td><td>Quản lý phân công hoặc tạp vụ nhận việc đang mở.</td></tr>
+                            <tr><td><strong>Đã phân công</strong></td><td>Đã chỉ định một tạp vụ.</td><td>Người được giao bấm Nhận việc.</td></tr>
+                            <tr><td><strong>Đã nhận việc</strong></td><td>Tạp vụ đã cam kết xử lý.</td><td>Chuẩn bị đồ và bấm Bắt đầu.</td></tr>
+                            <tr><td><strong>Đang thực hiện</strong></td><td>Đang lấy hoặc mang đồ tới phòng.</td><td>Giao đúng khách rồi xác nhận hoàn thành.</td></tr>
+                            <tr><td><strong>Đã giao khách</strong></td><td>Yêu cầu hoàn tất, có người và thời gian xác nhận.</td><td>CSKH có thể phản hồi khách nếu cần.</td></tr>
+                            <tr><td><strong>Đã hủy</strong></td><td>Khách đổi ý, nhập nhầm hoặc yêu cầu không còn hiệu lực.</td><td>Phải ghi rõ lý do hủy.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Các tình huống cần lưu ý</h3>
+                <div class="doc-grid doc-grid-three">
+                    <div class="doc-subcard"><h3>Khách đổi ý</h3><p>CSKH hoặc quản lý hủy yêu cầu và ghi “Khách báo không cần nữa”. Không để yêu cầu treo quá hạn.</p></div>
+                    <div class="doc-subcard"><h3>Không còn đồ để giao</h3><p>Tạp vụ báo quản lý/kho ngay. Không xác nhận đã giao. Quản lý chủ động báo lại CSKH để thống nhất phương án với khách.</p></div>
+                    <div class="doc-subcard"><h3>Khách báo thiết bị hỏng</h3><p>Tạo loại “Hỗ trợ thiết bị” để ghi nhận yêu cầu ban đầu; nếu cần sửa chữa hoặc chặn phòng, tiếp tục mở sự cố kỹ thuật đúng quy trình.</p></div>
+                    <div class="doc-subcard"><h3>Tin nhắn bị gửi lặp</h3><p>Tìm theo phòng và nội dung trước khi tạo lại. Nếu đã có yêu cầu đang mở thì cập nhật điều phối, không tạo bản trùng.</p></div>
+                    <div class="doc-subcard"><h3>Không thấy booking</h3><p>Kiểm tra booking đã chuyển sang “Đã nhận phòng”, đúng chi nhánh và đúng phòng. Không chọn booking cũ để làm tạm.</p></div>
+                    <div class="doc-subcard"><h3>Bảo vệ thông tin khách</h3><p>Tạp vụ chỉ nhận thông tin cần để giao đồ; tên và số điện thoại khách không hiển thị cho vai trò không cần dùng.</p></div>
+                </div>
+
+                <div class="doc-callout doc-callout-warning">
+                    <strong>Booking bắt buộc đang nhận phòng</strong>
+                    <p>Hệ thống từ chối booking đã trả phòng, đã hủy hoặc booking thuộc phòng/chi nhánh khác. Nếu khách đã chuyển phòng, phải cập nhật booking trước rồi mới tạo yêu cầu.</p>
+                </div>
+                <div class="doc-actions"><a class="button secondary" href="{% url 'housekeeping:guest-request-list' %}">Mở yêu cầu khách lưu trú</a>{% if request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' or request.user.role == 'customer_service' %}<a class="button secondary" href="{% url 'housekeeping:guest-request-create' %}">Tạo yêu cầu mới</a>{% endif %}</div>
+            </section>
+
+            <section id="qc-ho-tro" class="doc-section">
+                <div class="doc-section-heading">
+                    <span class="doc-number">07</span>
                     <div>
                         <p class="doc-kicker">Phối hợp hiện trường</p>
                         <h2>QC, kho và kỹ thuật</h2>
@@ -280,7 +399,7 @@
 
             <section id="phong" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">07</span>
+                    <span class="doc-number">08</span>
                     <div>
                         <p class="doc-kicker">Room operations</p>
                         <h2>Lịch vận hành và trạng thái phòng</h2>
@@ -320,7 +439,7 @@
 
             <section id="stop-sell" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">08</span>
+                    <span class="doc-number">09</span>
                     <div>
                         <p class="doc-kicker">Kiểm soát rủi ro</p>
                         <h2>Blocker và dừng bán phòng</h2>
@@ -353,7 +472,7 @@
 
             <section id="man-hinh-web" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">09</span>
+                    <span class="doc-number">10</span>
                     <div>
                         <p class="doc-kicker">Điều hướng</p>
                         <h2>Các màn hình trên web</h2>
@@ -364,6 +483,7 @@
                         <thead><tr><th>Màn hình</th><th>Mục đích</th><th>Đường dẫn</th></tr></thead>
                         <tbody>
                             <tr><td><a href="{% url 'housekeeping:task-list' %}"><strong>Công việc</strong></a></td><td>Danh sách, lọc, xem chi tiết và thao tác theo quyền.</td><td><code>/housekeeping/tasks/</code></td></tr>
+                            <tr><td><a href="{% url 'housekeeping:guest-request-list' %}"><strong>Khách yêu cầu</strong></a></td><td>CSKH tiếp nhận, quản lý phân công và tạp vụ cập nhật tiến độ phục vụ.</td><td><code>/guest-requests/</code></td></tr>
                             <tr><td><a href="{% url 'housekeeping:operations-dashboard' %}"><strong>Điều phối</strong></a></td><td>Tình hình SLA, tải công việc và rủi ro cần ưu tiên.</td><td><code>/housekeeping/operations/</code></td></tr>
                             <tr><td><a href="{% url 'housekeeping:support-queue' %}"><strong>Kho và Kỹ thuật</strong></a></td><td>Hàng chờ vật tư, sự cố và trạng thái xử lý.</td><td><code>/housekeeping/support/</code></td></tr>
                             <tr><td><a href="{% url 'reservations:booking-list' %}"><strong>Booking</strong></a></td><td>Quản lý lịch ở và yêu cầu khách.</td><td><code>/bookings/</code></td></tr>
@@ -377,13 +497,13 @@
                 </div>
                 <p class="doc-muted">Thanh bên chỉ hiển thị một số mục theo vai trò. Máy chủ vẫn kiểm tra quyền ở từng thao tác; biết đường dẫn không đồng nghĩa có quyền truy cập.</p>
                 <div class="doc-note">
-                    <strong>Phân trang dữ liệu:</strong> các danh sách lớn được phân trang phía máy chủ và giữ nguyên bộ lọc khi chuyển trang. Công việc, booking, chi nhánh, nhân sự, thông báo và các hàng chờ mặc định 20 dòng/trang; Trạng thái phòng 18 thẻ/trang; Nhật ký hoạt động 25 dòng/trang. Các bảng độc lập trên Dashboard, Kho/Kỹ thuật và Lịch vận hành có nút chuyển trang riêng.
+                    <strong>Phân trang dữ liệu:</strong> các danh sách lớn được phân trang phía máy chủ và giữ nguyên bộ lọc khi chuyển trang. Công việc, yêu cầu khách lưu trú, booking, chi nhánh, nhân sự, thông báo và các hàng chờ mặc định 20 dòng/trang; Trạng thái phòng 18 thẻ/trang; Nhật ký hoạt động 25 dòng/trang. Các bảng độc lập trên Dashboard, Kho/Kỹ thuật và Lịch vận hành có nút chuyển trang riêng.
                 </div>
             </section>
 
             <section id="mobile-api" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">10</span>
+                    <span class="doc-number">11</span>
                     <div>
                         <p class="doc-kicker">Ứng dụng Bliss Home</p>
                         <h2>Mobile và kết nối API</h2>
@@ -419,6 +539,7 @@
                             <li><code>/api/v1/organizations/staff</code><span>Chủ/Quản lý xem và tạo tài khoản nhân sự trong đúng phạm vi chi nhánh.</span></li>
                             <li><code>/api/v1/housekeeping/tasks</code><span>Danh sách và chi tiết công việc.</span></li>
                             <li><code>/api/v1/housekeeping/tasks/{id}/...</code><span>Nhận, bắt đầu, checklist, ảnh, hỗ trợ, hoàn thành và QC.</span></li>
+                            <li><code>/api/v1/housekeeping/guest-requests</code><span>Tạo, xem và xử lý yêu cầu phục vụ khách đang lưu trú.</span></li>
                             <li><code>/api/v1/housekeeping/notifications</code><span>Thông báo của người dùng.</span></li>
                             <li><code>/api/v1/room-operations/rooms</code><span>Thông tin sẵn sàng của phòng.</span></li>
                         </ul>
@@ -435,7 +556,7 @@
 
             <section id="bao-mat" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">11</span>
+                    <span class="doc-number">12</span>
                     <div>
                         <p class="doc-kicker">An toàn vận hành</p>
                         <h2>Bảo mật, nhật ký và tính nhất quán dữ liệu</h2>
@@ -474,7 +595,7 @@
 
             <section id="trang-thai" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">12</span>
+                    <span class="doc-number">13</span>
                     <div>
                         <p class="doc-kicker">Tra cứu nhanh</p>
                         <h2>Các trạng thái nghiệp vụ</h2>
@@ -496,6 +617,9 @@
                     <span>Chờ QC</span><span>QC không đạt</span><span>QC đạt</span><span>Đã hủy</span>
                 </div>
 
+                <h3>Yêu cầu khách lưu trú</h3>
+                <div class="doc-status-row"><span>Chờ tiếp nhận</span><span>Đã phân công</span><span>Đã nhận việc</span><span>Đang thực hiện</span><span>Đã giao khách</span><span>Đã hủy</span></div>
+
                 <div class="doc-grid doc-grid-two">
                     <div>
                         <h3>Yêu cầu vật tư</h3>
@@ -511,7 +635,7 @@
 
             <section id="xu-ly-loi" class="doc-section">
                 <div class="doc-section-heading">
-                    <span class="doc-number">13</span>
+                    <span class="doc-number">14</span>
                     <div>
                         <p class="doc-kicker">Hỗ trợ người dùng</p>
                         <h2>Xử lý các tình huống thường gặp</h2>
@@ -529,6 +653,14 @@
                     <details>
                         <summary>Không bắt đầu hoặc hoàn thành công việc</summary>
                         <p>Tải lại công việc, kiểm tra quyền người nhận, trạng thái hiện tại, yêu cầu xác minh phòng, checklist bắt buộc, ảnh và yêu cầu hỗ trợ đang chờ.</p>
+                    </details>
+                    <details>
+                        <summary>CSKH không tạo được yêu cầu nước/khăn cho khách</summary>
+                        <p>Kiểm tra tài khoản CSKH đã được gán đúng chi nhánh và booking đang ở trạng thái <strong>Đã nhận phòng</strong>. Booking phải thuộc đúng phòng và chi nhánh được chọn; booking đã trả phòng hoặc đã hủy không thể dùng.</p>
+                    </details>
+                    <details>
+                        <summary>Yêu cầu khách đang quá hạn nhưng chưa có người nhận</summary>
+                        <p>Quản lý mở <strong>Khách yêu cầu → Quá hạn</strong>, phân công trực tiếp một tạp vụ và kiểm tra tạp vụ có thuộc đúng chi nhánh. CSKH chủ động thông báo khách nếu thời gian phục vụ thay đổi.</p>
                     </details>
                     <details>
                         <summary>Hệ thống báo dữ liệu đã thay đổi / xung đột phiên bản</summary>
@@ -556,7 +688,7 @@
             <footer class="docs-footer">
                 <div>
                     <strong>Bliss Home System Documentation</strong>
-                    <p>Tài liệu nội bộ theo phiên bản hệ thống ngày 07/08/2026.</p>
+                    <p>Tài liệu nội bộ theo phiên bản hệ thống ngày 08/08/2026.</p>
                 </div>
                 <a href="#doc-start">Về đầu trang ↑</a>
             </footer>

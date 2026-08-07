@@ -37,7 +37,12 @@ class _BlissHomeAppState extends State<BlissHomeApp> {
         ),
       ),
       tokens: _tokens,
+      onAuthenticationLost: _authenticationLost,
     );
+  }
+
+  Future<void> _authenticationLost() async {
+    if (mounted) setState(() => _user = null);
   }
 
   Future<void> _signedIn(AppUserProfile user) async {
@@ -47,6 +52,12 @@ class _BlissHomeAppState extends State<BlissHomeApp> {
   Future<void> _signedOut() async {
     await _api.logout();
     if (mounted) setState(() => _user = null);
+  }
+
+  @override
+  void dispose() {
+    _api.close();
+    super.dispose();
   }
 
   @override
@@ -83,6 +94,14 @@ class _LoginScreenState extends State<_LoginScreen> {
   String? _registrationNotice;
 
   Future<void> _submit() async {
+    if (_submitting) return;
+    FocusScope.of(context).unfocus();
+    if (_identifier.text.trim().isEmpty || _password.text.isEmpty) {
+      setState(() {
+        _error = 'Vui lòng nhập đầy đủ tài khoản và mật khẩu.';
+      });
+      return;
+    }
     setState(() {
       _submitting = true;
       _error = null;
@@ -95,7 +114,7 @@ class _LoginScreenState extends State<_LoginScreen> {
       );
       await widget.onSignedIn(AppUserProfile.fromMap(data['user']! as Map));
     } on Object catch (error) {
-      setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -140,105 +159,70 @@ class _LoginScreenState extends State<_LoginScreen> {
     resizeToAvoidBottomInset: true,
     body: Stack(
       children: [
-        const Positioned.fill(child: ColoredBox(color: Color(0xfff5f7fc))),
-        Positioned(
-          top: -150,
-          left: -90,
-          right: -90,
-          child: Container(
-            height: 490,
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.vertical(
-                bottom: Radius.elliptical(360, 90),
-              ),
+        const Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Color(0xff172554),
-                  Color(0xff4338ca),
-                  Color(0xff7c3aed),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+                colors: [BlissAppTheme.brandDark, BlissAppTheme.brand],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
           ),
-        ),
-        const Positioned(
-          top: 76,
-          right: -34,
-          child: _LoginOrb(size: 124, opacity: .08),
-        ),
-        const Positioned(
-          top: 196,
-          left: -28,
-          child: _LoginOrb(size: 82, opacity: .1),
         ),
         SafeArea(
           child: Center(
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(20, 30, 20, 30),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),
                 child: Column(
                   children: [
                     Container(
-                      width: 86,
-                      height: 86,
-                      padding: const EdgeInsets.all(7),
+                      width: 64,
+                      height: 64,
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x44312e81),
-                            blurRadius: 30,
-                            offset: Offset(0, 14),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: BlissAppTheme.line, width: 2),
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(19),
+                        borderRadius: BorderRadius.circular(14),
                         child: Image.asset(
                           'assets/branding/app_icon.png',
                           fit: BoxFit.cover,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     const Text(
                       'Bliss Home',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 30,
+                        fontSize: 24,
                         height: 1,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -.8,
                       ),
                     ),
-                    const SizedBox(height: 9),
+                    const SizedBox(height: 4),
                     const Text(
                       'Vận hành nhẹ nhàng · Chăm sóc trọn vẹn',
                       style: TextStyle(
-                        color: Color(0xffddd6fe),
-                        fontSize: 13,
+                        color: Color(0xffccfbf1),
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.fromLTRB(23, 25, 23, 22),
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: const Color(0xffeef0f6)),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x1f0f172a),
-                            blurRadius: 38,
-                            offset: Offset(0, 18),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: BlissAppTheme.line),
                       ),
                       child: AutofillGroup(
                         child: Column(
@@ -250,7 +234,7 @@ class _LoginScreenState extends State<_LoginScreen> {
                             ),
                             const SizedBox(height: 7),
                             Text(
-                              'Đăng nhập để xem công việc và tình hình vận hành hôm nay.',
+                              'Xem công việc được giao trong hôm nay.',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                             if (_registrationNotice != null) ...[
@@ -277,7 +261,7 @@ class _LoginScreenState extends State<_LoginScreen> {
                                         _registrationNotice!,
                                         style: const TextStyle(
                                           color: Color(0xff065f46),
-                                          fontSize: 11,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -286,20 +270,19 @@ class _LoginScreenState extends State<_LoginScreen> {
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 16),
                             TextField(
                               controller: _identifier,
                               enabled: !_submitting,
                               textInputAction: TextInputAction.next,
                               keyboardType: TextInputType.emailAddress,
                               decoration: const InputDecoration(
-                                labelText:
-                                    'Tài khoản, email hoặc số điện thoại',
+                                labelText: 'Email hoặc số điện thoại',
                                 prefixIcon: Icon(Icons.person_outline_rounded),
                               ),
                               autofillHints: const [AutofillHints.username],
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 10),
                             TextField(
                               controller: _password,
                               enabled: !_submitting,
@@ -354,7 +337,7 @@ class _LoginScreenState extends State<_LoginScreen> {
                                         _friendlyError,
                                         style: const TextStyle(
                                           color: Color(0xff991b1b),
-                                          fontSize: 12,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -363,23 +346,16 @@ class _LoginScreenState extends State<_LoginScreen> {
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 16),
                             DecoratedBox(
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
-                                    Color(0xff4f46e5),
-                                    Color(0xff7c3aed),
+                                    BlissAppTheme.brand,
+                                    Color(0xff0d9488),
                                   ],
                                 ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x394f46e5),
-                                    blurRadius: 18,
-                                    offset: Offset(0, 9),
-                                  ),
-                                ],
+                                borderRadius: BorderRadius.circular(18),
                               ),
                               child: FilledButton.icon(
                                 style: FilledButton.styleFrom(
@@ -401,13 +377,13 @@ class _LoginScreenState extends State<_LoginScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 11),
+                            const SizedBox(height: 8),
                             OutlinedButton.icon(
                               onPressed: _submitting ? null : _openRegistration,
                               icon: const Icon(Icons.person_add_alt_1_rounded),
                               label: const Text('Tạo tài khoản mới'),
                             ),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 12),
                             const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -422,8 +398,8 @@ class _LoginScreenState extends State<_LoginScreen> {
                                     'Kết nối bảo mật tới hệ thống Bliss Home',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: Color(0xff64748b),
-                                      fontSize: 11,
+                                      color: BlissAppTheme.muted,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -434,15 +410,6 @@ class _LoginScreenState extends State<_LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    const Text(
-                      '© 2026 Bliss Home',
-                      style: TextStyle(
-                        color: Color(0xff94a3b8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -450,24 +417,6 @@ class _LoginScreenState extends State<_LoginScreen> {
           ),
         ),
       ],
-    ),
-  );
-}
-
-class _LoginOrb extends StatelessWidget {
-  const _LoginOrb({required this.size, required this.opacity});
-
-  final double size;
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: Colors.white.withValues(alpha: opacity),
-      border: Border.all(color: Colors.white.withValues(alpha: opacity + .04)),
     ),
   );
 }

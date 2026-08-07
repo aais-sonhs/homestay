@@ -5,6 +5,8 @@ from .models import (
     ChecklistItemDefinition,
     ChecklistTemplate,
     ChecklistVersion,
+    GuestServiceRequest,
+    GuestServiceRequestEvent,
     HousekeepingActivityLog,
     HousekeepingTask,
     IssueTicket,
@@ -39,6 +41,37 @@ class HousekeepingTaskAdmin(admin.ModelAdmin):
     filter_horizontal = ("required_skills",)
 
 
+@admin.register(GuestServiceRequest)
+class GuestServiceRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "code",
+        "room",
+        "branch",
+        "request_type",
+        "priority",
+        "status",
+        "assignee",
+        "due_at",
+    )
+    list_filter = ("branch", "request_type", "priority", "status", "source")
+    search_fields = (
+        "code",
+        "room__code",
+        "booking__code",
+        "booking__guest_name",
+        "description",
+    )
+    readonly_fields = (
+        "accepted_at",
+        "started_at",
+        "completed_at",
+        "cancelled_at",
+        "version",
+        "created_at",
+        "updated_at",
+    )
+
+
 admin.site.register(Booking)
 admin.site.register(ChecklistTemplate)
 admin.site.register(ChecklistVersion)
@@ -64,3 +97,4 @@ admin.site.register(OutboxEvent)
 admin.site.register(OfflineMutationReceipt)
 admin.site.register(TaskStatusHistory)
 admin.site.register(HousekeepingActivityLog)
+admin.site.register(GuestServiceRequestEvent)

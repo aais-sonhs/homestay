@@ -274,6 +274,96 @@ def _create_staff(request):
     )
 
 
+def _assign_existing_staff(request):
+    payload = parse_json(request)
+    branch = _branch_from_payload(request.user, payload)
+    role_key = str(payload.get("roleKey") or "").strip()
+    definition = ROLE_DEFINITIONS.get(role_key)
+    if definition is None:
+        raise APIError("STAFF_ROLE_INVALID", "Vai trò nhân viên không hợp lệ.")
+    if definition["owner_only"] and not _can_create_manager(request.user, branch):
+        raise APIError(
+            "STAFF_ROLE_NOT_ALLOWED",
+            "Chỉ Chủ chi nhánh được gán vai trò Quản lý.",
+            status=403,
+        )
+
+    identifier = str(payload.get("identifier") or "").strip()
+    if not identifier:
+        raise APIError(
+            "STAFF_IDENTIFIER_REQUIRED",
+            "Vui lòng nhập email hoặc số điện thoại của tài khoản đã đăng ký.",
+        )
+    lookup = Q(username__iexact=identifier)
+    try:
+        email = normalize_email(identifier)
+    except ValidationError:
+        email = ""
+    if email:
+        lookup |= Q(email__iexact=email)
+    try:
+        phone = normalize_phone(identifier)
+    except ValidationError:
+        phone = ""
+    if phone:
+        lookup |= Q(normalized_phone=phone)
+
+    with transaction.atomic():
+        user = (
+            User.objects.select_for_update()
+            .filter(lookup, is_deleted=False)
+            .order_by("id")
+            .first()
+        )
+        if user is None:
+            raise APIError(
+                "STAFF_ACCOUNT_NOT_FOUND",
+                "Không tìm thấy tài khoản đã đăng ký bằng thông tin này.",
+                status=404,
+            )
+        if (
+            not user.is_active
+            or user.is_permanently_disabled
+            or user.disabled_by_admin
+            or user.locked_due_to_failed_logins
+            or user.is_superuser
+            or user.role in {User.Role.FOUNDER, User.Role.BRANCH_OWNER}
+        ):
+            raise APIError(
+                "STAFF_ACCOUNT_NOT_ASSIGNABLE",
+                "Tài khoản này không thể được gán làm nhân viên chi nhánh.",
+                status=409,
+            )
+        if user.branch_memberships.exists():
+            raise APIError(
+                "STAFF_ACCOUNT_ALREADY_ASSIGNED",
+                "Tài khoản này đã thuộc một chi nhánh. Hãy quản lý tại chi nhánh hiện có.",
+                status=409,
+            )
+        user.role = definition["user_role"]
+        user.save(update_fields=["role"])
+        membership = BranchMembership.objects.create(
+            user=user,
+            branch=branch,
+            membership_role=definition["membership_role"],
+            can_manage_team=definition["can_manage_team"],
+            is_active=True,
+        )
+
+    membership = BranchMembership.objects.select_related("user", "branch").get(
+        pk=membership.pk
+    )
+    return success_response(
+        request,
+        {
+            "existingAccountAssigned": True,
+            "staff": _staff_item(membership),
+            "message": f"Đã gán tài khoản {user.display_name} vào {branch.name}.",
+        },
+        status=201,
+    )
+
+
 def _list_staff(request):
     branches = list(_manageable_branches(request.user))
     branch_ids = [branch.id for branch in branches]
@@ -354,3 +444,15 @@ def staff_collection(request):
     if request.method == "POST":
         return _create_staff(request)
     return _list_staff(request)
+
+
+@api_endpoint("POST")
+@api_authenticated
+def staff_assign_existing(request):
+    if not _can_open_staff_management(request.user):
+        raise APIError(
+            "STAFF_MANAGEMENT_NOT_ALLOWED",
+            "Chỉ Chủ chi nhánh hoặc Quản lý được gán tài khoản nhân viên.",
+            status=403,
+        )
+    return _assign_existing_staff(request)

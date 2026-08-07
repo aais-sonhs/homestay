@@ -1,0 +1,51 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Yêu cầu khách lưu trú | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="grow">
+        <h1 style="margin:0">Yêu cầu khách lưu trú</h1>
+        <span class="muted">Nước, khăn và các hỗ trợ phát sinh trong thời gian khách ở · {{ paginator.count }} yêu cầu</span>
+    </div>
+    {% if can_create %}<a class="button" href="{% url 'housekeeping:guest-request-create' %}">＋ Tạo yêu cầu</a>{% endif %}
+</div>
+
+<nav class="task-tabs" aria-label="Nhóm trạng thái yêu cầu">
+    <a class="button secondary" href="{% url 'housekeeping:guest-request-list' %}"{% if not request.GET.tab %} aria-current="page"{% endif %}>Đang mở</a>
+    <a class="button secondary" href="?tab=open"{% if request.GET.tab == 'open' %} aria-current="page"{% endif %}>Chờ nhận</a>
+    <a class="button secondary" href="?tab=mine"{% if request.GET.tab == 'mine' %} aria-current="page"{% endif %}>Của tôi</a>
+    <a class="button secondary" href="?tab=in-progress"{% if request.GET.tab == 'in-progress' %} aria-current="page"{% endif %}>Đang làm</a>
+    <a class="button secondary" href="?tab=done"{% if request.GET.tab == 'done' %} aria-current="page"{% endif %}>Đã giao</a>
+</nav>
+
+<details class="card filter-panel" open>
+    <summary>Bộ lọc yêu cầu</summary>
+    <form class="toolbar" method="get">
+        <label class="field grow"><span class="field-label">Tìm kiếm</span><input name="q" value="{{ request.GET.q }}" placeholder="Mã yêu cầu, phòng, booking hoặc nội dung"></label>
+        <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if request.GET.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Loại yêu cầu</span><select name="requestType"><option value="">Tất cả</option>{% for value,label in request_types %}<option value="{{ value }}"{% if request.GET.requestType == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="">Đang mở</option>{% for value,label in statuses %}<option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="checkbox-field"><input type="checkbox" name="overdue" value="true"{% if request.GET.overdue == 'true' %} checked{% endif %}> Quá hạn</label>
+        <button type="submit">Lọc</button>
+        <a class="button secondary" href="{% url 'housekeeping:guest-request-list' %}">Xóa lọc</a>
+    </form>
+</details>
+
+<div class="task-list guest-request-list" style="margin-top:16px">
+    {% for item in guest_requests %}
+    <a class="card task{% if item.is_overdue %} overdue{% endif %}{% if item.priority == 'URGENT' %} urgent{% endif %}" href="{% url 'housekeeping:guest-request-detail' item.id %}">
+        <div>
+            <span class="task-title">{{ item.room.code }} · {{ item.code }}</span><br>
+            <span class="muted">{{ item.branch.name }} · Booking {{ item.booking.code }}</span>
+            <p style="margin:8px 0 0"><strong>{{ item.description }}</strong></p>
+        </div>
+        <div><span class="label">Yêu cầu</span>{{ item.get_request_type_display }}<br><span class="muted">{{ item.quantity }} {{ item.unit }}</span></div>
+        <div><span class="label">Hạn phục vụ</span>{{ item.due_at|date:"H:i d/m/Y" }}{% if item.is_overdue %}<br><span class="pill danger">⚠ Quá hạn</span>{% endif %}</div>
+        <div><span class="label">Người thực hiện</span>{% if item.assignee %}{{ item.assignee.display_name }}{% else %}Chưa phân công{% endif %}</div>
+        <div><span class="pill{% if item.status == 'NEW' %} warn{% elif item.status == 'COMPLETED' %} success{% elif item.status == 'CANCELLED' %} danger{% endif %}">{{ item.get_status_display }}</span>{% if item.priority == 'URGENT' or item.priority == 'HIGH' %}<br><span class="pill warn">▲ {{ item.get_priority_display }}</span>{% endif %}<br><span class="muted">Nguồn: {{ item.get_source_display }}</span></div>
+    </a>
+    {% empty %}
+    <div class="card"><h2>Không có yêu cầu phù hợp</h2><p class="muted">Các yêu cầu mới từ khách sẽ xuất hiện tại đây.</p></div>
+    {% endfor %}
+</div>
+{% include "shared/pagination.html" %}
+{% endblock %}

@@ -27,6 +27,12 @@
                 <svg class="nav-icon icon-indigo" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6m-7 3h8m-8 4h5m-7 8h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2.2A3 3 0 0 0 13 2h-2a3 3 0 0 0-2.8 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/></svg>
                 <span>Công việc</span>
             </a>
+            {% if request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' or request.user.role == 'customer_service' or request.user.role == 'housekeeping' %}
+            <a class="nav-link" href="{% url 'housekeeping:guest-request-list' %}"{% if request.resolver_match.url_name == 'guest-request-list' or request.resolver_match.url_name == 'guest-request-create' or request.resolver_match.url_name == 'guest-request-detail' %} aria-current="page"{% endif %} title="Khách yêu cầu">
+                <svg class="nav-icon icon-orange" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H8l-4 4V4Z"/><path d="M8 8h8M8 12h5"/></svg>
+                <span>Khách yêu cầu</span>
+            </a>
+            {% endif %}
             {% if request.user.role == 'founder' or request.user.role == 'branch_owner' or request.user.role == 'manager' %}
             <a class="nav-link" href="{% url 'housekeeping:task-create' %}"{% if request.resolver_match.url_name == 'task-create' %} aria-current="page"{% endif %} title="Tạo công việc">
                 <svg class="nav-icon icon-teal" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>
@@ -115,6 +121,7 @@
                 {% elif request.resolver_match.namespace == 'reservations' %}QUẢN LÝ BOOKING
                 {% elif request.resolver_match.namespace == 'room_operations' %}TRUNG TÂM VẬN HÀNH PHÒNG
                 {% elif request.resolver_match.url_name == 'operations-dashboard' %}TRUNG TÂM ĐIỀU PHỐI
+                {% elif request.resolver_match.url_name == 'guest-request-list' or request.resolver_match.url_name == 'guest-request-create' or request.resolver_match.url_name == 'guest-request-detail' %}YÊU CẦU KHÁCH LƯU TRÚ
                 {% elif request.resolver_match.url_name == 'support-queue' %}KHO VÀ KỸ THUẬT
                 {% elif request.resolver_match.url_name == 'activity-log' %}NHẬT KÝ VẬN HÀNH
                 {% elif request.resolver_match.url_name == 'notification-center' %}TRUNG TÂM THÔNG BÁO
