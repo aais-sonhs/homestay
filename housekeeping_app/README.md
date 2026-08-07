@@ -1,6 +1,21 @@
-# Bliss Home Housekeeping field app
+# Bliss Home — ứng dụng nội bộ
 
-Flutter field app offline-first. Web Django chỉ là backoffice/fallback online và không còn lưu nghiệp vụ trong `localStorage`.
+Một Flutter codebase dùng chung cho Chủ chi nhánh/Quản lý, Tạp vụ và QC. Sau đăng
+nhập, app đọc role từ phiên bảo mật và tự mở đúng workspace; backend vẫn là nguồn
+kiểm tra quyền cuối cùng. Web Django chỉ là backoffice/fallback online và không còn
+lưu nghiệp vụ trong `localStorage`.
+
+## Workspace theo vai trò
+
+- **Chủ chi nhánh/Quản lý/Founder:** 5 tab Tổng quan, Công việc, Phòng, QC và
+  Thông báo. Dashboard lấy SLA/hiệu suất thật; Trạng thái phòng là read-only, có
+  blocker, dừng bán và rủi ro check-in theo đúng scope chi nhánh.
+- **Tạp vụ:** danh sách và chi tiết công việc offline-first, QR/GPS/Wi-Fi/camera,
+  checklist, ảnh, pause/resume, vật tư, sự cố và gửi QC.
+- **QC:** mở thẳng ba nhóm Chờ kiểm tra, Làm lại và Hoàn thành; detail dùng
+  capability từ backend để duyệt đạt hoặc trả lại đúng vòng kiểm tra.
+- Các role Kho/Kỹ thuật/Sales/CSKH chưa có workspace mobile trong bản này; app
+  không tự cấp nhầm giao diện hay quyền khi các tài khoản đó đăng nhập.
 
 ## Bảo mật và offline
 
@@ -12,6 +27,8 @@ Flutter field app offline-first. Web Django chỉ là backoffice/fallback online
 - Version conflict không tự rebase. Màn hình yêu cầu người dùng bỏ local hoặc chủ động retry trên server version hiện tại.
 - Complete bị disable khi task còn pending/failed/conflict.
 - Cache được bind với user UUID trong SQLCipher; đổi tài khoản không thể đọc cache của người trước. Logout bị chặn khi còn unresolved work và secure-delete cache khi hoàn tất.
+- Hồ sơ phiên gồm ID, tên và role cũng nằm trong secure storage; app không suy đoán
+  role từ giao diện hoặc dữ liệu cache.
 
 ## UI hiện trường
 
@@ -22,6 +39,8 @@ Flutter field app offline-first. Web Django chỉ là backoffice/fallback online
 - Detail có task/room/booking/SLA, 9 typed checklist controls, ảnh local/server, vật tư/sự cố, QC/rework và timeline.
 - Conflict sheet bắt buộc xem base/local/server trước khi discard hoặc explicit retry.
 - Completion summary dùng blocker từ backend; offline chỉ queue và backend vẫn là nguồn validation cuối.
+- API readiness mobile không trả tên/SĐT khách và luôn scope qua membership/ownership
+  ở server.
 
 ## Chạy và kiểm thử
 
@@ -32,6 +51,7 @@ cd housekeeping_app
 flutter pub get
 flutter analyze
 flutter test
+flutter build apk --debug --dart-define=API_BASE_URL=https://homestay.aaistech.com
 ```
 
 Các cấu hình bảo mật platform đã áp dụng:
@@ -39,7 +59,8 @@ Các cấu hình bảo mật platform đã áp dụng:
 - Android `minSdk` 24, `android:allowBackup="false"`, cleartext bị tắt ở release và ProGuard giữ SQLCipher.
 - Release bật minify/resource shrinking, không dùng debug signing config.
 - iOS có mô tả quyền camera/photo và Keychain entitlement cho secure storage.
-- Build bằng `--dart-define=API_BASE_URL=https://<host>`; production chỉ dùng HTTPS.
+- Production dùng `--dart-define=API_BASE_URL=https://homestay.aaistech.com` và
+  chỉ cho phép HTTPS.
 
 ## Luồng sync
 

@@ -4,7 +4,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import User
+from accounts.models import AccessToken, User
 from housekeeping.models import Booking, HousekeepingTask, IssueTicket, TaskPhoto
 from organizations.models import Branch, BranchMembership, Room
 
@@ -165,6 +165,22 @@ class RoomOperationsTests(TestCase):
         self.assertIn("BLOCKING_ISSUE", blocker_codes)
         self.assertIn("CLEANLINESS_NOT_READY", blocker_codes)
         self.assertEqual(board["summary"]["blocked"], 1)
+
+    def test_mobile_readiness_api_serializes_and_keeps_branch_scope(self):
+        token = AccessToken.objects.create(user=self.cskh, label="Room app test")
+        client = Client(HTTP_AUTHORIZATION=f"Bearer {token.key}")
+
+        response = client.get(reverse("room_operations:api-room-readiness"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertEqual(payload["summary"]["total"], 2)
+        rooms = {row["room"]["code"]: row for row in payload["items"]}
+        self.assertEqual(set(rooms), {"OPS-101", "OPS-102"})
+        self.assertEqual(rooms["OPS-102"]["state"], "BLOCKED")
+        self.assertEqual(rooms["OPS-102"]["activeTaskCount"], 1)
+        self.assertNotIn("SECRET-201", rooms)
+        self.assertNotIn("guestName", rooms["OPS-102"]["nextBooking"])
 
     def test_room_profile_aggregates_booking_task_issue_photo_and_timeline(self):
         profile = build_room_profile(self.cskh, self.risk_room.id)

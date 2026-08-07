@@ -52,7 +52,7 @@ void main() {
 
       expect(find.textContaining('Quá hạn'), findsAtLeastNWidgets(1));
       expect(find.text('Quá hạn 1g 0p'), findsAtLeastNWidgets(1));
-      expect(find.text('QC yêu cầu làm lại'), findsOneWidget);
+      expect(find.text('Kiểm tra yêu cầu làm lại'), findsOneWidget);
       expect(find.text('Khách đang trong phòng'), findsOneWidget);
       expect(find.text('1 xung đột'), findsOneWidget);
       expect(
@@ -90,15 +90,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Dữ liệu gốc lúc làm offline'), findsOneWidget);
+    expect(find.text('Dữ liệu gốc lúc làm ngoại tuyến'), findsOneWidget);
     expect(find.text('Thay đổi trên thiết bị'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -700));
     await tester.pumpAndSettle();
-    expect(find.text('Dữ liệu mới nhất trên server'), findsOneWidget);
+    expect(find.text('Dữ liệu mới nhất trên máy chủ'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();
     expect(find.text('Bỏ thay đổi trên thiết bị'), findsOneWidget);
-    expect(find.text('Áp dụng lại trên phiên bản server'), findsOneWidget);
+    expect(find.text('Áp dụng lại trên phiên bản máy chủ'), findsOneWidget);
   });
 
   testWidgets('typed checklist editor requires a reason for failed item', (
@@ -129,7 +129,7 @@ void main() {
     await tester.tap(find.text('Không đạt'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Số lượng'), '12');
-    await tester.tap(find.text('Lưu thay đổi offline'));
+    await tester.tap(find.text('Lưu thay đổi ngoại tuyến'));
     await tester.pump();
 
     expect(find.text('Mục Không đạt phải có lý do.'), findsOneWidget);

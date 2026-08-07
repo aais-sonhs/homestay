@@ -4,9 +4,10 @@ import '../api/housekeeping_api.dart';
 import '../presentation/task_presentation.dart';
 
 class NotificationScreen extends StatefulWidget {
-  const NotificationScreen({required this.api, super.key});
+  const NotificationScreen({required this.api, this.onTaskSelected, super.key});
 
   final HousekeepingApi api;
+  final ValueChanged<String>? onTaskSelected;
 
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();
@@ -54,7 +55,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
     final taskId = item['taskId'] as String?;
     if (taskId != null && taskId.isNotEmpty && mounted) {
-      Navigator.pop(context, taskId);
+      if (widget.onTaskSelected != null) {
+        widget.onTaskSelected!(taskId);
+      } else {
+        Navigator.pop(context, taskId);
+      }
     } else if (mounted) {
       setState(() {});
     }

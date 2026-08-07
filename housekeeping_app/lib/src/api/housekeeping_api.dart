@@ -56,13 +56,50 @@ final class HousekeepingApi {
         'deviceName': deviceName,
       },
     );
+    final user = AppUserProfile.fromMap(data['user']! as Map);
     await _tokens.save(
       accessToken: data['accessToken']! as String,
       refreshToken: data['refreshToken']! as String,
-      userId: (data['user']! as Map)['id']! as String,
+      user: user,
     );
     return data;
   }
+
+  Future<Map<String, Object?>> slaDashboard({String? date, String? branchId}) =>
+      _jsonRequest(
+        'GET',
+        '/api/v1/housekeeping/dashboard/sla',
+        query: {
+          if (date != null && date.isNotEmpty) 'date': date,
+          if (branchId != null && branchId.isNotEmpty) 'branchId': branchId,
+        },
+      );
+
+  Future<Map<String, Object?>> performanceDashboard({
+    String? date,
+    String? branchId,
+  }) => _jsonRequest(
+    'GET',
+    '/api/v1/housekeeping/dashboard/performance',
+    query: {
+      if (date != null && date.isNotEmpty) 'date': date,
+      if (branchId != null && branchId.isNotEmpty) 'branchId': branchId,
+    },
+  );
+
+  Future<Map<String, Object?>> roomReadiness({
+    String? query,
+    String? state,
+    String? branchId,
+  }) => _jsonRequest(
+    'GET',
+    '/api/v1/room-operations/rooms',
+    query: {
+      if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+      if (state != null && state.isNotEmpty) 'state': state,
+      if (branchId != null && branchId.isNotEmpty) 'branchId': branchId,
+    },
+  );
 
   Future<List<Map<String, Object?>>> tasks({
     Map<String, String>? filters,
@@ -266,13 +303,14 @@ final class HousekeepingApi {
         allowRefresh: false,
         body: {
           'refreshToken': refreshToken,
-          'deviceName': 'Ứng dụng buồng phòng hiện trường',
+          'deviceName': 'Ứng dụng Bliss Home nội bộ',
         },
       );
+      final user = AppUserProfile.fromMap(data['user']! as Map);
       await _tokens.save(
         accessToken: data['accessToken']! as String,
         refreshToken: data['refreshToken']! as String,
-        userId: (data['user']! as Map)['id']! as String,
+        user: user,
       );
     } on Object {
       await _tokens.clear();

@@ -21,6 +21,9 @@ class OfflineHomeScreen extends StatefulWidget {
     required this.repository,
     required this.syncEngine,
     required this.onSignOut,
+    this.title = 'Công việc buồng phòng',
+    this.initialTab = HousekeepingTaskTab.mine,
+    this.availableTabs = HousekeepingTaskTab.values,
     super.key,
   });
 
@@ -28,6 +31,9 @@ class OfflineHomeScreen extends StatefulWidget {
   final OfflineRepository repository;
   final OfflineSyncEngine syncEngine;
   final AsyncCallback onSignOut;
+  final String title;
+  final HousekeepingTaskTab initialTab;
+  final List<HousekeepingTaskTab> availableTabs;
 
   @override
   State<OfflineHomeScreen> createState() => _OfflineHomeScreenState();
@@ -40,7 +46,7 @@ class _OfflineHomeScreenState extends State<OfflineHomeScreen> {
   List<SyncConflict> _conflicts = const [];
   List<SyncFailure> _failures = const [];
   Map<String, TaskSyncSummary> _syncSummaries = const {};
-  HousekeepingTaskTab _tab = HousekeepingTaskTab.mine;
+  late HousekeepingTaskTab _tab;
   TaskFilters _filters = const TaskFilters();
   StreamSubscription<List<ConnectivityResult>>? _networkSubscription;
   Timer? _clock;
@@ -58,6 +64,9 @@ class _OfflineHomeScreenState extends State<OfflineHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _tab = widget.availableTabs.contains(widget.initialTab)
+        ? widget.initialTab
+        : widget.availableTabs.first;
     _search.text = _filters.query;
     _connectivity.checkConnectivity().then(_networkChanged);
     _networkSubscription = _connectivity.onConnectivityChanged.listen(
@@ -264,7 +273,7 @@ class _OfflineHomeScreenState extends State<OfflineHomeScreen> {
         .toList(growable: false);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Công việc buồng phòng'),
+        title: Text(widget.title),
         actions: [
           Badge(
             isLabelVisible: _pending > 0,
@@ -344,7 +353,7 @@ class _OfflineHomeScreenState extends State<OfflineHomeScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          for (final tab in HousekeepingTaskTab.values)
+                          for (final tab in widget.availableTabs)
                             Padding(
                               padding: const EdgeInsets.only(right: 7),
                               child: ChoiceChip(

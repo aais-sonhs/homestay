@@ -142,6 +142,19 @@ App này chứa read-model xuyên domain và sở hữu blocker/stop-sell chính
 - Card readiness, stop-sell, hàng đợi Kho/Kỹ thuật và Thông báo có nền trạng thái,
   accent màu và bố cục responsive riêng cho desktop/mobile.
 
+### Ứng dụng nội bộ đa vai trò
+
+- Một Flutter codebase tự chọn workspace từ role đã lưu trong secure storage:
+  Chủ chi nhánh/Quản lý, Tạp vụ hoặc QC; backend tiếp tục kiểm tra capability và
+  scope chi nhánh cho từng request.
+- Chủ chi nhánh có 5 tab Tổng quan, Công việc, Phòng, QC và Thông báo. Dashboard
+  dùng API SLA/hiệu suất hiện có; màn phòng dùng API readiness read-only mới và
+  không trả dữ liệu định danh khách.
+- Tạp vụ giữ nguyên luồng offline-first mã hóa; QC mở thẳng hàng chờ kiểm tra,
+  làm lại và hoàn thành, dùng chung detail/QC review theo capability từ server.
+- Android debug APK đã build được với API HTTPS production; manifest debug không
+  nới lỏng chính sách chặn cleartext traffic.
+
 ## Quyền và bảo mật dữ liệu
 
 - Founder xem toàn bộ chi nhánh.
@@ -169,7 +182,7 @@ App này chứa read-model xuyên domain và sở hữu blocker/stop-sell chính
   checkout task tương lai.
 - Test reschedule/cancel bao phủ đồng bộ task/SLA, rollback khi task đã bắt đầu, stale
   version, cross-branch, audit/outbox, idempotency, quyền web và migration bảo toàn dữ liệu.
-- Toàn bộ Django suite trên SQLite: 166 test được phát hiện, 160 pass và 6 test
+- Toàn bộ Django suite trên SQLite: 167 test được phát hiện, 161 pass và 6 test
   PostgreSQL-only skip.
 - PostgreSQL thật: 6/6 row-lock/race test pass, gồm hai reschedule cùng booking chỉ một
   thao tác thành công và hai stop-sell cạnh tranh chỉ một bản ghi được tạo; lỗi

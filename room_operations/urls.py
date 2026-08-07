@@ -1,11 +1,20 @@
 from django.urls import path
 
-from . import views
+from . import api, views
 
 
 app_name = "room_operations"
 
 urlpatterns = [
+    path(
+        "api/v1/room-operations/rooms",
+        api.room_readiness,
+        name="api-room-readiness",
+    ),
+    path(
+        "api/v1/room-operations/rooms/",
+        api.room_readiness,
+    ),
     path("operations/schedule/", views.operations_schedule, name="schedule"),
     path("operations/rooms/", views.room_readiness_board, name="room-readiness"),
     path("operations/rooms/<uuid:room_id>/", views.room_profile, name="room-profile"),
