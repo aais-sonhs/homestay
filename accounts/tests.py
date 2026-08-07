@@ -336,6 +336,80 @@ class ForgotPasswordApiTests(TestCase):
         self.assertNotIn(token, serialized)
 
 
+class AccountRegistrationApiTests(TestCase):
+    def register(self, **overrides):
+        payload = {
+            "fullName": "Nguyễn An",
+            "email": "new.member@example.com",
+            "phoneNumber": "0901234567",
+            "password": "Welcome@2026Safe",
+            "confirmPassword": "Welcome@2026Safe",
+        }
+        payload.update(overrides)
+        return self.client.post(
+            reverse("api-account-register"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_registration_creates_active_limited_account_that_can_login(self):
+        response = self.register()
+
+        self.assertEqual(response.status_code, 201, response.content)
+        data = response.json()["data"]
+        self.assertTrue(data["accountCreated"])
+        self.assertTrue(data["requiresBranchAssignment"])
+        user = User.objects.get(email="new.member@example.com")
+        self.assertEqual(user.first_name, "Nguyễn An")
+        self.assertEqual(user.normalized_phone, "+84901234567")
+        self.assertEqual(user.role, User.Role.HOUSEKEEPING)
+        self.assertTrue(user.is_active)
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        self.assertEqual(user.branch_memberships.count(), 0)
+        self.assertTrue(user.check_password("Welcome@2026Safe"))
+
+        login = self.client.post(
+            reverse("api-token-login"),
+            data=json.dumps(
+                {
+                    "identifier": "new.member@example.com",
+                    "password": "Welcome@2026Safe",
+                    "deviceName": "Registration test",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(login.status_code, 201, login.content)
+
+    def test_registration_rejects_duplicate_email_or_phone(self):
+        self.assertEqual(self.register().status_code, 201)
+
+        duplicate_email = self.register(phoneNumber="0912345678")
+        duplicate_phone = self.register(email="another.member@example.com")
+
+        self.assertEqual(duplicate_email.status_code, 409)
+        self.assertEqual(
+            duplicate_email.json()["code"],
+            "EMAIL_ALREADY_REGISTERED",
+        )
+        self.assertEqual(duplicate_phone.status_code, 409)
+        self.assertEqual(
+            duplicate_phone.json()["code"],
+            "PHONE_ALREADY_REGISTERED",
+        )
+
+    def test_registration_enforces_confirmation_and_password_policy(self):
+        mismatch = self.register(confirmPassword="Different@2026Safe")
+        weak = self.register(password="password", confirmPassword="password")
+
+        self.assertEqual(mismatch.status_code, 400)
+        self.assertEqual(mismatch.json()["code"], "PASSWORD_NOT_MATCH")
+        self.assertEqual(weak.status_code, 400)
+        self.assertEqual(weak.json()["code"], "PASSWORD_POLICY_FAILED")
+        self.assertEqual(User.objects.count(), 0)
+
+
 class ForgotPasswordWebTests(TestCase):
     @classmethod
     def setUpClass(cls):

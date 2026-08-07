@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'src/api/housekeeping_api.dart';
 import 'src/screens/internal_workspace_screen.dart';
+import 'src/screens/register_screen.dart';
 import 'src/security/secure_store.dart';
 import 'src/theme/app_theme.dart';
 
@@ -79,6 +80,7 @@ class _LoginScreenState extends State<_LoginScreen> {
   bool _submitting = false;
   bool _obscurePassword = true;
   String? _error;
+  String? _registrationNotice;
 
   Future<void> _submit() async {
     setState(() {
@@ -97,6 +99,21 @@ class _LoginScreenState extends State<_LoginScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  Future<void> _openRegistration() async {
+    final identifier = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => RegisterScreen(api: widget.api),
+      ),
+    );
+    if (identifier == null || !mounted) return;
+    setState(() {
+      _identifier.text = identifier;
+      _registrationNotice =
+          'Tài khoản đã được tạo. Nhập mật khẩu để đăng nhập.';
+      _error = null;
+    });
   }
 
   @override
@@ -236,6 +253,39 @@ class _LoginScreenState extends State<_LoginScreen> {
                               'Đăng nhập để xem công việc và tình hình vận hành hôm nay.',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
+                            if (_registrationNotice != null) ...[
+                              const SizedBox(height: 14),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xffecfdf5),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: const Color(0xffa7f3d0),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      color: Color(0xff059669),
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 9),
+                                    Expanded(
+                                      child: Text(
+                                        _registrationNotice!,
+                                        style: const TextStyle(
+                                          color: Color(0xff065f46),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 24),
                             TextField(
                               controller: _identifier,
@@ -350,6 +400,12 @@ class _LoginScreenState extends State<_LoginScreen> {
                                   _submitting ? 'Đang đăng nhập…' : 'Đăng nhập',
                                 ),
                               ),
+                            ),
+                            const SizedBox(height: 11),
+                            OutlinedButton.icon(
+                              onPressed: _submitting ? null : _openRegistration,
+                              icon: const Icon(Icons.person_add_alt_1_rounded),
+                              label: const Text('Tạo tài khoản mới'),
                             ),
                             const SizedBox(height: 18),
                             const Row(

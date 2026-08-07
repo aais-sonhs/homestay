@@ -1,9 +1,10 @@
+import secrets
 from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import authenticate, logout
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -13,6 +14,7 @@ from housekeeping.api.errors import APIError, api_endpoint, parse_json, success_
 
 from .identifiers import normalize_email, normalize_phone
 from .models import AccessToken, RefreshToken, User
+from .services import password_policy_errors
 
 
 def _active_user(identifier):
@@ -72,6 +74,104 @@ def _token_payload(access, refresh):
             "role": access.user.role,
         },
     }
+
+
+def _registration_username():
+    while True:
+        candidate = f"bh_{secrets.token_hex(8)}"
+        if not User.objects.filter(username=candidate).exists():
+            return candidate
+
+
+@csrf_exempt
+@api_endpoint("POST")
+def register_account(request):
+    payload = parse_json(request)
+    full_name = str(payload.get("fullName") or "").strip()
+    password = str(payload.get("password") or "")
+    confirm_password = str(payload.get("confirmPassword") or "")
+
+    if len(full_name) < 2 or len(full_name) > 150:
+        raise APIError(
+            "FULL_NAME_INVALID",
+            "Họ và tên phải có từ 2 đến 150 ký tự.",
+        )
+    try:
+        email = normalize_email(payload.get("email"))
+    except ValidationError:
+        raise APIError(
+            "EMAIL_INVALID",
+            "Thư điện tử không đúng định dạng.",
+        ) from None
+    try:
+        phone = normalize_phone(payload.get("phoneNumber"))
+    except ValidationError:
+        raise APIError(
+            "PHONE_INVALID",
+            "Số điện thoại không đúng định dạng.",
+        ) from None
+    if password != confirm_password:
+        raise APIError(
+            "PASSWORD_NOT_MATCH",
+            "Xác nhận mật khẩu không khớp.",
+        )
+
+    user = User(
+        username=_registration_username(),
+        first_name=full_name,
+        email=email,
+        phone_number=phone,
+        role=User.Role.HOUSEKEEPING,
+        is_active=True,
+        is_staff=False,
+        is_superuser=False,
+        password_changed_at=timezone.now(),
+    )
+    errors = password_policy_errors(password, user)
+    if errors:
+        raise APIError(
+            "PASSWORD_POLICY_FAILED",
+            errors[0],
+            details={"errors": errors},
+        )
+
+    try:
+        with transaction.atomic():
+            if User.objects.filter(email__iexact=email).exists():
+                raise APIError(
+                    "EMAIL_ALREADY_REGISTERED",
+                    "Thư điện tử này đã được sử dụng.",
+                    status=409,
+                )
+            if User.objects.filter(normalized_phone=phone).exists():
+                raise APIError(
+                    "PHONE_ALREADY_REGISTERED",
+                    "Số điện thoại này đã được sử dụng.",
+                    status=409,
+                )
+            user.set_password(password)
+            user.save()
+    except IntegrityError:
+        raise APIError(
+            "ACCOUNT_ALREADY_REGISTERED",
+            "Thư điện tử hoặc số điện thoại đã được sử dụng.",
+            status=409,
+        ) from None
+
+    return success_response(
+        request,
+        {
+            "accountCreated": True,
+            "identifier": email,
+            "role": user.role,
+            "requiresBranchAssignment": True,
+            "message": (
+                "Tài khoản đã được tạo. Bạn có thể đăng nhập ngay; "
+                "quản trị viên sẽ gán chi nhánh và quyền làm việc."
+            ),
+        },
+        status=201,
+    )
 
 
 @csrf_exempt

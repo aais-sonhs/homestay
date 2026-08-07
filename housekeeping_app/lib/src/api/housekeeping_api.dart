@@ -65,6 +65,25 @@ final class HousekeepingApi {
     return data;
   }
 
+  Future<Map<String, Object?>> register({
+    required String fullName,
+    required String email,
+    required String phoneNumber,
+    required String password,
+    required String confirmPassword,
+  }) => _jsonRequest(
+    'POST',
+    '/api/v1/auth/register',
+    authenticated: false,
+    body: {
+      'fullName': fullName,
+      'email': email,
+      'phoneNumber': phoneNumber,
+      'password': password,
+      'confirmPassword': confirmPassword,
+    },
+  );
+
   Future<Map<String, Object?>> slaDashboard({String? date, String? branchId}) =>
       _jsonRequest(
         'GET',

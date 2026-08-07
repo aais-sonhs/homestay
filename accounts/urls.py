@@ -17,7 +17,7 @@ from .views import (
     forgot_password_reset,
     password_change,
 )
-from .token_api import login_token, logout_token, refresh_token
+from .token_api import login_token, logout_token, refresh_token, register_account
 
 
 urlpatterns = [
@@ -44,6 +44,8 @@ urlpatterns = [
     path("api/v1/auth/forgot-password/reset/", api_forgot_password_reset),
     path("api/v1/auth/login", login_token, name="api-token-login"),
     path("api/v1/auth/login/", login_token),
+    path("api/v1/auth/register", register_account, name="api-account-register"),
+    path("api/v1/auth/register/", register_account),
     path("api/v1/auth/refresh", refresh_token, name="api-token-refresh"),
     path("api/v1/auth/refresh/", refresh_token),
     path("api/v1/auth/logout", logout_token, name="api-token-logout"),
