@@ -68,13 +68,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Thông báo'),
+      title: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Thông báo'),
+          Text(
+            'Cập nhật vận hành mới nhất',
+            style: TextStyle(
+              color: Color(0xff94a3b8),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
       actions: [
         IconButton(
           tooltip: 'Tải lại',
           onPressed: _load,
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(Icons.refresh_rounded),
         ),
+        const SizedBox(width: 7),
       ],
       bottom: _loading
           ? const PreferredSize(
@@ -83,48 +97,281 @@ class _NotificationScreenState extends State<NotificationScreen> {
             )
           : null,
     ),
-    body: _error != null && _items.isEmpty
-        ? Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(_error!),
-            ),
-          )
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: _items.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                final unread = item['readAt'] == null;
-                return ListTile(
-                  leading: Icon(
-                    unread
-                        ? Icons.notifications_active
-                        : Icons.notifications_none,
-                    color: unread
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
-                  ),
-                  title: Text(
-                    '${item['title'] ?? 'Thông báo'}',
-                    style: TextStyle(
-                      fontWeight: unread ? FontWeight.w800 : null,
+    body: RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+        children: [
+          _NotificationHero(
+            total: _items.length,
+            unread: _items.where((item) => item['readAt'] == null).length,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            _NotificationError(message: _error!),
+          ],
+          const SizedBox(height: 20),
+          Text('Gần đây', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 10),
+          if (_items.isEmpty && !_loading)
+            const _NotificationEmpty()
+          else
+            for (final item in _items) ...[
+              _NotificationCard(item: item, onTap: () => _open(item)),
+              const SizedBox(height: 10),
+            ],
+        ],
+      ),
+    ),
+  );
+}
+
+class _NotificationHero extends StatelessWidget {
+  const _NotificationHero({required this.total, required this.unread});
+  final int total;
+  final int unread;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(19),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(23),
+      gradient: const LinearGradient(
+        colors: [Color(0xff0f766e), Color(0xff0d9488), Color(0xff14b8a6)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x2b0d9488),
+          blurRadius: 26,
+          offset: Offset(0, 13),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 50,
+          height: 50,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .15),
+            borderRadius: BorderRadius.circular(17),
+          ),
+          child: const Icon(
+            Icons.notifications_active_outlined,
+            color: Colors.white,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                unread == 0 ? 'Bạn đã xem hết' : '$unread thông báo chưa đọc',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '$total thông báo trong danh sách',
+                style: const TextStyle(
+                  color: Color(0xffccfbf1),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _NotificationCard extends StatelessWidget {
+  const _NotificationCard({required this.item, required this.onTap});
+  final Map<String, Object?> item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final unread = item['readAt'] == null;
+    final hasTask = item['taskId'] != null;
+    final color = unread ? const Color(0xff4f46e5) : const Color(0xff64748b);
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(19),
+        side: BorderSide(
+          color: unread ? const Color(0xffdcdffc) : const Color(0xffe6eaf2),
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 43,
+                height: 43,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  unread
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_none_rounded,
+                  color: color,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${item['title'] ?? 'Thông báo'}',
+                            style: TextStyle(
+                              color: const Color(0xff172033),
+                              fontSize: 14,
+                              fontWeight: unread
+                                  ? FontWeight.w800
+                                  : FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (unread)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xff4f46e5),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                  subtitle: Text(
-                    '${item['body'] ?? ''}\n${shortDateTime(item['createdAt'])}',
-                  ),
-                  isThreeLine: true,
-                  trailing: item['taskId'] == null
-                      ? null
-                      : const Icon(Icons.chevron_right),
-                  onTap: () => _open(item),
-                );
-              },
+                    const SizedBox(height: 5),
+                    Text(
+                      '${item['body'] ?? ''}',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.schedule_rounded,
+                          size: 14,
+                          color: Color(0xff94a3b8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          shortDateTime(item['createdAt']),
+                          style: const TextStyle(
+                            color: Color(0xff94a3b8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (hasTask)
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 18,
+                            color: Color(0xff4f46e5),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationError extends StatelessWidget {
+  const _NotificationError({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(13),
+    decoration: BoxDecoration(
+      color: const Color(0xfffef2f2),
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: const Color(0xfffecaca)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.cloud_off_outlined, color: Color(0xffdc2626)),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(color: Color(0xff991b1b), fontSize: 11),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _NotificationEmpty extends StatelessWidget {
+  const _NotificationEmpty();
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 34),
+      child: Column(
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xffecfdf5),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.notifications_off_outlined,
+              color: Color(0xff059669),
+              size: 31,
             ),
           ),
+          const SizedBox(height: 14),
+          Text(
+            'Chưa có thông báo',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'Các cập nhật mới sẽ xuất hiện tại đây.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ),
   );
 }

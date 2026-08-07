@@ -332,7 +332,20 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
     final room = task['room'] as Map? ?? const {};
     return Scaffold(
       appBar: AppBar(
-        title: Text('${room['code'] ?? ''} · ${task['code']}'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${room['code'] ?? ''} · ${task['code']}'),
+            Text(
+              viCodeLabel(task['taskType']),
+              style: const TextStyle(
+                color: Color(0xff94a3b8),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'Tải lại từ máy chủ',
@@ -350,7 +363,7 @@ class _OnlineTaskDetailScreenState extends State<OnlineTaskDetailScreen> {
       body: RefreshIndicator(
         onRefresh: () => _load(),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
             if (_notice != null) _InfoBanner(text: _notice!),
             _TaskHeader(task: task, pending: _pending),
@@ -408,14 +421,29 @@ class _InfoBanner extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xffeef2ff),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xffc7d2fe)),
+      ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline),
-          const SizedBox(width: 8),
-          Expanded(child: Text(text)),
+          const Icon(Icons.info_outline_rounded, color: Color(0xff4f46e5)),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xff3730a3),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     ),
@@ -430,70 +458,185 @@ class _TaskHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final view = TaskViewData(task);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            colors: [Color(0xff312e81), Color(0xff4f46e5), Color(0xff7c3aed)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x304f46e5),
+              blurRadius: 26,
+              offset: Offset(0, 13),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  view.taskTypeLabel,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                Chip(label: Text(view.statusLabel)),
-                if (view.priority != 'NORMAL')
-                  Chip(
-                    avatar: const Icon(Icons.priority_high, size: 16),
-                    label: Text('Ưu tiên ${view.priorityLabel}'),
+                Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: .16),
+                    ),
                   ),
+                  child: const Icon(
+                    Icons.cleaning_services_rounded,
+                    color: Colors.white,
+                    size: 25,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        view.taskTypeLabel,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          height: 1.25,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${view.roomCode} · ${view.code}',
+                        style: const TextStyle(
+                          color: Color(0xffc7d2fe),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    view.statusLabel,
+                    style: const TextStyle(
+                      color: Color(0xff4338ca),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 10),
+            if (view.priority != 'NORMAL') ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Ưu tiên ${view.priorityLabel}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
             if (view.guestInRoom)
               const _InlineWarning(
                 icon: Icons.person_pin_circle,
                 text:
                     'Khách đang trong phòng — phải xác nhận đồng ý trước khi vào.',
+                dark: true,
               ),
             if (view.specialRequest.isNotEmpty)
               _InlineWarning(
                 icon: Icons.star_outline,
                 text: 'Yêu cầu đặc biệt: ${view.specialRequest}',
+                dark: true,
               ),
             if (view.isCheckinRisk)
               _InlineWarning(
                 icon: Icons.warning_amber,
                 text: 'Nguy cơ không kịp giờ nhận phòng · ${view.dueLabel()}',
+                dark: true,
               ),
-            const SizedBox(height: 10),
-            LinearProgressIndicator(
-              value: view.progress.clamp(0, 100) / 100,
-              minHeight: 10,
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text(
+                  'Tiến độ công việc',
+                  style: TextStyle(
+                    color: Color(0xffddd6fe),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${view.progress}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            ClipRRect(
               borderRadius: BorderRadius.circular(99),
-              semanticsLabel: 'Tiến độ công việc',
-              semanticsValue: '${view.progress}%',
+              child: LinearProgressIndicator(
+                value: view.progress.clamp(0, 100) / 100,
+                minHeight: 9,
+                color: Colors.white,
+                backgroundColor: Colors.white.withValues(alpha: .18),
+                semanticsLabel: 'Tiến độ công việc',
+                semanticsValue: '${view.progress}%',
+              ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              '${view.progress}% · ${view.checklistDone}/${view.checklistTotal} mục bắt buộc',
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 9),
             Row(
               children: [
                 Icon(
                   pending == 0 ? Icons.cloud_done : Icons.cloud_upload_outlined,
-                  size: 18,
+                  size: 16,
+                  color: const Color(0xffc7d2fe),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   pending == 0
-                      ? 'Dữ liệu từ máy chủ'
+                      ? '${view.checklistDone}/${view.checklistTotal} mục · Dữ liệu máy chủ'
                       : '$pending thay đổi chưa xử lý',
+                  style: const TextStyle(
+                    color: Color(0xffddd6fe),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -505,9 +648,14 @@ class _TaskHeader extends StatelessWidget {
 }
 
 class _InlineWarning extends StatelessWidget {
-  const _InlineWarning({required this.icon, required this.text});
+  const _InlineWarning({
+    required this.icon,
+    required this.text,
+    this.dark = false,
+  });
   final IconData icon;
   final String text;
+  final bool dark;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -515,9 +663,24 @@ class _InlineWarning extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 19, color: Theme.of(context).colorScheme.error),
+        Icon(
+          icon,
+          size: 18,
+          color: dark
+              ? const Color(0xffffe08a)
+              : Theme.of(context).colorScheme.error,
+        ),
         const SizedBox(width: 7),
-        Expanded(child: Text(text)),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: dark ? Colors.white : null,
+              fontSize: 11,
+              fontWeight: dark ? FontWeight.w600 : null,
+            ),
+          ),
+        ),
       ],
     ),
   );
@@ -1088,14 +1251,60 @@ class _ActionPanel extends StatelessWidget {
   final VoidCallback onSync;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 2, bottom: 12),
+    child: Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: const Color(0xffdcdffc)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x124f46e5),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Thao tác', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                width: 39,
+                height: 39,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xffe9e8ff),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.touch_app_outlined,
+                  color: Color(0xff4f46e5),
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Thao tác',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    Text(
+                      'Chỉ hiển thị thao tác phù hợp trạng thái hiện tại',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1143,10 +1352,22 @@ class _ActionPanel extends StatelessWidget {
             ],
           ),
           if (pending > 0) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Còn $pending thay đổi đang chờ, bị lỗi hoặc xung đột. '
-              'Không thể hoàn thành cuối.',
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xfffffbeb),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                'Còn $pending thay đổi đang chờ, bị lỗi hoặc xung đột. '
+                'Không thể hoàn thành cuối.',
+                style: const TextStyle(
+                  color: Color(0xff92400e),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             FilledButton.tonalIcon(
@@ -1186,14 +1407,39 @@ class _SectionCard extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: ExpansionTile(
-      initiallyExpanded: initiallyExpanded,
-      leading: Icon(icon),
-      title: Text(title),
-      trailing: trailing,
-      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      children: [Align(alignment: Alignment.centerLeft, child: child)],
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Card(
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
+          leading: Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xffeef2ff),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xff4f46e5), size: 20),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xff172033),
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          trailing: trailing,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 2, 16, 17),
+          children: [Align(alignment: Alignment.centerLeft, child: child)],
+        ),
+      ),
     ),
   );
 }
@@ -1214,27 +1460,34 @@ class _FactsGrid extends StatelessWidget {
                 ? (constraints.maxWidth - 10) / 2
                 : constraints.maxWidth,
             child: Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
+                color: const Color(0xfff8fafc),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xffedf0f5)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     entry.key,
-                    style: Theme.of(context).textTheme.labelMedium,
+                    style: const TextStyle(
+                      color: Color(0xff94a3b8),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .15,
+                    ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     entry.value == null || '${entry.value}'.isEmpty
                         ? '—'
                         : '${entry.value}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: Color(0xff334155),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
