@@ -252,6 +252,8 @@ class Phase8BackofficeUITests(TestCase):
         self.assertContains(response, "Nguy cơ trễ giờ nhận phòng")
         self.assertContains(response, "P8-TASK-QC")
         self.assertContains(response, "Hiệu suất theo nhân viên")
+        self.assertContains(response, 'class="stat-icon"', count=6, html=False)
+        self.assertContains(response, 'class="stat danger"', html=False)
 
     def test_task_list_and_detail_expose_full_filters_typed_checklist_and_qc_form(self):
         list_response = self.authenticated(self.housekeeper).get(
@@ -386,8 +388,14 @@ class Phase8BackofficeUITests(TestCase):
         )
 
         self.assertContains(supply_page, "Khăn tắm")
+        self.assertContains(supply_page, 'class="card support-panel"', html=False)
         self.assertEqual(supply_update.status_code, 302)
         self.assertContains(issue_page, "Khóa cửa không hoạt động")
+        self.assertContains(
+            issue_page,
+            'class="card support-panel issue-panel"',
+            html=False,
+        )
         self.assertEqual(issue_update.status_code, 302)
         self.supply.refresh_from_db()
         self.issue.refresh_from_db()
@@ -407,8 +415,14 @@ class Phase8BackofficeUITests(TestCase):
 
         self.assertContains(activity, "phase8-visible-correlation")
         self.assertNotContains(activity, "phase8-secret-correlation")
+        self.assertContains(activity, 'class="card entity-list-card"', html=False)
         self.assertContains(notification, "công việc cần xử lý")
         self.assertContains(notification, "1 thông báo chưa đọc")
+        self.assertContains(
+            notification,
+            'class="card notification-card is-unread"',
+            html=False,
+        )
         self.assertEqual(read.status_code, 302)
         self.recipient.refresh_from_db()
         self.assertIsNotNone(self.recipient.read_at)

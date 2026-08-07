@@ -131,6 +131,17 @@ App này chứa read-model xuyên domain và sở hữu blocker/stop-sell chính
 - Gallery ảnh lấy từ các task của phòng.
 - Timeline tổng hợp booking, task, issue và ảnh.
 
+### Giao diện backoffice theo Fasthub
+
+- Dùng chung nền `#f4f7fe`, font Inter, panel trắng bo 20px, khoảng cách rộng và
+  shadow/transition cùng ngôn ngữ thiết kế với Fasthub.
+- KPI tại Điều phối, Lịch vận hành và Trạng thái phòng là card gradient 150px có
+  icon, màu ngữ nghĩa, nhãn capsule, số liệu lớn và ghi chú ngắn.
+- Danh sách Booking, stop-sell và trạng thái task dùng badge có chấm màu; bảng dữ
+  liệu, form, nút và heading được chuẩn hóa bằng CSS dùng chung.
+- Card readiness, stop-sell, hàng đợi Kho/Kỹ thuật và Thông báo có nền trạng thái,
+  accent màu và bố cục responsive riêng cho desktop/mobile.
+
 ## Quyền và bảo mật dữ liệu
 
 - Founder xem toàn bộ chi nhánh.
@@ -158,7 +169,7 @@ App này chứa read-model xuyên domain và sở hữu blocker/stop-sell chính
   checkout task tương lai.
 - Test reschedule/cancel bao phủ đồng bộ task/SLA, rollback khi task đã bắt đầu, stale
   version, cross-branch, audit/outbox, idempotency, quyền web và migration bảo toàn dữ liệu.
-- Toàn bộ Django suite trên SQLite: 165 test được phát hiện, 160 pass và 5 test
+- Toàn bộ Django suite trên SQLite: 166 test được phát hiện, 160 pass và 6 test
   PostgreSQL-only skip.
 - PostgreSQL thật: 6/6 row-lock/race test pass, gồm hai reschedule cùng booking chỉ một
   thao tác thành công và hai stop-sell cạnh tranh chỉ một bản ghi được tạo; lỗi

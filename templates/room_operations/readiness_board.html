@@ -14,13 +14,13 @@
 </form>
 
 <div class="stat-grid readiness-summary">
-    <div class="stat"><span class="label">Tổng phòng</span><strong>{{ board.summary.total }}</strong></div>
-    <div class="stat" style="--stat-color:#059669;--stat-bg:rgba(5,150,105,.1)"><span class="label">Sẵn sàng</span><strong>{{ board.summary.ready }}</strong></div>
-    <div class="stat" style="--stat-color:#2563eb;--stat-bg:rgba(37,99,235,.1)"><span class="label">Đang có khách</span><strong>{{ board.summary.occupied }}</strong></div>
-    <div class="stat warning"><span class="label">Chưa sẵn sàng</span><strong>{{ board.summary.notReady }}</strong></div>
-    <div class="stat danger"><span class="label">Đang bị chặn</span><strong>{{ board.summary.blocked }}</strong></div>
-    <div class="stat danger"><span class="label">Rủi ro check-in</span><strong>{{ board.summary.checkinRisk }}</strong></div>
-    <div class="stat danger"><span class="label">Đang dừng bán</span><strong>{{ board.summary.stopSell }}</strong></div>
+    <div class="stat">{% include "shared/metric_icon.html" with icon="room" %}<span class="label">Tổng phòng</span><strong>{{ board.summary.total }}</strong><span class="stat-note">Trong phạm vi đang lọc</span></div>
+    <div class="stat success">{% include "shared/metric_icon.html" with icon="ready" %}<span class="label">Sẵn sàng</span><strong>{{ board.summary.ready }}</strong><span class="stat-note">Có thể đón khách</span></div>
+    <div class="stat info">{% include "shared/metric_icon.html" with icon="occupied" %}<span class="label">Đang có khách</span><strong>{{ board.summary.occupied }}</strong><span class="stat-note">Phòng đang lưu trú</span></div>
+    <div class="stat warning">{% include "shared/metric_icon.html" with icon="clock" %}<span class="label">Chưa sẵn sàng</span><strong>{{ board.summary.notReady }}</strong><span class="stat-note">Còn điều kiện phải xử lý</span></div>
+    <div class="stat danger">{% include "shared/metric_icon.html" with icon="blocked" %}<span class="label">Đang bị chặn</span><strong>{{ board.summary.blocked }}</strong><span class="stat-note">Có blocker vận hành</span></div>
+    <div class="stat danger">{% include "shared/metric_icon.html" with icon="risk" %}<span class="label">Rủi ro check-in</span><strong>{{ board.summary.checkinRisk }}</strong><span class="stat-note">Trong 24 giờ tới</span></div>
+    <div class="stat danger">{% include "shared/metric_icon.html" with icon="stop_sell" %}<span class="label">Đang dừng bán</span><strong>{{ board.summary.stopSell }}</strong><span class="stat-note">Sales không thể nhận booking</span></div>
 </div>
 
 <div class="room-readiness-grid">

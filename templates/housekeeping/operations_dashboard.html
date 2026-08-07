@@ -14,12 +14,12 @@
 </form>
 
 <div class="stat-grid">
-    <div class="stat"><span class="label">Tổng công việc</span><strong>{{ sla.summary.totalTasks }}</strong><span class="stat-note">Trong phạm vi đang lọc</span></div>
-    <div class="stat" style="--stat-color:#2563eb;--stat-bg:rgba(37,99,235,.11)"><span class="label">Đang xử lý</span><strong>{{ sla.summary.inProgress }}</strong><span class="stat-note">Đang được thực hiện</span></div>
-    <div class="stat warning"><span class="label">Sắp quá hạn</span><strong>{{ sla.summary.nearDue }}</strong></div>
-    <div class="stat danger"><span class="label">Quá hạn</span><strong>{{ sla.summary.overdue }}</strong></div>
-    <div class="stat warning"><span class="label">Nguy cơ trễ giờ nhận phòng</span><strong>{{ sla.summary.checkinRisk }}</strong><span class="stat-note">Cần ưu tiên điều phối</span></div>
-    <div class="stat" style="--stat-color:#8b5cf6;--stat-bg:rgba(139,92,246,.11)"><span class="label">Vi phạm hoàn thành</span><strong>{{ sla.summary.completionBreached }}</strong></div>
+    <div class="stat">{% include "shared/metric_icon.html" with icon="tasks" %}<span class="label">Tổng công việc</span><strong>{{ sla.summary.totalTasks }}</strong><span class="stat-note">Trong phạm vi đang lọc</span></div>
+    <div class="stat info">{% include "shared/metric_icon.html" with icon="progress" %}<span class="label">Đang xử lý</span><strong>{{ sla.summary.inProgress }}</strong><span class="stat-note">Đang được thực hiện</span></div>
+    <div class="stat warning">{% include "shared/metric_icon.html" with icon="clock" %}<span class="label">Sắp quá hạn</span><strong>{{ sla.summary.nearDue }}</strong><span class="stat-note">Cần theo dõi trong ca</span></div>
+    <div class="stat danger">{% include "shared/metric_icon.html" with icon="overdue" %}<span class="label">Quá hạn</span><strong>{{ sla.summary.overdue }}</strong><span class="stat-note">Cần xử lý ngay</span></div>
+    <div class="stat warning">{% include "shared/metric_icon.html" with icon="risk" %}<span class="label">Nguy cơ trễ giờ nhận phòng</span><strong>{{ sla.summary.checkinRisk }}</strong><span class="stat-note">Cần ưu tiên điều phối</span></div>
+    <div class="stat violet">{% include "shared/metric_icon.html" with icon="breach" %}<span class="label">Vi phạm hoàn thành</span><strong>{{ sla.summary.completionBreached }}</strong><span class="stat-note">Theo SLA hoàn thành</span></div>
 </div>
 
 <section class="card" style="margin-bottom:16px">

@@ -615,6 +615,7 @@ class BookingCreationTests(TestCase):
 
         self.assertContains(listing, booking.code)
         self.assertContains(listing, "Khách Web")
+        self.assertContains(listing, 'class="status-badge"', html=False)
         self.assertNotContains(listing, "PRIVATE-OTHER-BRANCH")
         schedule = self.client_for(self.sales).get(
             reverse("room_operations:schedule"),

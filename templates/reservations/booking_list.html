@@ -28,7 +28,7 @@
                 <td>{% if row.canViewGuest %}<strong>{{ row.booking.guest_name }}</strong><br><span class="muted">{{ row.booking.guest_phone }} · {{ row.booking.guest_count }} khách</span>{% else %}<span class="muted">Thông tin khách được bảo vệ</span>{% endif %}</td>
                 <td>{{ row.booking.checkin_at|date:"H:i d/m/Y" }}</td>
                 <td>{{ row.booking.checkout_at|date:"H:i d/m/Y" }}</td>
-                <td><span class="pill">{{ row.booking.get_status_display }}</span></td>
+                <td><span class="status-badge" data-status="{{ row.booking.status }}">{{ row.booking.get_status_display }}</span></td>
                 <td>{{ row.booking.created_by.display_name|default:"Dữ liệu cũ" }}</td>
                 <td>{% if row.canManage %}<a class="button secondary" href="{% url 'reservations:booking-update' row.booking.id %}">Sửa lịch</a>{% else %}<span class="muted">Chỉ đọc</span>{% endif %}</td>
             </tr>

@@ -2,9 +2,9 @@
 {% load housekeeping_display %}
 {% block title %}Nhật ký hoạt động | Bliss Home{% endblock %}
 {% block content %}
-<div class="toolbar"><div class="grow"><h1 style="margin:0">Nhật ký hoạt động</h1><span class="muted">Theo dõi nghiệp vụ theo công việc, người dùng, thiết bị và mã liên kết</span></div></div>
+<div class="page-heading"><div class="grow"><h1>Nhật ký hoạt động</h1><span class="muted">Theo dõi nghiệp vụ theo công việc, người dùng, thiết bị và mã liên kết</span></div></div>
 <form class="card toolbar" method="get"><label class="field grow"><span class="field-label">Tìm kiếm nhật ký</span><input name="q" value="{{ request.GET.q }}" placeholder="Công việc, phòng, người dùng hoặc mã liên kết"></label><label class="field"><span class="field-label">Loại sự kiện</span><select name="action"><option value="">Mọi sự kiện</option>{% for action in actions %}<option value="{{ action }}"{% if request.GET.action == action %} selected{% endif %}>{{ action|vi_label }}</option>{% endfor %}</select></label><button>Lọc nhật ký</button></form>
-<div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Công việc / phòng</th><th>Sự kiện</th><th>Người dùng</th><th>Chuyển trạng thái</th><th>Thiết bị / mã liên kết</th><th>Thay đổi</th></tr></thead><tbody>
+<section class="card entity-list-card"><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Công việc / phòng</th><th>Sự kiện</th><th>Người dùng</th><th>Chuyển trạng thái</th><th>Thiết bị / mã liên kết</th><th>Thay đổi</th></tr></thead><tbody>
 {% for log in logs %}<tr><td>{{ log.created_at|date:"H:i:s d/m/Y" }}</td><td><a href="{% url 'housekeeping:task-detail' log.task_id %}">{{ log.task.code }} · {{ log.task.room.code }}</a><br><span class="muted">{{ log.branch.code }}</span></td><td><strong>{{ log.action|vi_label }}</strong>{% if log.reason_code %}<br>{{ log.reason_code|vi_label }}{% endif %}</td><td>{% if log.user %}{{ log.user.get_full_name|default:log.user.username }}{% else %}Hệ thống{% endif %}<br><span class="muted">{{ log.ip_address|default:"—" }}</span></td><td>{{ log.from_status|vi_label|default:"—" }} → {{ log.to_status|vi_label|default:"—" }}</td><td>{{ log.device_id|default:"—" }}<br><span class="muted">{{ log.correlation_id|default:"—" }}</span></td><td class="wrap"><code>{{ log.changes|vi_json }}</code></td></tr>{% empty %}<tr><td colspan="7" class="empty">Không có nhật ký phù hợp.</td></tr>{% endfor %}
-</tbody></table></div>
+</tbody></table></div></section>
 {% endblock %}

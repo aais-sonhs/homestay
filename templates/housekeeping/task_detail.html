@@ -2,11 +2,9 @@
 {% load housekeeping_display %}
 {% block title %}{{ task.code }} · {{ task.room.code }} | Bliss Home{% endblock %}
 {% block content %}
-<div class="toolbar">
-    <a class="button secondary" href="{% url 'housekeeping:task-list' %}">← Danh sách</a>
-    <div class="grow"><h1 style="margin:0">{{ task.room.code }} · {{ task.code }}</h1><span class="muted">{{ task.get_task_type_display }} tại {{ task.branch.name }}</span></div>
-    <span class="pill{% if task.status == 'WAITING_SUPPORT' %} warn{% elif task.status == 'QC_REJECTED' %} danger{% endif %}">{{ task.get_status_display }}</span>
-    {% if task.is_overdue %}<span class="pill danger">⚠ Quá hạn</span>{% endif %}
+<div class="page-heading">
+    <div class="grow"><a class="back-link" href="{% url 'housekeeping:task-list' %}">← Danh sách công việc</a><h1>{{ task.room.code }} · {{ task.code }}</h1><span class="muted">{{ task.get_task_type_display }} tại {{ task.branch.name }}</span></div>
+    <div class="actions"><span class="status-badge" data-status="{{ task.status }}">{{ task.get_status_display }}</span>{% if task.is_overdue %}<span class="pill danger">⚠ Quá hạn</span>{% endif %}</div>
 </div>
 
 {% if task.guest_in_room %}<div class="message error">⚠ Khách đang ở trong phòng. Chỉ vào phòng sau khi khách đồng ý.</div>{% endif %}

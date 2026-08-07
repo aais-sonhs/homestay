@@ -427,6 +427,7 @@ class RoomStopSellTests(TestCase):
         listing = self.client_for(self.sales).get(reverse("room_operations:stop-sell-list"))
         self.assertContains(listing, stop_sell.reason)
         self.assertContains(listing, "Chế độ chỉ đọc")
+        self.assertContains(listing, 'class="status-badge"', html=False)
         denied = self.client_for(self.sales).post(
             reverse("room_operations:stop-sell-cancel", args=[stop_sell.id]),
             {"version": stop_sell.version, "note": "Không được phép"},

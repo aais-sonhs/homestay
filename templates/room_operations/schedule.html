@@ -20,12 +20,12 @@
 </form>
 
 <div class="stat-grid operations-summary">
-    <div class="stat"><span class="label">Booking trong ngày</span><strong>{{ schedule.summary.bookingCount }}</strong></div>
-    <div class="stat" style="--stat-color:#0d9488;--stat-bg:rgba(13,148,136,.1)"><span class="label">Khách nhận phòng</span><strong>{{ schedule.summary.checkinCount }}</strong></div>
-    <div class="stat" style="--stat-color:#2563eb;--stat-bg:rgba(37,99,235,.1)"><span class="label">Khách trả phòng</span><strong>{{ schedule.summary.checkoutCount }}</strong></div>
-    <div class="stat warning"><span class="label">Thiếu lịch dọn</span><strong>{{ schedule.summary.missingCleaningCount }}</strong></div>
-    <div class="stat danger"><span class="label">Nguy cơ trễ check-in</span><strong>{{ schedule.summary.checkinRiskCount }}</strong></div>
-    <div class="stat" style="--stat-color:#8b5cf6;--stat-bg:rgba(139,92,246,.1)"><span class="label">Việc không gắn booking</span><strong>{{ schedule.summary.standaloneTaskCount }}</strong></div>
+    <div class="stat">{% include "shared/metric_icon.html" with icon="booking" %}<span class="label">Booking trong ngày</span><strong>{{ schedule.summary.bookingCount }}</strong><span class="stat-note">Theo ngày đang chọn</span></div>
+    <div class="stat success">{% include "shared/metric_icon.html" with icon="checkin" %}<span class="label">Khách nhận phòng</span><strong>{{ schedule.summary.checkinCount }}</strong><span class="stat-note">Lượt check-in</span></div>
+    <div class="stat info">{% include "shared/metric_icon.html" with icon="checkout" %}<span class="label">Khách trả phòng</span><strong>{{ schedule.summary.checkoutCount }}</strong><span class="stat-note">Lượt check-out</span></div>
+    <div class="stat warning">{% include "shared/metric_icon.html" with icon="cleaning" %}<span class="label">Thiếu lịch dọn</span><strong>{{ schedule.summary.missingCleaningCount }}</strong><span class="stat-note">Booking cần bổ sung task</span></div>
+    <div class="stat danger">{% include "shared/metric_icon.html" with icon="risk" %}<span class="label">Nguy cơ trễ check-in</span><strong>{{ schedule.summary.checkinRiskCount }}</strong><span class="stat-note">Cần ưu tiên điều phối</span></div>
+    <div class="stat violet">{% include "shared/metric_icon.html" with icon="tasks" %}<span class="label">Việc không gắn booking</span><strong>{{ schedule.summary.standaloneTaskCount }}</strong><span class="stat-note">Công việc vận hành khác</span></div>
 </div>
 
 <section class="card operations-section">
