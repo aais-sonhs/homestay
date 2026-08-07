@@ -495,3 +495,74 @@ class BranchStaffApiTests(TestCase):
             self.assertEqual(created.status_code, 403)
             self.assertEqual(created.json()["code"], "STAFF_MANAGEMENT_NOT_ALLOWED")
         self.assertFalse(User.objects.filter(email="new.staff@example.com").exists())
+
+    def test_owner_sees_web_staff_menu_and_only_owned_branch_data(self):
+        self.client.force_login(self.owner)
+
+        navigation_page = self.client.get(reverse("housekeeping:task-list"))
+        staff_page = self.client.get(reverse("organizations:branch-staff-list"))
+
+        self.assertContains(navigation_page, "Nhân sự chi nhánh")
+        self.assertContains(
+            navigation_page,
+            reverse("organizations:branch-staff-list"),
+        )
+        self.assertContains(staff_page, self.branch.name)
+        self.assertContains(staff_page, self.housekeeper.display_name)
+        self.assertNotContains(staff_page, self.other_branch.name)
+        self.assertNotContains(staff_page, self.outsider.display_name)
+
+    def test_owner_creates_staff_from_web(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("organizations:branch-staff-create"),
+            {
+                "branch": str(self.branch.id),
+                "role_key": "qc",
+                "full_name": "Nhân viên QC Web",
+                "email": "web.qc@example.com",
+                "phone_number": "0923456789",
+                "password": "Welcome@2026Safe",
+                "confirm_password": "Welcome@2026Safe",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Đã tạo tài khoản Nhân viên QC Web")
+        user = User.objects.get(email="web.qc@example.com")
+        self.assertEqual(user.role, User.Role.QC)
+        membership = BranchMembership.objects.get(user=user)
+        self.assertEqual(membership.branch, self.branch)
+        self.assertEqual(membership.membership_role, BranchMembership.MembershipRole.QC)
+
+    def test_manager_cannot_create_manager_from_web(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse("organizations:branch-staff-create"),
+            {
+                "branch": str(self.branch.id),
+                "role_key": "manager",
+                "full_name": "Quản lý không hợp lệ",
+                "email": "invalid.manager@example.com",
+                "phone_number": "0934567890",
+                "password": "Welcome@2026Safe",
+                "confirm_password": "Welcome@2026Safe",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("role_key", response.context["form"].errors)
+        self.assertFalse(User.objects.filter(email="invalid.manager@example.com").exists())
+
+    def test_superadmin_cannot_open_branch_staff_web_pages(self):
+        self.client.force_login(self.superadmin)
+
+        self.assertEqual(
+            self.client.get(reverse("organizations:branch-staff-list")).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get(reverse("organizations:branch-staff-create")).status_code,
+            403,
+        )

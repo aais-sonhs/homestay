@@ -76,7 +76,10 @@ ROLE_DEFINITIONS = {
 
 
 def _can_open_staff_management(user):
-    return user.role in {User.Role.BRANCH_OWNER, User.Role.MANAGER}
+    return bool(
+        not user.is_superuser
+        and user.role in {User.Role.BRANCH_OWNER, User.Role.MANAGER}
+    )
 
 
 def _manageable_branches(user):
@@ -96,7 +99,9 @@ def _manageable_branches(user):
 
 def _can_create_manager(user, branch):
     return bool(
-        user.role == User.Role.BRANCH_OWNER and branch.owner_id == user.id
+        not user.is_superuser
+        and user.role == User.Role.BRANCH_OWNER
+        and branch.owner_id == user.id
     )
 
 

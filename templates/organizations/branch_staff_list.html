@@ -1,0 +1,35 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Nhân sự chi nhánh | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Nhân sự chi nhánh</h1><p class="muted">Tài khoản cấp dưới trong các chi nhánh bạn được quyền quản lý.</p></div>
+    <a class="button" href="{% url 'organizations:branch-staff-create' %}">＋ Thêm nhân sự</a>
+</div>
+
+<form class="card toolbar entity-filter" method="get">
+    <label class="field grow"><span class="field-label">Tìm kiếm</span><input name="q" value="{{ filters.q }}" placeholder="Tên, email hoặc số điện thoại"></label>
+    <label class="field"><span class="field-label">Chi nhánh</span><select name="branch"><option value="">Tất cả chi nhánh</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if filters.branch == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.code }} — {{ branch.name }}</option>{% endfor %}</select></label>
+    <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="active"{% if filters.status == 'active' %} selected{% endif %}>Đang hoạt động</option><option value="inactive"{% if filters.status == 'inactive' %} selected{% endif %}>Tạm khóa</option><option value="all"{% if filters.status == 'all' %} selected{% endif %}>Tất cả</option></select></label>
+    <button type="submit">Lọc dữ liệu</button><a class="button secondary" href="{% url 'organizations:branch-staff-list' %}">Xóa lọc</a>
+</form>
+
+<section class="card entity-list-card">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Nhân sự</th><th>Liên hệ</th><th>Vai trò</th><th>Chi nhánh</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+            {% for membership in memberships %}
+            <tr>
+                <td><strong>{{ membership.user.display_name }}</strong><br><span class="muted">@{{ membership.user.username }}</span></td>
+                <td>{{ membership.user.email }}{% if membership.user.phone_number %}<br><span class="muted">{{ membership.user.phone_number }}</span>{% endif %}</td>
+                <td><span class="pill">{{ membership.staff_role_label }}</span></td>
+                <td><strong>{{ membership.branch.code }}</strong><br><span class="muted">{{ membership.branch.name }}</span></td>
+                <td>{% if membership.is_active and membership.user.is_active %}<span class="pill room-ready-pill">Đang hoạt động</span>{% else %}<span class="pill danger">Tạm khóa</span>{% endif %}</td>
+            </tr>
+            {% empty %}<tr><td colspan="5" class="empty">Chưa có nhân sự phù hợp. Chọn “Thêm nhân sự” để tạo tài khoản đầu tiên.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

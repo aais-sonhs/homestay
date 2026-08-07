@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -9,8 +9,9 @@ from accounts.models import User
 from common.list_views import paginate_context
 from housekeeping.models import HousekeepingTask
 
-from .forms import BranchForm, BranchOwnerForm
-from .models import Branch
+from .api import ROLE_DEFINITIONS, _manageable_branches, _role_key
+from .forms import BranchForm, BranchOwnerForm, BranchStaffForm
+from .models import Branch, BranchMembership
 from .services import (
     BranchOperationError,
     assign_branches_to_owner,
@@ -23,6 +24,16 @@ from .services import (
 def _require_platform_admin(user):
     if not user.is_superuser:
         raise PermissionDenied("Chỉ Super Admin được quản lý chi nhánh và tài khoản chủ chi nhánh.")
+
+
+def _require_branch_staff_manager(user):
+    if user.is_superuser or user.role not in {
+        User.Role.BRANCH_OWNER,
+        User.Role.MANAGER,
+    }:
+        raise PermissionDenied(
+            "Chỉ Chủ chi nhánh hoặc Quản lý được quản lý nhân sự cấp dưới."
+        )
 
 
 @login_required
@@ -222,5 +233,86 @@ def branch_owner_update(request, owner_id):
             "page_title": f"Chỉnh sửa {owner.display_name}",
             "page_description": "Cập nhật tài khoản và gán các chi nhánh được phép quản lý.",
             "submit_label": "Lưu thay đổi",
+        },
+    )
+
+
+@login_required
+def branch_staff_list(request):
+    _require_branch_staff_manager(request.user)
+    branches = _manageable_branches(request.user)
+    query = str(request.GET.get("q") or "").strip()
+    branch_id = str(request.GET.get("branch") or "").strip()
+    status = str(request.GET.get("status") or "active").strip()
+    memberships = (
+        BranchMembership.objects.select_related("user", "branch")
+        .filter(branch__in=branches, user__is_deleted=False)
+        .exclude(user__role__in={User.Role.FOUNDER, User.Role.BRANCH_OWNER})
+        .order_by("branch__name", "user__first_name", "user__username")
+    )
+    if query:
+        memberships = memberships.filter(
+            Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(user__email__icontains=query)
+            | Q(user__phone_number__icontains=query)
+        )
+    if branch_id:
+        memberships = memberships.filter(branch_id=branch_id)
+    if status == "active":
+        memberships = memberships.filter(is_active=True, user__is_active=True)
+    elif status == "inactive":
+        memberships = memberships.filter(Q(is_active=False) | Q(user__is_active=False))
+    page_context = paginate_context(
+        request,
+        memberships,
+        context_object_name="memberships",
+        per_page=20,
+    )
+    for membership in page_context["memberships"]:
+        role_key = _role_key(membership)
+        membership.staff_role_label = ROLE_DEFINITIONS.get(role_key, {}).get(
+            "label",
+            membership.get_membership_role_display(),
+        )
+    return render(
+        request,
+        "organizations/branch_staff_list.html",
+        {
+            "branches": branches,
+            "filters": {"q": query, "branch": branch_id, "status": status},
+            **page_context,
+        },
+    )
+
+
+@login_required
+def branch_staff_create(request):
+    _require_branch_staff_manager(request.user)
+    form = BranchStaffForm(request.POST or None, actor=request.user)
+    if request.method == "POST" and form.is_valid():
+        try:
+            user, membership = form.save()
+        except IntegrityError:
+            form.add_error(
+                None,
+                "Thư điện tử hoặc số điện thoại đã được sử dụng. Vui lòng tải lại trang.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Đã tạo tài khoản {user.display_name} tại {membership.branch.name}.",
+            )
+            return redirect("organizations:branch-staff-list")
+    return render(
+        request,
+        "organizations/branch_staff_form.html",
+        {
+            "form": form,
+            "page_title": "Thêm nhân sự",
+            "page_description": (
+                "Tạo tài khoản cấp dưới và gán ngay vào chi nhánh bạn quản lý."
+            ),
+            "submit_label": "Tạo tài khoản",
         },
     )

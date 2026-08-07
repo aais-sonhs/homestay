@@ -1,7 +1,9 @@
 import re
 
 from django import forms
+from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from accounts.identifiers import normalize_email, normalize_phone
 from accounts.models import User
@@ -9,6 +11,13 @@ from accounts.services import password_policy_errors
 from common.forms import StyledModelForm
 
 from .models import Branch
+from .models import BranchMembership
+from .api import (
+    ROLE_DEFINITIONS,
+    _can_create_manager,
+    _manageable_branches,
+    _unique_staff_username,
+)
 
 
 class BranchAssignmentField(forms.ModelMultipleChoiceField):
@@ -198,3 +207,117 @@ class BranchOwnerForm(StyledModelForm):
         if commit:
             user.save()
         return user
+
+
+class BranchStaffForm(forms.Form):
+    branch = forms.ModelChoiceField(
+        label="Chi nhánh",
+        queryset=Branch.objects.none(),
+        empty_label="Chọn chi nhánh",
+    )
+    role_key = forms.ChoiceField(label="Vai trò")
+    full_name = forms.CharField(
+        label="Họ và tên",
+        min_length=2,
+        max_length=150,
+        widget=forms.TextInput(attrs={"placeholder": "Ví dụ: Nguyễn Văn An"}),
+    )
+    email = forms.EmailField(
+        label="Thư điện tử",
+        max_length=254,
+        widget=forms.EmailInput(attrs={"placeholder": "nhanvien@example.com"}),
+    )
+    phone_number = forms.CharField(
+        label="Số điện thoại",
+        max_length=20,
+        widget=forms.TextInput(attrs={"placeholder": "Ví dụ: 0901234567"}),
+    )
+    password = forms.CharField(
+        label="Mật khẩu tạm thời",
+        max_length=128,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        help_text="Tối thiểu 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt.",
+    )
+    confirm_password = forms.CharField(
+        label="Xác nhận mật khẩu",
+        max_length=128,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+
+    def __init__(self, *args, actor, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.actor = actor
+        self.fields["branch"].queryset = _manageable_branches(actor)
+        self.fields["role_key"].choices = [
+            (key, definition["label"])
+            for key, definition in ROLE_DEFINITIONS.items()
+            if not definition["owner_only"] or actor.role == User.Role.BRANCH_OWNER
+        ]
+
+    def clean_full_name(self):
+        return str(self.cleaned_data.get("full_name") or "").strip()
+
+    def clean_email(self):
+        email = normalize_email(self.cleaned_data.get("email") or "")
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("Thư điện tử đã được sử dụng bởi tài khoản khác.")
+        return email
+
+    def clean_phone_number(self):
+        phone = normalize_phone(self.cleaned_data.get("phone_number") or "")
+        if User.objects.filter(normalized_phone=phone).exists():
+            raise forms.ValidationError("Số điện thoại đã được sử dụng bởi tài khoản khác.")
+        return phone
+
+    def clean(self):
+        cleaned_data = super().clean()
+        branch = cleaned_data.get("branch")
+        role_key = cleaned_data.get("role_key")
+        definition = ROLE_DEFINITIONS.get(role_key)
+        if definition and definition["owner_only"] and branch:
+            if not _can_create_manager(self.actor, branch):
+                self.add_error(
+                    "role_key",
+                    "Chỉ Chủ chi nhánh được tạo tài khoản Quản lý.",
+                )
+        password = cleaned_data.get("password") or ""
+        if password != (cleaned_data.get("confirm_password") or ""):
+            self.add_error("confirm_password", "Xác nhận mật khẩu không khớp.")
+        if password:
+            candidate = User(
+                username=_unique_staff_username(),
+                first_name=cleaned_data.get("full_name") or "",
+                email=cleaned_data.get("email") or "",
+                phone_number=cleaned_data.get("phone_number") or "",
+                normalized_phone=cleaned_data.get("phone_number") or "",
+            )
+            errors = password_policy_errors(password, candidate)
+            if errors:
+                self.add_error("password", errors[0])
+        return cleaned_data
+
+    @transaction.atomic
+    def save(self):
+        definition = ROLE_DEFINITIONS[self.cleaned_data["role_key"]]
+        user = User(
+            username=_unique_staff_username(),
+            first_name=self.cleaned_data["full_name"],
+            email=self.cleaned_data["email"],
+            phone_number=self.cleaned_data["phone_number"],
+            normalized_phone=self.cleaned_data["phone_number"],
+            role=definition["user_role"],
+            is_active=True,
+            is_staff=False,
+            is_superuser=False,
+            password_changed_at=timezone.now(),
+        )
+        user.set_password(self.cleaned_data["password"])
+        user.save()
+        membership = BranchMembership.objects.create(
+            user=user,
+            branch=self.cleaned_data["branch"],
+            membership_role=definition["membership_role"],
+            can_manage_team=definition["can_manage_team"],
+            is_active=True,
+        )
+        return user, membership
