@@ -432,7 +432,8 @@ class ForgotPasswordWebTests(TestCase):
 
         self.assertContains(login, reverse("forgot-password"))
         self.assertContains(login, 'name="remember_login"', html=False)
-        self.assertContains(login, "Ghi nhớ đăng nhập 14 ngày")
+        self.assertContains(login, "Luôn ghi nhớ đăng nhập")
+        self.assertTrue(login.context["remember_login_checked"])
         self.assertContains(login, "branding/bliss-homestay-logo.jpg?v=20260807-1")
         self.assertNotContains(login, "branding/bliss-home-mark.svg")
         self.assertEqual(public_login.status_code, 200)
@@ -456,7 +457,7 @@ class ForgotPasswordWebTests(TestCase):
         )
         self.assertRedirects(login, reverse("housekeeping:task-list"))
 
-    def test_login_with_remember_login_keeps_session_for_fourteen_days(self):
+    def test_login_with_remember_login_keeps_a_long_lived_session_and_preference(self):
         user = User.objects.create_user(
             username="remember-web-user",
             password="Current@2026Pass",
@@ -475,7 +476,18 @@ class ForgotPasswordWebTests(TestCase):
         self.assertFalse(self.client.session.get_expire_at_browser_close())
         self.assertGreaterEqual(
             self.client.session.get_expiry_age(),
-            60 * 60 * 24 * 13,
+            60 * 60 * 24 * 365 * 19,
+        )
+        self.assertEqual(response.cookies["bliss_remember_login"].value, "on")
+
+        self.client.post(reverse("logout"))
+        login = self.client.get(reverse("login"))
+
+        self.assertTrue(login.context["remember_login_checked"])
+        self.assertContains(
+            login,
+            'id="remember-login" checked',
+            html=False,
         )
 
     def test_login_without_remember_login_expires_at_browser_close(self):
@@ -494,6 +506,17 @@ class ForgotPasswordWebTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(self.client.session.get_expire_at_browser_close())
+        self.assertEqual(response.cookies["bliss_remember_login"].value, "off")
+
+        self.client.post(reverse("logout"))
+        login = self.client.get(reverse("login"))
+
+        self.assertFalse(login.context["remember_login_checked"])
+        self.assertNotContains(
+            login,
+            'id="remember-login" checked',
+            html=False,
+        )
 
     def test_housekeeping_nav_account_menu_shows_profile_actions_but_hides_admin(self):
         user = User.objects.create_user(

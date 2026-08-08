@@ -31,4 +31,14 @@ urlpatterns = [
         views.branch_staff_update,
         name="branch-staff-update",
     ),
+    path(
+        "staff/<int:membership_id>/delete/",
+        views.branch_staff_delete,
+        name="branch-staff-delete",
+    ),
+    path(
+        "staff/<int:membership_id>/toggle-active/",
+        views.branch_staff_toggle_active,
+        name="branch-staff-toggle-active",
+    ),
 ]

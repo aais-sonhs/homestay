@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from accounts.models import User
 from common.list_views import paginate_collection, paginate_context
@@ -391,3 +392,91 @@ def branch_staff_update(request, membership_id):
             "submit_label": "Lưu thay đổi",
         },
     )
+
+
+@login_required
+def branch_staff_toggle_active(request, membership_id):
+    _require_branch_staff_manager(request.user)
+    if request.method != "POST":
+        raise PermissionDenied(
+            "Thao tác khóa hoặc mở khóa nhân sự yêu cầu phương thức POST."
+        )
+    with transaction.atomic():
+        membership = get_object_or_404(
+            BranchMembership.objects.select_for_update()
+            .select_related("user", "branch")
+            .filter(
+                branch__in=_manageable_branches(request.user),
+                user__is_deleted=False,
+            )
+            .exclude(user__role__in={User.Role.FOUNDER, User.Role.BRANCH_OWNER}),
+            pk=membership_id,
+        )
+        if not _can_edit_branch_staff(request.user, membership):
+            raise PermissionDenied(
+                "Quản lý chỉ được khóa hoặc mở khóa nhân sự cấp dưới."
+            )
+        user = User.objects.select_for_update().get(pk=membership.user_id)
+        activate = not (user.is_active and membership.is_active)
+        user.is_active = activate
+        user.save(update_fields=("is_active",))
+        membership.is_active = activate
+        membership.save(update_fields=("is_active",))
+        if activate:
+            notice = f"Đã mở khóa tài khoản {user.display_name}."
+        else:
+            revoked_at = timezone.now()
+            user.access_tokens.filter(revoked_at__isnull=True).update(
+                revoked_at=revoked_at
+            )
+            user.refresh_tokens.filter(revoked_at__isnull=True).update(
+                revoked_at=revoked_at
+            )
+            notice = (
+                f"Đã khóa tài khoản {user.display_name}. "
+                "Tài khoản không thể đăng nhập."
+            )
+    messages.success(request, notice)
+    return redirect("organizations:branch-staff-list")
+
+
+@login_required
+def branch_staff_delete(request, membership_id):
+    _require_branch_staff_manager(request.user)
+    if request.method != "POST":
+        raise PermissionDenied("Thao tác xóa nhân sự yêu cầu phương thức POST.")
+    with transaction.atomic():
+        membership = get_object_or_404(
+            BranchMembership.objects.select_for_update()
+            .select_related("user", "branch")
+            .filter(
+                branch__in=_manageable_branches(request.user),
+                user__is_deleted=False,
+            )
+            .exclude(user__role__in={User.Role.FOUNDER, User.Role.BRANCH_OWNER}),
+            pk=membership_id,
+        )
+        if not _can_edit_branch_staff(request.user, membership):
+            raise PermissionDenied(
+                "Quản lý chỉ được xóa nhân sự cấp dưới."
+            )
+        user = User.objects.select_for_update().get(pk=membership.user_id)
+        staff_name = user.display_name
+        branch_name = membership.branch.name
+        membership.is_active = False
+        membership.save(update_fields=("is_active",))
+        has_other_active_membership = user.branch_memberships.exclude(
+            pk=membership.pk
+        ).filter(is_active=True).exists()
+        if has_other_active_membership:
+            action_message = (
+                f"Đã gỡ nhân sự {staff_name} khỏi {branch_name}."
+            )
+        else:
+            user.refresh_tokens.filter(revoked_at__isnull=True).update(
+                revoked_at=timezone.now()
+            )
+            user.delete()
+            action_message = f"Đã xóa nhân sự {staff_name}."
+    messages.success(request, action_message)
+    return redirect("organizations:branch-staff-list")

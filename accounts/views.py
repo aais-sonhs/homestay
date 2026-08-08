@@ -38,15 +38,45 @@ from .services import (
 class BlissHomeLoginView(LoginView):
     template_name = "registration/login.html"
     redirect_authenticated_user = True
-    remember_login_seconds = 60 * 60 * 24 * 14
+    remember_login_seconds = 60 * 60 * 24 * 365 * 20
+    remember_login_cookie = "bliss_remember_login"
+
+    def _remember_login_requested(self):
+        if self.request.method == "POST":
+            return self.request.POST.get("remember_login") == "on"
+        return self.request.COOKIES.get(self.remember_login_cookie, "on") == "on"
+
+    def _remember_preference(self, response, remember_login):
+        response.set_cookie(
+            self.remember_login_cookie,
+            "on" if remember_login else "off",
+            max_age=self.remember_login_seconds,
+            path="/",
+            secure=settings.SESSION_COOKIE_SECURE,
+            httponly=True,
+            samesite="Lax",
+        )
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["remember_login_checked"] = self._remember_login_requested()
+        return context
 
     def form_valid(self, form):
+        remember_login = self._remember_login_requested()
         response = super().form_valid(form)
-        remember_login = self.request.POST.get("remember_login") == "on"
         self.request.session.set_expiry(
             self.remember_login_seconds if remember_login else 0
         )
-        return response
+        return self._remember_preference(response, remember_login)
+
+    def form_invalid(self, form):
+        response = super().form_invalid(form)
+        return self._remember_preference(
+            response,
+            self._remember_login_requested(),
+        )
 
     def get_success_url(self):
         requested_url = self.get_redirect_url()

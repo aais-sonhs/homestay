@@ -715,6 +715,52 @@ class BranchStaffApiTests(TestCase):
         self.assertIsNotNone(access_token.revoked_at)
         self.assertIsNotNone(refresh_token.revoked_at)
 
+    def test_owner_locks_and_unlocks_staff_from_list_action(self):
+        membership = self.housekeeper.branch_memberships.get(branch=self.branch)
+        access_token = AccessToken.objects.create(
+            user=self.housekeeper,
+            label="Staff lock action",
+        )
+        refresh_token = RefreshToken.objects.create(
+            user=self.housekeeper,
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        action_url = reverse(
+            "organizations:branch-staff-toggle-active",
+            args=[membership.id],
+        )
+        self.client.force_login(self.owner)
+
+        list_page = self.client.get(reverse("organizations:branch-staff-list"))
+        get_response = self.client.get(action_url)
+        lock_response = self.client.post(action_url, follow=True)
+
+        self.assertContains(list_page, action_url)
+        self.assertContains(list_page, "Khóa tài khoản")
+        self.assertEqual(get_response.status_code, 403)
+        self.assertEqual(lock_response.status_code, 200)
+        self.assertContains(lock_response, "Đã khóa tài khoản Nhân viên hiện có")
+        self.housekeeper.refresh_from_db()
+        membership.refresh_from_db()
+        access_token.refresh_from_db()
+        refresh_token.refresh_from_db()
+        self.assertFalse(self.housekeeper.is_active)
+        self.assertFalse(membership.is_active)
+        self.assertIsNotNone(access_token.revoked_at)
+        self.assertIsNotNone(refresh_token.revoked_at)
+
+        unlock_response = self.client.post(action_url, follow=True)
+
+        self.assertEqual(unlock_response.status_code, 200)
+        self.assertContains(
+            unlock_response,
+            "Đã mở khóa tài khoản Nhân viên hiện có",
+        )
+        self.housekeeper.refresh_from_db()
+        membership.refresh_from_db()
+        self.assertTrue(self.housekeeper.is_active)
+        self.assertTrue(membership.is_active)
+
     def test_owner_cannot_edit_staff_from_another_branch(self):
         outsider_membership = self.outsider.branch_memberships.get(
             branch=self.other_branch
@@ -727,8 +773,99 @@ class BranchStaffApiTests(TestCase):
                 args=[outsider_membership.id],
             )
         )
+        delete_response = self.client.post(
+            reverse(
+                "organizations:branch-staff-delete",
+                args=[outsider_membership.id],
+            )
+        )
+        toggle_response = self.client.post(
+            reverse(
+                "organizations:branch-staff-toggle-active",
+                args=[outsider_membership.id],
+            )
+        )
 
         self.assertEqual(response.status_code, 404)
+        self.assertEqual(delete_response.status_code, 404)
+        self.assertEqual(toggle_response.status_code, 404)
+        self.outsider.refresh_from_db()
+        self.assertFalse(self.outsider.is_deleted)
+
+    def test_owner_soft_deletes_staff_and_revokes_tokens(self):
+        membership = self.housekeeper.branch_memberships.get(branch=self.branch)
+        access_token = AccessToken.objects.create(
+            user=self.housekeeper,
+            label="Staff phone",
+        )
+        refresh_token = RefreshToken.objects.create(
+            user=self.housekeeper,
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        self.client.force_login(self.owner)
+
+        delete_page = self.client.get(
+            reverse(
+                "organizations:branch-staff-delete",
+                args=[membership.id],
+            )
+        )
+        response = self.client.post(
+            reverse(
+                "organizations:branch-staff-delete",
+                args=[membership.id],
+            ),
+            follow=True,
+        )
+
+        self.assertEqual(delete_page.status_code, 403)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Đã xóa nhân sự Nhân viên hiện có")
+        self.assertNotIn(membership, list(response.context["memberships"]))
+        self.housekeeper.refresh_from_db()
+        membership.refresh_from_db()
+        access_token.refresh_from_db()
+        refresh_token.refresh_from_db()
+        self.assertTrue(self.housekeeper.is_deleted)
+        self.assertFalse(self.housekeeper.is_active)
+        self.assertFalse(membership.is_active)
+        self.assertIsNotNone(access_token.revoked_at)
+        self.assertIsNotNone(refresh_token.revoked_at)
+
+    def test_deleting_one_of_multiple_memberships_keeps_account_active(self):
+        second_branch = Branch.objects.create(
+            code="STAFF-C",
+            name="Bliss Home C",
+            owner=self.owner,
+        )
+        second_membership = BranchMembership.objects.create(
+            user=self.housekeeper,
+            branch=second_branch,
+            membership_role=BranchMembership.MembershipRole.HOUSEKEEPER,
+        )
+        membership = self.housekeeper.branch_memberships.get(branch=self.branch)
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            reverse(
+                "organizations:branch-staff-delete",
+                args=[membership.id],
+            ),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f"Đã gỡ nhân sự {self.housekeeper.display_name} khỏi {self.branch.name}",
+        )
+        self.housekeeper.refresh_from_db()
+        membership.refresh_from_db()
+        second_membership.refresh_from_db()
+        self.assertFalse(self.housekeeper.is_deleted)
+        self.assertTrue(self.housekeeper.is_active)
+        self.assertFalse(membership.is_active)
+        self.assertTrue(second_membership.is_active)
 
     def test_manager_cannot_edit_self_or_promote_staff_to_manager(self):
         manager_membership = self.manager.branch_memberships.get(branch=self.branch)
@@ -738,6 +875,18 @@ class BranchStaffApiTests(TestCase):
         self_edit = self.client.get(
             reverse(
                 "organizations:branch-staff-update",
+                args=[manager_membership.id],
+            )
+        )
+        self_delete = self.client.post(
+            reverse(
+                "organizations:branch-staff-delete",
+                args=[manager_membership.id],
+            )
+        )
+        self_toggle = self.client.post(
+            reverse(
+                "organizations:branch-staff-toggle-active",
                 args=[manager_membership.id],
             )
         )
@@ -759,6 +908,8 @@ class BranchStaffApiTests(TestCase):
         )
 
         self.assertEqual(self_edit.status_code, 403)
+        self.assertEqual(self_delete.status_code, 403)
+        self.assertEqual(self_toggle.status_code, 403)
         self.assertEqual(promotion.status_code, 200)
         self.assertIn("role_key", promotion.context["form"].errors)
         self.housekeeper.refresh_from_db()

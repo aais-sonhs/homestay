@@ -20,8 +20,8 @@
     {{ form.password.errors }}
     <div class="login-options">
         <label class="remember-login" for="remember-login">
-            <input type="checkbox" name="remember_login" id="remember-login"{% if request.POST.remember_login == "on" %} checked{% endif %}>
-            <span>Ghi nhớ đăng nhập 14 ngày</span>
+            <input type="checkbox" name="remember_login" id="remember-login"{% if remember_login_checked %} checked{% endif %}>
+            <span>Luôn ghi nhớ đăng nhập</span>
         </label>
         <a href="{% url 'forgot-password' %}">Quên mật khẩu?</a>
     </div>

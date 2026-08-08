@@ -25,7 +25,15 @@
                 <td><span class="pill">{{ membership.staff_role_label }}</span></td>
                 <td><strong>{{ membership.branch.code }}</strong><br><span class="muted">{{ membership.branch.name }}</span></td>
                 <td>{% if membership.is_active and membership.user.is_active %}<span class="pill room-ready-pill">Đang hoạt động</span>{% else %}<span class="pill danger">Tạm khóa</span>{% endif %}</td>
-                <td>{% if membership.can_edit_staff %}<a class="button secondary permission-button" href="{% url 'organizations:branch-staff-update' membership.id %}" aria-label="Chỉnh sửa nhân sự {{ membership.user.display_name }}">Chỉnh sửa</a>{% else %}<span class="muted">Không có quyền sửa</span>{% endif %}</td>
+                <td>
+                    {% if membership.can_edit_staff %}
+                    <div class="entity-actions">
+                        <a class="icon-button" href="{% url 'organizations:branch-staff-update' membership.id %}" aria-label="Sửa nhân sự {{ membership.user.display_name }}" title="Sửa nhân sự"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z"/><path d="m13.5 7.5 3 3"/></svg></a>
+                        <form method="post" action="{% url 'organizations:branch-staff-toggle-active' membership.id %}" data-confirm="{% if membership.is_active and membership.user.is_active %}Khóa tài khoản {{ membership.user.display_name }}? Tất cả token đăng nhập hiện tại sẽ bị thu hồi.{% else %}Mở khóa tài khoản {{ membership.user.display_name }}?{% endif %}">{% csrf_token %}<button class="icon-button{% if membership.is_active and membership.user.is_active %} danger{% endif %}" type="submit" aria-label="{% if membership.is_active and membership.user.is_active %}Khóa{% else %}Mở khóa{% endif %} tài khoản {{ membership.user.display_name }}" title="{% if membership.is_active and membership.user.is_active %}Khóa tài khoản{% else %}Mở khóa tài khoản{% endif %}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="{% if membership.is_active and membership.user.is_active %}M8 10V7a4 4 0 0 1 8 0v3{% else %}M16 10V7a4 4 0 0 0-7.8-1{% endif %}"/></svg></button></form>
+                        <form method="post" action="{% url 'organizations:branch-staff-delete' membership.id %}" data-confirm="Xóa nhân sự {{ membership.user.display_name }} khỏi {{ membership.branch.name }}? Nếu không còn chi nhánh làm việc khác, tài khoản sẽ bị khóa; lịch sử công việc vẫn được giữ lại.">{% csrf_token %}<button class="icon-button danger" type="submit" aria-label="Xóa nhân sự {{ membership.user.display_name }}" title="Xóa nhân sự"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg></button></form>
+                    </div>
+                    {% else %}<span class="muted">Không có quyền thao tác</span>{% endif %}
+                </td>
             </tr>
             {% empty %}<tr><td colspan="6" class="empty">Chưa có nhân sự phù hợp. Chọn “Thêm nhân sự” để tạo tài khoản đầu tiên.</td></tr>{% endfor %}
             </tbody>
