@@ -1,6 +1,7 @@
 import re
 
 from django import forms
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -17,7 +18,6 @@ from .api import (
     _can_create_manager,
     _manageable_branches,
     _role_key,
-    _unique_staff_username,
 )
 
 
@@ -223,6 +223,21 @@ class BranchStaffForm(forms.Form):
         max_length=150,
         widget=forms.TextInput(attrs={"placeholder": "Ví dụ: Nguyễn Văn An"}),
     )
+    username = forms.CharField(
+        label="Tên đăng nhập",
+        min_length=3,
+        max_length=150,
+        validators=[UnicodeUsernameValidator()],
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Ví dụ: nguyenvanan",
+                "autocomplete": "off",
+            }
+        ),
+        help_text=(
+            "Dùng để nhân viên đăng nhập; chỉ gồm chữ, số và các ký tự @ . + - _."
+        ),
+    )
     email = forms.EmailField(
         label="Thư điện tử",
         max_length=254,
@@ -276,6 +291,7 @@ class BranchStaffForm(forms.Form):
                         "branch": membership.branch_id,
                         "role_key": _role_key(membership),
                         "full_name": self.user.display_name,
+                        "username": self.user.username,
                         "email": self.user.email,
                         "phone_number": self.user.phone_number,
                         "is_active": bool(
@@ -288,6 +304,17 @@ class BranchStaffForm(forms.Form):
 
     def clean_full_name(self):
         return str(self.cleaned_data.get("full_name") or "").strip()
+
+    def clean_username(self):
+        username = str(self.cleaned_data.get("username") or "").strip()
+        duplicates = User.objects.filter(username__iexact=username)
+        if self.user is not None:
+            duplicates = duplicates.exclude(pk=self.user.pk)
+        if duplicates.exists():
+            raise forms.ValidationError(
+                "Tên đăng nhập đã được sử dụng bởi tài khoản khác."
+            )
+        return username
 
     def clean_email(self):
         email = normalize_email(self.cleaned_data.get("email") or "")
@@ -324,11 +351,7 @@ class BranchStaffForm(forms.Form):
             if password != confirmation:
                 self.add_error("confirm_password", "Xác nhận mật khẩu không khớp.")
             candidate = User(
-                username=(
-                    self.user.username
-                    if self.user is not None
-                    else _unique_staff_username()
-                ),
+                username=cleaned_data.get("username") or "",
                 first_name=cleaned_data.get("full_name") or "",
                 email=cleaned_data.get("email") or "",
                 phone_number=cleaned_data.get("phone_number") or "",
@@ -343,7 +366,8 @@ class BranchStaffForm(forms.Form):
     def save(self):
         definition = ROLE_DEFINITIONS[self.cleaned_data["role_key"]]
         editing = self.user is not None
-        user = self.user or User(username=_unique_staff_username())
+        user = self.user or User()
+        user.username = self.cleaned_data["username"]
         user.first_name = self.cleaned_data["full_name"]
         user.last_name = ""
         user.email = self.cleaned_data["email"]

@@ -592,12 +592,16 @@ class BranchStaffApiTests(TestCase):
 
     def test_owner_creates_staff_from_web(self):
         self.client.force_login(self.owner)
+        create_page = self.client.get(
+            reverse("organizations:branch-staff-create")
+        )
         response = self.client.post(
             reverse("organizations:branch-staff-create"),
             {
                 "branch": str(self.branch.id),
                 "role_key": "qc",
                 "full_name": "Nhân viên QC Web",
+                "username": "qc.web",
                 "email": "web.qc@example.com",
                 "phone_number": "0923456789",
                 "password": "Welcome@2026Safe",
@@ -606,13 +610,40 @@ class BranchStaffApiTests(TestCase):
             follow=True,
         )
 
+        self.assertEqual(create_page.status_code, 200)
+        self.assertContains(create_page, "Tên đăng nhập")
+        self.assertContains(create_page, 'name="username"', html=False)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Đã tạo tài khoản Nhân viên QC Web")
         user = User.objects.get(email="web.qc@example.com")
+        self.assertEqual(user.username, "qc.web")
         self.assertEqual(user.role, User.Role.QC)
         membership = BranchMembership.objects.get(user=user)
         self.assertEqual(membership.branch, self.branch)
         self.assertEqual(membership.membership_role, BranchMembership.MembershipRole.QC)
+
+    def test_owner_cannot_create_staff_with_duplicate_username(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            reverse("organizations:branch-staff-create"),
+            {
+                "branch": str(self.branch.id),
+                "role_key": "housekeeping",
+                "full_name": "Nhân viên trùng tài khoản",
+                "username": self.owner.username.upper(),
+                "email": "duplicate.username@example.com",
+                "phone_number": "0923456790",
+                "password": "Welcome@2026Safe",
+                "confirm_password": "Welcome@2026Safe",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("username", response.context["form"].errors)
+        self.assertFalse(
+            User.objects.filter(email="duplicate.username@example.com").exists()
+        )
 
     def test_owner_edits_staff_from_web_without_resetting_password(self):
         self.housekeeper.phone_number = "0901000001"
@@ -640,6 +671,7 @@ class BranchStaffApiTests(TestCase):
                 "branch": str(self.branch.id),
                 "role_key": "qc",
                 "full_name": "Nhân viên đã cập nhật",
+                "username": "updated.housekeeper",
                 "email": "updated.staff@example.com",
                 "phone_number": "0901000002",
                 "password": "",
@@ -660,6 +692,7 @@ class BranchStaffApiTests(TestCase):
         self.housekeeper.refresh_from_db()
         membership.refresh_from_db()
         self.assertEqual(self.housekeeper.first_name, "Nhân viên đã cập nhật")
+        self.assertEqual(self.housekeeper.username, "updated.housekeeper")
         self.assertEqual(self.housekeeper.email, "updated.staff@example.com")
         self.assertEqual(self.housekeeper.normalized_phone, "+84901000002")
         self.assertEqual(self.housekeeper.role, User.Role.QC)
@@ -696,6 +729,7 @@ class BranchStaffApiTests(TestCase):
                 "branch": str(self.branch.id),
                 "role_key": "housekeeping",
                 "full_name": self.housekeeper.display_name,
+                "username": self.housekeeper.username,
                 "email": self.housekeeper.email,
                 "phone_number": self.housekeeper.phone_number,
                 "password": "Changed@2026Safe",
@@ -899,6 +933,7 @@ class BranchStaffApiTests(TestCase):
                 "branch": str(self.branch.id),
                 "role_key": "manager",
                 "full_name": self.housekeeper.display_name,
+                "username": self.housekeeper.username,
                 "email": self.housekeeper.email,
                 "phone_number": "0903000001",
                 "password": "",
@@ -923,6 +958,7 @@ class BranchStaffApiTests(TestCase):
                 "branch": str(self.branch.id),
                 "role_key": "manager",
                 "full_name": "Quản lý không hợp lệ",
+                "username": "invalid.manager",
                 "email": "invalid.manager@example.com",
                 "phone_number": "0934567890",
                 "password": "Welcome@2026Safe",
