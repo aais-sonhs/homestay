@@ -197,6 +197,9 @@ def task_data(task, user, *, detail=False, request=None):
         "status": task.status,
         "statusLabel": task.get_status_display(),
         "progressPercent": task.progress_percent,
+        "estimatedIncome": (
+            int(task.estimated_income) if task.estimated_income is not None else None
+        ),
         "scheduledStartAt": iso_datetime(task.scheduled_start_at),
         "acceptanceDueAt": iso_datetime(task.acceptance_due_at),
         "startDueAt": iso_datetime(task.start_due_at),

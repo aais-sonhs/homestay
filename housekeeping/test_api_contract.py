@@ -141,6 +141,8 @@ class HousekeepingAPIContractTests(TestCase):
 
     def test_bearer_list_is_scoped_and_touches_token(self):
         visible = self.make_task()
+        visible.estimated_income = 125000
+        visible.save(update_fields=["estimated_income"])
         hidden = self.make_task(branch=self.other_branch)
 
         response = self.bearer_client().get(reverse("housekeeping:api-task-list"))
@@ -149,6 +151,7 @@ class HousekeepingAPIContractTests(TestCase):
         payload = response.json()
         self.assertEqual(payload["pagination"]["total"], 1)
         self.assertEqual(payload["data"][0]["id"], str(visible.id))
+        self.assertEqual(payload["data"][0]["estimatedIncome"], 125000)
         self.assertNotIn(str(hidden.id), {item["id"] for item in payload["data"]})
         self.assertIn("correlationId", payload)
         self.token.refresh_from_db()

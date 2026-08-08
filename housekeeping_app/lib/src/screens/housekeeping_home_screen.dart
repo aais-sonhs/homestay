@@ -258,8 +258,7 @@ class _HousekeepingHomeScreenState extends State<HousekeepingHomeScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SizedBox(
-                    height: 166,
+                  child: IntrinsicHeight(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -288,7 +287,7 @@ class _HousekeepingHomeScreenState extends State<HousekeepingHomeScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                   child: _ShortcutPanel(
                     onTasks: widget.onOpenTasks,
                     onShift: _showShift,
@@ -587,7 +586,7 @@ class _WorkSummaryCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
       child: Ink(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           gradient: const LinearGradient(
@@ -602,20 +601,20 @@ class _WorkSummaryCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 32,
+                  height: 32,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .14),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.assignment_turned_in_outlined,
                     color: Colors.white,
-                    size: 24,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Công việc hôm nay',
@@ -623,7 +622,7 @@ class _WorkSummaryCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
+                      fontSize: 12,
                       height: 1.15,
                       fontWeight: FontWeight.w800,
                     ),
@@ -631,20 +630,22 @@ class _WorkSummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              loading ? 'Đang tải…' : '$total việc',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                height: 1,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 7),
             Row(
               children: [
-                _SummaryNumber(value: total, label: 'Tổng'),
+                Expanded(
+                  child: Text(
+                    loading ? 'Đang tải…' : '$total việc',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 21,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
                 _SummaryNumber(value: done, label: 'Đã xong'),
                 _SummaryNumber(value: remaining, label: 'Còn lại'),
               ],
@@ -662,7 +663,8 @@ class _SummaryNumber extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) => Expanded(
+  Widget build(BuildContext context) => SizedBox(
+    width: 50,
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -670,7 +672,7 @@ class _SummaryNumber extends StatelessWidget {
           '$value',
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 16,
             height: 1,
             fontWeight: FontWeight.w900,
           ),
@@ -680,7 +682,7 @@ class _SummaryNumber extends StatelessWidget {
           maxLines: 1,
           style: const TextStyle(
             color: Color(0xffd1fae5),
-            fontSize: 10,
+            fontSize: 9,
             height: 1.2,
             fontWeight: FontWeight.w700,
           ),
@@ -705,7 +707,7 @@ class _IncomeCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(11, 10, 10, 9),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -719,19 +721,19 @@ class _IncomeCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 8),
             Text(
               amount == null ? '—' : _money(amount!),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: BlissAppTheme.brandDark,
-                fontSize: 21,
+                fontSize: 19,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -.5,
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 3),
             Text(
               amount == null ? 'Chưa có dữ liệu' : 'Xem chi tiết  ›',
               style: const TextStyle(

@@ -914,6 +914,13 @@ class HousekeepingTask(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     progress_percent = models.PositiveSmallIntegerField(default=0)
+    estimated_income = models.DecimalField(
+        max_digits=12,
+        decimal_places=0,
+        null=True,
+        blank=True,
+        help_text="Thu nhập dự kiến của nhân viên khi hoàn thành công việc.",
+    )
     last_progress_at = models.DateTimeField(null=True, blank=True, db_index=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -949,6 +956,13 @@ class HousekeepingTask(models.Model):
     class Meta:
         db_table = "housekeeping_tasks"
         ordering = ["due_at", "-priority", "code"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(estimated_income__isnull=True)
+                | models.Q(estimated_income__gte=0),
+                name="hk_task_est_income_nonneg",
+            )
+        ]
         indexes = [
             models.Index(fields=("branch", "status", "due_at"), name="hk_task_scope_idx"),
             models.Index(fields=("shift", "status", "scheduled_start_at"), name="hk_shift_status_idx"),
