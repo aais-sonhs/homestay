@@ -18,12 +18,18 @@
         <button class="toggle" type="button" data-target="{{ form.password.id_for_label }}">Hiện</button>
     </div>
     {{ form.password.errors }}
+    <div class="login-options">
+        <label class="remember-login" for="remember-login">
+            <input type="checkbox" name="remember_login" id="remember-login"{% if request.POST.remember_login == "on" %} checked{% endif %}>
+            <span>Ghi nhớ đăng nhập 14 ngày</span>
+        </label>
+        <a href="{% url 'forgot-password' %}">Quên mật khẩu?</a>
+    </div>
     <button class="login-submit" type="submit">
         Đăng nhập hệ thống
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
     </button>
 </form>
-<div class="actions"><a href="{% url 'forgot-password' %}">Quên mật khẩu?</a></div>
 <script>
 document.querySelectorAll('.toggle').forEach((button) => button.addEventListener('click', () => {
     const input = document.getElementById(button.dataset.target);

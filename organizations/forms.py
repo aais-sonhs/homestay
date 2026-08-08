@@ -16,6 +16,7 @@ from .api import (
     ROLE_DEFINITIONS,
     _can_create_manager,
     _manageable_branches,
+    _role_key,
     _unique_staff_username,
 )
 
@@ -243,29 +244,66 @@ class BranchStaffForm(forms.Form):
         max_length=128,
         widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
     )
+    is_active = forms.BooleanField(
+        label="Cho phép đăng nhập",
+        required=False,
+        help_text="Bỏ chọn để tạm khóa cả tài khoản và quyền làm việc tại chi nhánh.",
+    )
 
-    def __init__(self, *args, actor, **kwargs):
+    def __init__(self, *args, actor, membership=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.actor = actor
+        self.membership = membership
+        self.user = membership.user if membership is not None else None
+        editing = self.user is not None
         self.fields["branch"].queryset = _manageable_branches(actor)
         self.fields["role_key"].choices = [
             (key, definition["label"])
             for key, definition in ROLE_DEFINITIONS.items()
             if not definition["owner_only"] or actor.role == User.Role.BRANCH_OWNER
         ]
+        self.fields["password"].required = not editing
+        self.fields["confirm_password"].required = not editing
+        if editing:
+            self.fields["password"].label = "Mật khẩu mới"
+            self.fields["password"].help_text = (
+                "Để trống nếu không thay đổi mật khẩu. Nếu đổi, mật khẩu phải có "
+                "chữ hoa, chữ thường, số và ký tự đặc biệt."
+            )
+            if not self.is_bound:
+                self.initial.update(
+                    {
+                        "branch": membership.branch_id,
+                        "role_key": _role_key(membership),
+                        "full_name": self.user.display_name,
+                        "email": self.user.email,
+                        "phone_number": self.user.phone_number,
+                        "is_active": bool(
+                            self.user.is_active and membership.is_active
+                        ),
+                    }
+                )
+        else:
+            self.fields.pop("is_active")
 
     def clean_full_name(self):
         return str(self.cleaned_data.get("full_name") or "").strip()
 
     def clean_email(self):
         email = normalize_email(self.cleaned_data.get("email") or "")
-        if User.objects.filter(email__iexact=email).exists():
+        duplicates = User.objects.filter(email__iexact=email)
+        if self.user is not None:
+            duplicates = duplicates.exclude(pk=self.user.pk)
+        if duplicates.exists():
             raise forms.ValidationError("Thư điện tử đã được sử dụng bởi tài khoản khác.")
         return email
 
     def clean_phone_number(self):
         phone = normalize_phone(self.cleaned_data.get("phone_number") or "")
-        if User.objects.filter(normalized_phone=phone).exists():
+        duplicates = User.objects.filter(normalized_phone=phone)
+        if self.user is not None:
+            duplicates = duplicates.exclude(pk=self.user.pk)
+        if duplicates.exists():
             raise forms.ValidationError("Số điện thoại đã được sử dụng bởi tài khoản khác.")
         return phone
 
@@ -281,11 +319,16 @@ class BranchStaffForm(forms.Form):
                     "Chỉ Chủ chi nhánh được tạo tài khoản Quản lý.",
                 )
         password = cleaned_data.get("password") or ""
-        if password != (cleaned_data.get("confirm_password") or ""):
-            self.add_error("confirm_password", "Xác nhận mật khẩu không khớp.")
-        if password:
+        confirmation = cleaned_data.get("confirm_password") or ""
+        if password or confirmation:
+            if password != confirmation:
+                self.add_error("confirm_password", "Xác nhận mật khẩu không khớp.")
             candidate = User(
-                username=_unique_staff_username(),
+                username=(
+                    self.user.username
+                    if self.user is not None
+                    else _unique_staff_username()
+                ),
                 first_name=cleaned_data.get("full_name") or "",
                 email=cleaned_data.get("email") or "",
                 phone_number=cleaned_data.get("phone_number") or "",
@@ -299,25 +342,50 @@ class BranchStaffForm(forms.Form):
     @transaction.atomic
     def save(self):
         definition = ROLE_DEFINITIONS[self.cleaned_data["role_key"]]
-        user = User(
-            username=_unique_staff_username(),
-            first_name=self.cleaned_data["full_name"],
-            email=self.cleaned_data["email"],
-            phone_number=self.cleaned_data["phone_number"],
-            normalized_phone=self.cleaned_data["phone_number"],
-            role=definition["user_role"],
-            is_active=True,
-            is_staff=False,
-            is_superuser=False,
-            password_changed_at=timezone.now(),
-        )
-        user.set_password(self.cleaned_data["password"])
+        editing = self.user is not None
+        user = self.user or User(username=_unique_staff_username())
+        user.first_name = self.cleaned_data["full_name"]
+        user.last_name = ""
+        user.email = self.cleaned_data["email"]
+        user.phone_number = self.cleaned_data["phone_number"]
+        user.normalized_phone = self.cleaned_data["phone_number"]
+        user.role = definition["user_role"]
+        user.is_active = self.cleaned_data.get("is_active", True)
+        user.is_staff = False
+        user.is_superuser = False
+        password = self.cleaned_data.get("password") or ""
+        if password:
+            user.set_password(password)
+            user.password_changed_at = timezone.now()
         user.save()
-        membership = BranchMembership.objects.create(
-            user=user,
-            branch=self.cleaned_data["branch"],
-            membership_role=definition["membership_role"],
-            can_manage_team=definition["can_manage_team"],
-            is_active=True,
-        )
+        if password or not user.is_active:
+            revoked_at = timezone.now()
+            user.access_tokens.filter(revoked_at__isnull=True).update(
+                revoked_at=revoked_at
+            )
+            user.refresh_tokens.filter(revoked_at__isnull=True).update(
+                revoked_at=revoked_at
+            )
+        if editing:
+            membership = self.membership
+            membership.branch = self.cleaned_data["branch"]
+            membership.membership_role = definition["membership_role"]
+            membership.can_manage_team = definition["can_manage_team"]
+            membership.is_active = user.is_active
+            membership.save(
+                update_fields=(
+                    "branch",
+                    "membership_role",
+                    "can_manage_team",
+                    "is_active",
+                )
+            )
+        else:
+            membership = BranchMembership.objects.create(
+                user=user,
+                branch=self.cleaned_data["branch"],
+                membership_role=definition["membership_role"],
+                can_manage_team=definition["can_manage_team"],
+                is_active=True,
+            )
         return user, membership

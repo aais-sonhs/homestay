@@ -5,7 +5,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import AccessToken, User
+from accounts.models import AccessToken, RefreshToken, User
 from common.access import Capability, decide_task_capability
 from housekeeping.models import (
     BranchMembership,
@@ -613,6 +613,156 @@ class BranchStaffApiTests(TestCase):
         membership = BranchMembership.objects.get(user=user)
         self.assertEqual(membership.branch, self.branch)
         self.assertEqual(membership.membership_role, BranchMembership.MembershipRole.QC)
+
+    def test_owner_edits_staff_from_web_without_resetting_password(self):
+        self.housekeeper.phone_number = "0901000001"
+        self.housekeeper.set_password("Original@2026Safe")
+        self.housekeeper.save()
+        membership = self.housekeeper.branch_memberships.get(branch=self.branch)
+        original_password_hash = self.housekeeper.password
+        self.client.force_login(self.owner)
+
+        edit_page = self.client.get(
+            reverse(
+                "organizations:branch-staff-update",
+                args=[membership.id],
+            )
+        )
+        staff_page = self.client.get(
+            reverse("organizations:branch-staff-list")
+        )
+        response = self.client.post(
+            reverse(
+                "organizations:branch-staff-update",
+                args=[membership.id],
+            ),
+            {
+                "branch": str(self.branch.id),
+                "role_key": "qc",
+                "full_name": "Nhân viên đã cập nhật",
+                "email": "updated.staff@example.com",
+                "phone_number": "0901000002",
+                "password": "",
+                "confirm_password": "",
+                "is_active": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(edit_page.status_code, 200)
+        self.assertContains(edit_page, "Chỉnh sửa Nhân viên hiện có")
+        self.assertContains(
+            staff_page,
+            reverse("organizations:branch-staff-update", args=[membership.id]),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Đã cập nhật nhân sự Nhân viên đã cập nhật")
+        self.housekeeper.refresh_from_db()
+        membership.refresh_from_db()
+        self.assertEqual(self.housekeeper.first_name, "Nhân viên đã cập nhật")
+        self.assertEqual(self.housekeeper.email, "updated.staff@example.com")
+        self.assertEqual(self.housekeeper.normalized_phone, "+84901000002")
+        self.assertEqual(self.housekeeper.role, User.Role.QC)
+        self.assertEqual(self.housekeeper.password, original_password_hash)
+        self.assertTrue(self.housekeeper.check_password("Original@2026Safe"))
+        self.assertTrue(self.housekeeper.is_active)
+        self.assertEqual(
+            membership.membership_role,
+            BranchMembership.MembershipRole.QC,
+        )
+        self.assertTrue(membership.is_active)
+
+    def test_owner_can_disable_staff_and_set_a_new_password(self):
+        self.housekeeper.phone_number = "0902000001"
+        self.housekeeper.set_password("Original@2026Safe")
+        self.housekeeper.save()
+        access_token = AccessToken.objects.create(
+            user=self.housekeeper,
+            label="Old staff phone",
+        )
+        refresh_token = RefreshToken.objects.create(
+            user=self.housekeeper,
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        membership = self.housekeeper.branch_memberships.get(branch=self.branch)
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            reverse(
+                "organizations:branch-staff-update",
+                args=[membership.id],
+            ),
+            {
+                "branch": str(self.branch.id),
+                "role_key": "housekeeping",
+                "full_name": self.housekeeper.display_name,
+                "email": self.housekeeper.email,
+                "phone_number": self.housekeeper.phone_number,
+                "password": "Changed@2026Safe",
+                "confirm_password": "Changed@2026Safe",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.housekeeper.refresh_from_db()
+        membership.refresh_from_db()
+        access_token.refresh_from_db()
+        refresh_token.refresh_from_db()
+        self.assertFalse(self.housekeeper.is_active)
+        self.assertFalse(membership.is_active)
+        self.assertTrue(self.housekeeper.check_password("Changed@2026Safe"))
+        self.assertIsNotNone(access_token.revoked_at)
+        self.assertIsNotNone(refresh_token.revoked_at)
+
+    def test_owner_cannot_edit_staff_from_another_branch(self):
+        outsider_membership = self.outsider.branch_memberships.get(
+            branch=self.other_branch
+        )
+        self.client.force_login(self.owner)
+
+        response = self.client.get(
+            reverse(
+                "organizations:branch-staff-update",
+                args=[outsider_membership.id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_manager_cannot_edit_self_or_promote_staff_to_manager(self):
+        manager_membership = self.manager.branch_memberships.get(branch=self.branch)
+        staff_membership = self.housekeeper.branch_memberships.get(branch=self.branch)
+        self.client.force_login(self.manager)
+
+        self_edit = self.client.get(
+            reverse(
+                "organizations:branch-staff-update",
+                args=[manager_membership.id],
+            )
+        )
+        promotion = self.client.post(
+            reverse(
+                "organizations:branch-staff-update",
+                args=[staff_membership.id],
+            ),
+            {
+                "branch": str(self.branch.id),
+                "role_key": "manager",
+                "full_name": self.housekeeper.display_name,
+                "email": self.housekeeper.email,
+                "phone_number": "0903000001",
+                "password": "",
+                "confirm_password": "",
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(self_edit.status_code, 403)
+        self.assertEqual(promotion.status_code, 200)
+        self.assertIn("role_key", promotion.context["form"].errors)
+        self.housekeeper.refresh_from_db()
+        self.assertEqual(self.housekeeper.role, User.Role.HOUSEKEEPING)
 
     def test_manager_cannot_create_manager_from_web(self):
         self.client.force_login(self.manager)

@@ -81,4 +81,32 @@ void main() {
       expect(await tokens.userProfile, isNull);
     },
   );
+
+  test(
+    'remembered login store saves and removes credentials securely',
+    () async {
+      final secrets = _MemorySecretStore();
+      final rememberedLogins = RememberedLoginStore(secrets);
+
+      final initial = await rememberedLogins.load();
+      expect(initial.enabled, isTrue);
+      expect(initial.identifier, isNull);
+      expect(initial.password, isNull);
+
+      await rememberedLogins.save(
+        identifier: 'owner@example.com',
+        password: 'Saved@2026Pass',
+      );
+      final saved = await rememberedLogins.load();
+      expect(saved.enabled, isTrue);
+      expect(saved.identifier, 'owner@example.com');
+      expect(saved.password, 'Saved@2026Pass');
+
+      await rememberedLogins.clear();
+      final cleared = await rememberedLogins.load();
+      expect(cleared.enabled, isFalse);
+      expect(cleared.identifier, isNull);
+      expect(cleared.password, isNull);
+    },
+  );
 }

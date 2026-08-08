@@ -431,6 +431,8 @@ class ForgotPasswordWebTests(TestCase):
         done = self.client.get(reverse("forgot-password-done"))
 
         self.assertContains(login, reverse("forgot-password"))
+        self.assertContains(login, 'name="remember_login"', html=False)
+        self.assertContains(login, "Ghi nhớ đăng nhập 14 ngày")
         self.assertContains(login, "branding/bliss-homestay-logo.jpg?v=20260807-1")
         self.assertNotContains(login, "branding/bliss-home-mark.svg")
         self.assertEqual(public_login.status_code, 200)
@@ -453,6 +455,45 @@ class ForgotPasswordWebTests(TestCase):
             {"username": user.username, "password": "Current@2026Pass"},
         )
         self.assertRedirects(login, reverse("housekeeping:task-list"))
+
+    def test_login_with_remember_login_keeps_session_for_fourteen_days(self):
+        user = User.objects.create_user(
+            username="remember-web-user",
+            password="Current@2026Pass",
+        )
+
+        response = self.client.post(
+            reverse("login"),
+            {
+                "username": user.username,
+                "password": "Current@2026Pass",
+                "remember_login": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(self.client.session.get_expire_at_browser_close())
+        self.assertGreaterEqual(
+            self.client.session.get_expiry_age(),
+            60 * 60 * 24 * 13,
+        )
+
+    def test_login_without_remember_login_expires_at_browser_close(self):
+        user = User.objects.create_user(
+            username="session-web-user",
+            password="Current@2026Pass",
+        )
+
+        response = self.client.post(
+            reverse("login"),
+            {
+                "username": user.username,
+                "password": "Current@2026Pass",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
 
     def test_housekeeping_nav_account_menu_shows_profile_actions_but_hides_admin(self):
         user = User.objects.create_user(

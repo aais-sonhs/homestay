@@ -36,6 +36,17 @@ def _require_branch_staff_manager(user):
         )
 
 
+def _can_edit_branch_staff(actor, membership):
+    if actor.role == User.Role.BRANCH_OWNER:
+        return membership.branch.owner_id == actor.id
+    if actor.role == User.Role.MANAGER:
+        return (
+            membership.user_id != actor.id
+            and _role_key(membership) != "manager"
+        )
+    return False
+
+
 @login_required
 def branch_list(request):
     _require_platform_admin(request.user)
@@ -284,6 +295,10 @@ def branch_staff_list(request):
             "label",
             membership.get_membership_role_display(),
         )
+        membership.can_edit_staff = _can_edit_branch_staff(
+            request.user,
+            membership,
+        )
     return render(
         request,
         "organizations/branch_staff_list.html",
@@ -323,5 +338,56 @@ def branch_staff_create(request):
                 "Tạo tài khoản cấp dưới và gán ngay vào chi nhánh bạn quản lý."
             ),
             "submit_label": "Tạo tài khoản",
+        },
+    )
+
+
+@login_required
+def branch_staff_update(request, membership_id):
+    _require_branch_staff_manager(request.user)
+    membership = get_object_or_404(
+        BranchMembership.objects.select_related("user", "branch")
+        .filter(
+            branch__in=_manageable_branches(request.user),
+            user__is_deleted=False,
+        )
+        .exclude(user__role__in={User.Role.FOUNDER, User.Role.BRANCH_OWNER}),
+        pk=membership_id,
+    )
+    if not _can_edit_branch_staff(request.user, membership):
+        raise PermissionDenied(
+            "Quản lý chỉ được chỉnh sửa nhân sự cấp dưới."
+        )
+    form = BranchStaffForm(
+        request.POST or None,
+        actor=request.user,
+        membership=membership,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            user, membership = form.save()
+        except IntegrityError:
+            form.add_error(
+                None,
+                "Thư điện tử, số điện thoại hoặc phân công chi nhánh bị trùng. "
+                "Vui lòng tải lại trang.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Đã cập nhật nhân sự {user.display_name} tại {membership.branch.name}.",
+            )
+            return redirect("organizations:branch-staff-list")
+    return render(
+        request,
+        "organizations/branch_staff_form.html",
+        {
+            "form": form,
+            "staff_membership": membership,
+            "page_title": f"Chỉnh sửa {membership.user.display_name}",
+            "page_description": (
+                "Cập nhật thông tin, vai trò, chi nhánh hoặc trạng thái tài khoản."
+            ),
+            "submit_label": "Lưu thay đổi",
         },
     )

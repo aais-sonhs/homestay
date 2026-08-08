@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import '../api/housekeeping_api.dart';
 import '../presentation/task_presentation.dart';
 import '../security/secure_store.dart';
+import '../theme/app_theme.dart';
 import 'guest_request_screen.dart';
+import 'housekeeping_home_screen.dart';
 import 'management_dashboard_screen.dart';
 import 'notification_screen.dart';
 import 'offline_task_detail_screen.dart';
@@ -209,39 +211,246 @@ class _HousekeepingWorkspace extends StatefulWidget {
 
 class _HousekeepingWorkspaceState extends State<_HousekeepingWorkspace> {
   int _index = 0;
+  final Set<int> _visitedIndexes = {0};
+
+  void _selectIndex(int value) {
+    if (_index == value) return;
+    setState(() {
+      _index = value;
+      _visitedIndexes.add(value);
+    });
+  }
+
+  Future<void> _openTask(String taskId) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => OnlineTaskDetailScreen(taskId: taskId, api: widget.api),
+    ),
+  );
+
+  Future<void> _openRequests() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => GuestRequestScreen(
+        api: widget.api,
+        user: widget.user,
+        onSignOut: widget.onSignOut,
+      ),
+    ),
+  );
+
+  Future<void> _openIssuePicker() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => OnlineTaskListScreen(
+        api: widget.api,
+        onSignOut: widget.onSignOut,
+        title: 'Chọn công việc để báo vấn đề',
+        availableTabs: const [
+          HousekeepingTaskTab.mine,
+          HousekeepingTaskTab.inProgress,
+          HousekeepingTaskTab.support,
+        ],
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    Widget pageAt(int index) => switch (index) {
+      0 => HousekeepingHomeScreen(
+        key: const ValueKey('housekeeping-home'),
+        api: widget.api,
+        user: widget.user,
+        active: _index == 0,
+        onOpenTasks: () => _selectIndex(1),
+        onOpenRequests: _openRequests,
+        onReportIssue: _openIssuePicker,
+        onOpenNotifications: () => _selectIndex(2),
+        onOpenProfile: () => _selectIndex(3),
+      ),
+      1 => OnlineTaskListScreen(
+        key: const ValueKey('housekeeping-task-list'),
+        api: widget.api,
+        onSignOut: widget.onSignOut,
+        title: 'Công việc buồng phòng',
+        active: _index == 1,
+      ),
+      2 => NotificationScreen(
+        key: const ValueKey('housekeeping-messages'),
+        api: widget.api,
+        onTaskSelected: _openTask,
+      ),
+      3 => _HousekeepingProfileScreen(
+        key: const ValueKey('housekeeping-profile'),
+        user: widget.user,
+        onSignOut: widget.onSignOut,
+      ),
+      _ => const SizedBox.shrink(),
+    };
+    final pages = List<Widget>.generate(
+      4,
+      (index) => _visitedIndexes.contains(index)
+          ? pageAt(index)
+          : const SizedBox.shrink(),
+    );
+    return Scaffold(
+      body: IndexedStack(index: _index, children: pages),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: SizedBox.square(
+        dimension: 62,
+        child: FloatingActionButton(
+          tooltip: 'Báo vấn đề',
+          onPressed: _openIssuePicker,
+          backgroundColor: BlissAppTheme.brandDark,
+          foregroundColor: Colors.white,
+          elevation: 5,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add_rounded, size: 34),
+        ),
+      ),
+      bottomNavigationBar: BottomAppBar(
+        height: 76,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        shadowColor: const Color(0x260f172a),
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        child: Row(
+          children: [
+            _HousekeepingNavItem(
+              icon: Icons.home_outlined,
+              selectedIcon: Icons.home_rounded,
+              label: 'Trang chủ',
+              selected: _index == 0,
+              onTap: () => _selectIndex(0),
+            ),
+            _HousekeepingNavItem(
+              icon: Icons.assignment_outlined,
+              selectedIcon: Icons.assignment_rounded,
+              label: 'Công việc',
+              selected: _index == 1,
+              onTap: () => _selectIndex(1),
+            ),
+            const SizedBox(width: 68),
+            _HousekeepingNavItem(
+              icon: Icons.chat_bubble_outline_rounded,
+              selectedIcon: Icons.chat_bubble_rounded,
+              label: 'Tin nhắn',
+              selected: _index == 2,
+              onTap: () => _selectIndex(2),
+            ),
+            _HousekeepingNavItem(
+              icon: Icons.person_outline_rounded,
+              selectedIcon: Icons.person_rounded,
+              label: 'Cá nhân',
+              selected: _index == 3,
+              onTap: () => _selectIndex(3),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HousekeepingNavItem extends StatelessWidget {
+  const _HousekeepingNavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected ? selectedIcon : icon,
+              size: 25,
+              color: selected ? BlissAppTheme.brandDark : BlissAppTheme.muted,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: selected ? BlissAppTheme.brandDark : BlissAppTheme.muted,
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _HousekeepingProfileScreen extends StatelessWidget {
+  const _HousekeepingProfileScreen({
+    required this.user,
+    required this.onSignOut,
+    super.key,
+  });
+
+  final AppUserProfile user;
+  final AsyncCallback onSignOut;
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: IndexedStack(
-      index: _index,
+    appBar: AppBar(title: const Text('Cá nhân')),
+    body: ListView(
+      padding: const EdgeInsets.all(18),
       children: [
-        OnlineTaskListScreen(
-          api: widget.api,
-          onSignOut: widget.onSignOut,
-          title: 'Công việc buồng phòng',
-          active: _index == 0,
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              children: [
+                const CircleAvatar(
+                  radius: 39,
+                  backgroundColor: BlissAppTheme.brandSoft,
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 42,
+                    color: BlissAppTheme.brandDark,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(user.name, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(
+                  user.roleLabel,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  user.username,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
         ),
-        GuestRequestScreen(
-          api: widget.api,
-          user: widget.user,
-          onSignOut: widget.onSignOut,
-          active: _index == 1,
-        ),
-      ],
-    ),
-    bottomNavigationBar: NavigationBar(
-      selectedIndex: _index,
-      onDestinationSelected: (value) => setState(() => _index = value),
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.cleaning_services_outlined),
-          selectedIcon: Icon(Icons.cleaning_services),
-          label: 'Dọn phòng',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.room_service_outlined),
-          selectedIcon: Icon(Icons.room_service),
-          label: 'Khách gọi',
+        const SizedBox(height: 14),
+        OutlinedButton.icon(
+          onPressed: onSignOut,
+          icon: const Icon(Icons.logout_rounded),
+          label: const Text('Đăng xuất'),
         ),
       ],
     ),
@@ -277,9 +486,7 @@ class _CustomerServiceWorkspaceState extends State<_CustomerServiceWorkspace> {
           onSignOut: widget.onSignOut,
           active: _index == 0,
         ),
-        RoomReadinessScreen(
-          api: widget.api,
-        ),
+        RoomReadinessScreen(api: widget.api),
         NotificationScreen(api: widget.api),
       ],
     ),

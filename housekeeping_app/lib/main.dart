@@ -12,14 +12,17 @@ void main() {
 }
 
 class BlissHomeApp extends StatefulWidget {
-  const BlissHomeApp({super.key});
+  const BlissHomeApp({super.key, this.secretStore});
+
+  final SecretStore? secretStore;
 
   @override
   State<BlissHomeApp> createState() => _BlissHomeAppState();
 }
 
 class _BlissHomeAppState extends State<BlissHomeApp> {
-  late final FlutterSecretStore _secrets;
+  late final SecretStore _secrets;
+  late final RememberedLoginStore _rememberedLogin;
   late final SecureTokenStore _tokens;
   late final HousekeepingApi _api;
   AppUserProfile? _user;
@@ -27,7 +30,8 @@ class _BlissHomeAppState extends State<BlissHomeApp> {
   @override
   void initState() {
     super.initState();
-    _secrets = FlutterSecretStore();
+    _secrets = widget.secretStore ?? FlutterSecretStore();
+    _rememberedLogin = RememberedLoginStore(_secrets);
     _tokens = SecureTokenStore(_secrets);
     _api = HousekeepingApi(
       baseUri: Uri.parse(
@@ -66,7 +70,11 @@ class _BlissHomeAppState extends State<BlissHomeApp> {
     debugShowCheckedModeBanner: false,
     theme: BlissAppTheme.light(),
     home: _user == null
-        ? _LoginScreen(api: _api, onSignedIn: _signedIn)
+        ? _LoginScreen(
+            api: _api,
+            rememberedLogin: _rememberedLogin,
+            onSignedIn: _signedIn,
+          )
         : InternalWorkspaceScreen(
             api: _api,
             user: _user!,
@@ -76,9 +84,14 @@ class _BlissHomeAppState extends State<BlissHomeApp> {
 }
 
 class _LoginScreen extends StatefulWidget {
-  const _LoginScreen({required this.api, required this.onSignedIn});
+  const _LoginScreen({
+    required this.api,
+    required this.rememberedLogin,
+    required this.onSignedIn,
+  });
 
   final HousekeepingApi api;
+  final RememberedLoginStore rememberedLogin;
   final Future<void> Function(AppUserProfile user) onSignedIn;
 
   @override
@@ -90,8 +103,51 @@ class _LoginScreenState extends State<_LoginScreen> {
   final _password = TextEditingController();
   bool _submitting = false;
   bool _obscurePassword = true;
+  bool _rememberLogin = true;
   String? _error;
   String? _registrationNotice;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedLogin();
+  }
+
+  Future<void> _loadRememberedLogin() async {
+    try {
+      final remembered = await widget.rememberedLogin.load();
+      if (!mounted) return;
+      setState(() {
+        _rememberLogin = remembered.enabled;
+        if (_identifier.text.isEmpty && remembered.identifier != null) {
+          _identifier.text = remembered.identifier!;
+        }
+        if (_password.text.isEmpty && remembered.password != null) {
+          _password.text = remembered.password!;
+        }
+      });
+    } on Object {
+      // Login remains usable if the platform credential vault is unavailable.
+    }
+  }
+
+  Future<void> _persistRememberedLogin({
+    required String identifier,
+    required String password,
+  }) async {
+    try {
+      if (_rememberLogin) {
+        await widget.rememberedLogin.save(
+          identifier: identifier,
+          password: password,
+        );
+      } else {
+        await widget.rememberedLogin.clear();
+      }
+    } on Object {
+      // A credential-vault failure must not turn a valid login into a failure.
+    }
+  }
 
   Future<void> _submit() async {
     if (_submitting) return;
@@ -107,11 +163,14 @@ class _LoginScreenState extends State<_LoginScreen> {
       _error = null;
     });
     try {
+      final identifier = _identifier.text.trim();
+      final password = _password.text;
       final data = await widget.api.login(
-        identifier: _identifier.text,
-        password: _password.text,
+        identifier: identifier,
+        password: password,
         deviceName: 'Ứng dụng Bliss Home',
       );
+      await _persistRememberedLogin(identifier: identifier, password: password);
       await widget.onSignedIn(AppUserProfile.fromMap(data['user']! as Map));
     } on Object catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -311,6 +370,20 @@ class _LoginScreenState extends State<_LoginScreen> {
                               onSubmitted: (_) {
                                 if (!_submitting) _submit();
                               },
+                            ),
+                            CheckboxListTile(
+                              value: _rememberLogin,
+                              onChanged: _submitting
+                                  ? null
+                                  : (value) => setState(
+                                      () => _rememberLogin = value ?? true,
+                                    ),
+                              title: const Text('Ghi nhớ mật khẩu'),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              visualDensity: VisualDensity.compact,
+                              activeColor: BlissAppTheme.brand,
                             ),
                             if (_error != null) ...[
                               const SizedBox(height: 14),

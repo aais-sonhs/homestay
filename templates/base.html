@@ -83,7 +83,7 @@
             {% if not request.user.is_superuser %}
             {% if request.user.role == 'branch_owner' or request.user.role == 'manager' %}
             <span class="nav-section-label">Đội ngũ</span>
-            <a class="nav-link" href="{% url 'organizations:branch-staff-list' %}"{% if request.resolver_match.url_name == 'branch-staff-list' or request.resolver_match.url_name == 'branch-staff-create' %} aria-current="page"{% endif %} title="Nhân sự chi nhánh">
+            <a class="nav-link" href="{% url 'organizations:branch-staff-list' %}"{% if request.resolver_match.url_name == 'branch-staff-list' or request.resolver_match.url_name == 'branch-staff-create' or request.resolver_match.url_name == 'branch-staff-update' %} aria-current="page"{% endif %} title="Nhân sự chi nhánh">
                 <svg class="nav-icon icon-teal" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2.5 21a6.5 6.5 0 0 1 13 0M16 8h6M19 5v6"/></svg>
                 <span>Nhân sự chi nhánh</span>
             </a>
@@ -148,7 +148,7 @@
             </div>
             <div class="topbar-title">
                 {% if request.resolver_match.namespace == 'analytics' %}TỔNG QUAN HOMESTAY
-                {% elif request.resolver_match.url_name == 'branch-staff-list' or request.resolver_match.url_name == 'branch-staff-create' %}NHÂN SỰ CHI NHÁNH
+                {% elif request.resolver_match.url_name == 'branch-staff-list' or request.resolver_match.url_name == 'branch-staff-create' or request.resolver_match.url_name == 'branch-staff-update' %}NHÂN SỰ CHI NHÁNH
                 {% elif request.resolver_match.url_name == 'branch-owner-list' or request.resolver_match.url_name == 'branch-owner-create' or request.resolver_match.url_name == 'branch-owner-update' %}TÀI KHOẢN CHỦ CHI NHÁNH
                 {% elif request.resolver_match.namespace == 'organizations' %}QUẢN LÝ CHI NHÁNH
                 {% elif request.resolver_match.url_name == 'revenue-daily' or request.resolver_match.url_name == 'revenue-monthly' %}BÁO CÁO DOANH THU

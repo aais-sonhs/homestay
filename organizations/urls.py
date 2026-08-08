@@ -26,4 +26,9 @@ urlpatterns = [
     path("branch-owners/<int:owner_id>/edit/", views.branch_owner_update, name="branch-owner-update"),
     path("staff/", views.branch_staff_list, name="branch-staff-list"),
     path("staff/create/", views.branch_staff_create, name="branch-staff-create"),
+    path(
+        "staff/<int:membership_id>/edit/",
+        views.branch_staff_update,
+        name="branch-staff-update",
+    ),
 ]

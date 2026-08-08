@@ -29,6 +29,56 @@ final class FlutterSecretStore implements SecretStore {
   Future<void> delete(String key) => _storage.delete(key: key);
 }
 
+final class RememberedLogin {
+  const RememberedLogin({
+    required this.enabled,
+    this.identifier,
+    this.password,
+  });
+
+  final bool enabled;
+  final String? identifier;
+  final String? password;
+}
+
+final class RememberedLoginStore {
+  RememberedLoginStore(this._secrets);
+
+  static const _enabledKey = 'housekeeping.remember_login';
+  static const _identifierKey = 'housekeeping.remembered_identifier';
+  static const _passwordKey = 'housekeeping.remembered_password';
+  final SecretStore _secrets;
+
+  Future<RememberedLogin> load() async {
+    final values = await Future.wait([
+      _secrets.read(_enabledKey),
+      _secrets.read(_identifierKey),
+      _secrets.read(_passwordKey),
+    ]);
+    final enabled = values[0] == null || values[0] == 'true';
+    return RememberedLogin(
+      enabled: enabled,
+      identifier: enabled ? values[1] : null,
+      password: enabled ? values[2] : null,
+    );
+  }
+
+  Future<void> save({
+    required String identifier,
+    required String password,
+  }) async {
+    await _secrets.write(_enabledKey, 'true');
+    await _secrets.write(_identifierKey, identifier);
+    await _secrets.write(_passwordKey, password);
+  }
+
+  Future<void> clear() async {
+    await _secrets.write(_enabledKey, 'false');
+    await _secrets.delete(_identifierKey);
+    await _secrets.delete(_passwordKey);
+  }
+}
+
 final class SecureTokenStore {
   SecureTokenStore(this._secrets);
 

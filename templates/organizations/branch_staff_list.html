@@ -16,7 +16,7 @@
 <section class="card entity-list-card">
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Nhân sự</th><th>Liên hệ</th><th>Vai trò</th><th>Chi nhánh</th><th>Trạng thái</th></tr></thead>
+            <thead><tr><th>Nhân sự</th><th>Liên hệ</th><th>Vai trò</th><th>Chi nhánh</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody>
             {% for membership in memberships %}
             <tr>
@@ -25,8 +25,9 @@
                 <td><span class="pill">{{ membership.staff_role_label }}</span></td>
                 <td><strong>{{ membership.branch.code }}</strong><br><span class="muted">{{ membership.branch.name }}</span></td>
                 <td>{% if membership.is_active and membership.user.is_active %}<span class="pill room-ready-pill">Đang hoạt động</span>{% else %}<span class="pill danger">Tạm khóa</span>{% endif %}</td>
+                <td>{% if membership.can_edit_staff %}<a class="button secondary permission-button" href="{% url 'organizations:branch-staff-update' membership.id %}" aria-label="Chỉnh sửa nhân sự {{ membership.user.display_name }}">Chỉnh sửa</a>{% else %}<span class="muted">Không có quyền sửa</span>{% endif %}</td>
             </tr>
-            {% empty %}<tr><td colspan="5" class="empty">Chưa có nhân sự phù hợp. Chọn “Thêm nhân sự” để tạo tài khoản đầu tiên.</td></tr>{% endfor %}
+            {% empty %}<tr><td colspan="6" class="empty">Chưa có nhân sự phù hợp. Chọn “Thêm nhân sự” để tạo tài khoản đầu tiên.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>

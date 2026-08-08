@@ -19,7 +19,9 @@ lưu nghiệp vụ trong `localStorage`.
 
 ## Bảo mật và kết nối API
 
-- Access/refresh token chỉ nằm trong `flutter_secure_storage`; app không lưu password.
+- Access/refresh token chỉ nằm trong `flutter_secure_storage`. Khi người dùng chủ
+  động chọn “Ghi nhớ mật khẩu”, định danh và mật khẩu cũng được lưu trong kho bảo
+  mật của Android/iOS để tự điền ở lần mở app sau; bỏ chọn sẽ xóa hai giá trị này.
 - App không dùng SQLite/SQLCipher và không lưu task, checklist hay ảnh trong database cục bộ.
 - Login, dashboard, phòng, thông báo, task list/detail và mọi mutation/media đều gọi
   trực tiếp `https://homestay.aaistech.com` qua HTTPS.

@@ -38,6 +38,15 @@ from .services import (
 class BlissHomeLoginView(LoginView):
     template_name = "registration/login.html"
     redirect_authenticated_user = True
+    remember_login_seconds = 60 * 60 * 24 * 14
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        remember_login = self.request.POST.get("remember_login") == "on"
+        self.request.session.set_expiry(
+            self.remember_login_seconds if remember_login else 0
+        )
+        return response
 
     def get_success_url(self):
         requested_url = self.get_redirect_url()

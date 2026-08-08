@@ -42,5 +42,10 @@ button:hover,.button:hover { border-color:var(--accent-hover); background:var(--
 .login-heading h1 { margin:0 0 7px; font-size:25px; letter-spacing:-.035em; }
 .login-submit { gap:8px; }
 .login-submit svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.login-options { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:14px; }
+.login-options > a { flex:0 0 auto; color:var(--accent); font-size:13px; font-weight:650; text-decoration:none; }
+.login-options > a:hover { color:var(--accent-hover); text-decoration:underline; }
+.remember-login { display:inline-flex; align-items:center; gap:8px; min-width:0; margin:0; color:#374151; font-size:13px; font-weight:600; cursor:pointer; }
+.remember-login input { flex:0 0 17px; width:17px; min-height:17px; margin:0; padding:0; border-radius:5px; accent-color:var(--accent); cursor:pointer; }
 @media (max-width:520px) { body { padding:14px; } .auth-card { padding:28px 22px 23px; border-radius:19px; } .auth-brand { margin-bottom:24px; } }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition-duration:.01ms!important; } }
