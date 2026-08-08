@@ -13,8 +13,8 @@ from housekeeping.services import request_context
 from organizations.selectors import branch_queryset_for_user
 from reservations.selectors import can_create_any_booking
 
-from .forms import RoomOperationsActionForm, RoomStopSellCreateForm
-from .models import RoomBlocker, RoomStopSell
+from .forms import RoomAssetForm, RoomOperationsActionForm, RoomStopSellCreateForm
+from .models import RoomAsset, RoomBlocker, RoomStopSell
 from .selectors import (
     OPEN_STOP_SELL_STATUSES,
     blocker_queryset_for_user,
@@ -23,6 +23,7 @@ from .selectors import (
     build_room_profile,
     can_manage_any_room_sales_status,
     can_manage_room_sales_status,
+    room_sales_management_branch_queryset,
     stop_sell_queryset_for_user,
 )
 from .services import (
@@ -132,6 +133,98 @@ def room_profile(request, room_id):
     if profile is None:
         raise Http404("Không tìm thấy phòng trong phạm vi được cấp.")
     return render(request, "room_operations/room_profile.html", profile)
+
+
+@login_required
+def asset_list(request):
+    branches = room_sales_management_branch_queryset(request.user)
+    if not branches.exists():
+        raise PermissionDenied("Bạn không có quyền xem danh mục tài sản.")
+    queryset = RoomAsset.objects.filter(branch__in=branches).select_related("branch", "room")
+    branch_id = str(request.GET.get("branchId") or "").strip()
+    if branch_id:
+        try:
+            branch_allowed = branches.filter(pk=branch_id).exists()
+        except (ValidationError, ValueError):
+            branch_allowed = False
+        queryset = queryset.filter(branch_id=branch_id) if branch_allowed else queryset.none()
+    query = str(request.GET.get("q") or "").strip()
+    if query:
+        queryset = queryset.filter(
+            Q(code__icontains=query)
+            | Q(name__icontains=query)
+            | Q(serial_number__icontains=query)
+            | Q(room__code__icontains=query)
+        )
+    status = str(request.GET.get("status") or "").strip()
+    if status in RoomAsset.Status.values:
+        queryset = queryset.filter(status=status)
+    maintenance_due = request.GET.get("maintenanceDue") == "true"
+    if maintenance_due:
+        queryset = queryset.filter(
+            is_active=True,
+            next_maintenance_at__isnull=False,
+            next_maintenance_at__lte=timezone.localdate(),
+        )
+    page_context = paginate_context(
+        request,
+        queryset.order_by("branch__name", "room__code", "code"),
+        context_object_name="assets",
+        per_page=24,
+    )
+    return render(
+        request,
+        "room_operations/asset_list.html",
+        {
+            **page_context,
+            "branches": branches,
+            "statuses": RoomAsset.Status.choices,
+            "filters": {
+                "q": query,
+                "branchId": branch_id,
+                "status": status,
+                "maintenanceDue": maintenance_due,
+            },
+            "today": timezone.localdate(),
+        },
+    )
+
+
+@login_required
+def asset_create(request):
+    if not can_manage_any_room_sales_status(request.user):
+        raise PermissionDenied("Bạn không có quyền tạo tài sản.")
+    form = RoomAssetForm(request.POST or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        asset = form.save()
+        messages.success(request, f"Đã thêm tài sản {asset.code}.")
+        return redirect("room_operations:asset-list")
+    return render(
+        request,
+        "room_operations/asset_form.html",
+        {"form": form, "form_title": "Thêm thiết bị / tài sản"},
+    )
+
+
+@login_required
+def asset_update(request, asset_id):
+    branches = room_sales_management_branch_queryset(request.user)
+    asset = get_object_or_404(
+        RoomAsset.objects.select_related("branch", "room").filter(branch__in=branches),
+        pk=asset_id,
+    )
+    if not can_manage_room_sales_status(request.user, asset.branch):
+        raise PermissionDenied("Bạn không có quyền cập nhật tài sản này.")
+    form = RoomAssetForm(request.POST or None, instance=asset, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        asset = form.save()
+        messages.success(request, f"Đã cập nhật tài sản {asset.code}.")
+        return redirect("room_operations:asset-list")
+    return render(
+        request,
+        "room_operations/asset_form.html",
+        {"form": form, "form_title": f"Cập nhật tài sản {asset.code}", "asset": asset},
+    )
 
 
 @login_required

@@ -3,10 +3,10 @@ from datetime import timedelta
 from django import forms
 from django.utils import timezone
 
-from common.forms import DateTimeLocalInput
+from common.forms import DateTimeLocalInput, StyledModelForm
 from organizations.models import Branch, Room
 
-from .models import RoomBlocker, RoomStopSell
+from .models import RoomAsset, RoomBlocker, RoomStopSell
 from .selectors import room_sales_management_branch_queryset
 
 
@@ -124,3 +124,65 @@ class RoomOperationsActionForm(forms.Form):
 
     def clean_note(self):
         return str(self.cleaned_data.get("note") or "").strip()
+
+
+class RoomAssetForm(StyledModelForm):
+    class Meta:
+        model = RoomAsset
+        fields = (
+            "branch",
+            "room",
+            "code",
+            "name",
+            "category",
+            "status",
+            "serial_number",
+            "purchase_date",
+            "last_maintenance_at",
+            "next_maintenance_at",
+            "note",
+            "is_active",
+        )
+        labels = {
+            "branch": "Chi nhánh",
+            "room": "Phòng / căn",
+            "code": "Mã tài sản",
+            "name": "Tên thiết bị / tài sản",
+            "category": "Nhóm tài sản",
+            "status": "Trạng thái",
+            "serial_number": "Số serial",
+            "purchase_date": "Ngày mua",
+            "last_maintenance_at": "Bảo trì gần nhất",
+            "next_maintenance_at": "Hạn bảo trì tiếp theo",
+            "note": "Ghi chú",
+            "is_active": "Đang theo dõi",
+        }
+        widgets = {
+            "purchase_date": forms.DateInput(attrs={"type": "date"}),
+            "last_maintenance_at": forms.DateInput(attrs={"type": "date"}),
+            "next_maintenance_at": forms.DateInput(attrs={"type": "date"}),
+            "note": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, user, **kwargs):
+        super().__init__(*args, **kwargs)
+        branches = room_sales_management_branch_queryset(user)
+        self.fields["branch"].queryset = branches
+        self.fields["branch"].empty_label = "Chọn chi nhánh"
+        self.fields["room"].queryset = (
+            Room.objects.filter(branch__in=branches)
+            .select_related("branch")
+            .order_by("branch__name", "code")
+        )
+        self.fields["room"].empty_label = "Tài sản dùng chung chi nhánh"
+
+    def clean_code(self):
+        return str(self.cleaned_data.get("code") or "").strip().upper()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        branch = cleaned_data.get("branch")
+        room = cleaned_data.get("room")
+        if branch and room and room.branch_id != branch.id:
+            self.add_error("room", "Phòng không thuộc chi nhánh đã chọn.")
+        return cleaned_data

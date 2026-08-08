@@ -436,6 +436,15 @@ class CapitalEntry(models.Model):
 
 
 class OperatingExpense(models.Model):
+    class CategoryCode(models.TextChoices):
+        HOUSEKEEPING = "HOUSEKEEPING", "Housekeeping / vệ sinh"
+        TECHNICAL_MAINTENANCE = "TECHNICAL_MAINTENANCE", "Kỹ thuật / bảo trì"
+        UTILITIES = "UTILITIES", "Điện, nước và tiện ích"
+        SUPPLIES = "SUPPLIES", "Vật tư tiêu hao"
+        PAYROLL = "PAYROLL", "Nhân sự / tiền công"
+        CHANNEL_FEES = "CHANNEL_FEES", "Phí kênh bán"
+        OTHER = "OTHER", "Chi phí khác"
+
     class PaymentStatus(models.TextChoices):
         PLANNED = "PLANNED", "Dự kiến"
         PAID = "PAID", "Đã chi"
@@ -448,6 +457,12 @@ class OperatingExpense(models.Model):
     )
     name = models.CharField(max_length=180)
     category = models.CharField(max_length=100, blank=True)
+    category_code = models.CharField(
+        max_length=24,
+        choices=CategoryCode.choices,
+        default=CategoryCode.OTHER,
+        db_index=True,
+    )
     amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     expense_date = models.DateField(default=timezone.localdate, db_index=True)
     payment_status = models.CharField(

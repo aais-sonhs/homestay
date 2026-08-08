@@ -15,6 +15,7 @@ from housekeeping.models import (
 )
 from organizations.models import Room
 from room_operations.models import (
+    RoomAsset,
     RoomBlocker,
     RoomBlockerHistory,
     RoomStopSell,
@@ -54,6 +55,7 @@ class OperationsDemoSeedTests(TestCase):
             "photos": TaskPhoto.objects.filter(client_id__startswith="DEMO-PHOTO-").count(),
             "blockers": RoomBlocker.objects.filter(reason__contains="[DEMO:").count(),
             "stop_sells": RoomStopSell.objects.filter(reason__startswith="[DEMO:").count(),
+            "assets": RoomAsset.objects.filter(code__startswith="DEMO-").count(),
         }
 
     def test_seed_is_repeatable_and_covers_operational_scenarios(self):
@@ -70,6 +72,7 @@ class OperationsDemoSeedTests(TestCase):
         self.assertEqual(first_counts["issues"], 2)
         self.assertEqual(first_counts["photos"], 4)
         self.assertEqual(first_counts["stop_sells"], 5)
+        self.assertEqual(first_counts["assets"], 5)
 
         today_booking = Booking.objects.get(code="DEMO-BK-CHECKIN-TODAY")
         self.assertEqual(today_booking.special_request_items.count(), 7)

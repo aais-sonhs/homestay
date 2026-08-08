@@ -18,6 +18,9 @@ urlpatterns = [
     path("operations/schedule/", views.operations_schedule, name="schedule"),
     path("operations/rooms/", views.room_readiness_board, name="room-readiness"),
     path("operations/rooms/<uuid:room_id>/", views.room_profile, name="room-profile"),
+    path("operations/assets/", views.asset_list, name="asset-list"),
+    path("operations/assets/create/", views.asset_create, name="asset-create"),
+    path("operations/assets/<uuid:asset_id>/edit/", views.asset_update, name="asset-update"),
     path("operations/stop-sell/", views.stop_sell_list, name="stop-sell-list"),
     path("operations/stop-sell/create/", views.stop_sell_create, name="stop-sell-create"),
     path(

@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "accounts",
+    "analytics.apps.AnalyticsConfig",
     "housekeeping",
     "organizations",
     "reservations.apps.ReservationsConfig",
@@ -127,7 +128,7 @@ STORAGES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-LOGIN_REDIRECT_URL = "housekeeping:task-list"
+LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 CSRF_FAILURE_VIEW = "housekeeping.api.errors.csrf_failure"
 

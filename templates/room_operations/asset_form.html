@@ -1,0 +1,6 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}{{ form_title }} | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>{{ form_title }}</h1><p class="muted">Theo dõi tình trạng và kế hoạch bảo trì của từng thiết bị.</p></div><a class="button secondary" href="{% url 'room_operations:asset-list' %}">Quay lại</a></div>
+<section class="card entity-form-card"><form method="post" class="entity-form" novalidate>{% csrf_token %}{% if form.errors %}<div class="form-error-summary" role="alert"><strong>Chưa thể lưu dữ liệu</strong><span>Vui lòng kiểm tra các trường được đánh dấu.</span></div>{% endif %}{{ form.non_field_errors }}{% for field in form.visible_fields %}<div class="field entity-form-row{% if field.errors %} has-error{% endif %}"><label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>{% endfor %}<div class="actions entity-form-actions"><button type="submit">Lưu tài sản</button><a class="button secondary" href="{% url 'room_operations:asset-list' %}">Hủy</a></div></form></section>
+{% endblock %}

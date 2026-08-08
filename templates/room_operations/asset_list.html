@@ -1,0 +1,29 @@
+{% extends "housekeeping/base.html" %}
+{% block title %}Kỹ thuật & tài sản | Bliss Home{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Kỹ thuật & tài sản</h1><p class="muted">Danh mục thiết bị, tình trạng vận hành và hạn bảo trì theo chi nhánh.</p></div>
+    <a class="button" href="{% url 'room_operations:asset-create' %}">＋ Thêm tài sản</a>
+</div>
+<form class="card toolbar operations-filter" method="get">
+    <label class="field grow"><span class="field-label">Tìm tài sản</span><input type="search" name="q" value="{{ filters.q }}" placeholder="Mã, tên, serial hoặc phòng"></label>
+    <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if filters.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+    <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="">Mọi trạng thái</option>{% for value,label in statuses %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label class="checkbox-field"><input type="checkbox" name="maintenanceDue" value="true"{% if filters.maintenanceDue %} checked{% endif %}> Đến hạn bảo trì</label>
+    <button type="submit">Áp dụng</button><a class="button secondary" href="{% url 'room_operations:asset-list' %}">Xóa lọc</a>
+</form>
+<section class="card entity-list-card">
+    <div class="table-wrap"><table class="operations-table"><thead><tr><th>Tài sản</th><th>Vị trí</th><th>Nhóm</th><th>Trạng thái</th><th>Bảo trì gần nhất</th><th>Hạn tiếp theo</th><th></th></tr></thead><tbody>
+    {% for asset in assets %}<tr>
+        <td><strong>{{ asset.code }}</strong><br>{{ asset.name }}{% if asset.serial_number %}<br><span class="muted">Serial: {{ asset.serial_number }}</span>{% endif %}</td>
+        <td>{{ asset.branch.name }}<br><span class="muted">{% if asset.room %}{{ asset.room.code }} · {{ asset.room.name }}{% else %}Dùng chung chi nhánh{% endif %}</span></td>
+        <td>{{ asset.get_category_display }}</td>
+        <td><span class="status-badge" data-status="{{ asset.status }}">{{ asset.get_status_display }}</span>{% if not asset.is_active %}<br><span class="pill">Ngừng theo dõi</span>{% endif %}</td>
+        <td>{{ asset.last_maintenance_at|date:"d/m/Y"|default:"—" }}</td>
+        <td>{% if asset.next_maintenance_at %}<strong{% if asset.next_maintenance_at <= today %} class="danger-text"{% endif %}>{{ asset.next_maintenance_at|date:"d/m/Y" }}</strong>{% else %}—{% endif %}</td>
+        <td><a class="button secondary" href="{% url 'room_operations:asset-update' asset.id %}">Cập nhật</a></td>
+    </tr>{% empty %}<tr><td colspan="7" class="empty">Chưa có thiết bị hoặc tài sản phù hợp.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

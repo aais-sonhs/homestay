@@ -10,8 +10,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
+
+from common.access import MANAGEMENT_ROLES
 
 from .errors import PasswordResetError
 from .forms import (
@@ -36,9 +39,19 @@ class BlissHomeLoginView(LoginView):
     template_name = "registration/login.html"
     redirect_authenticated_user = True
 
+    def get_success_url(self):
+        requested_url = self.get_redirect_url()
+        if requested_url:
+            return requested_url
+        if self.request.user.role in MANAGEMENT_ROLES:
+            return reverse("analytics:owner-dashboard")
+        return reverse("housekeeping:task-list")
+
 
 @login_required
 def dashboard(request):
+    if request.user.role in MANAGEMENT_ROLES:
+        return redirect("analytics:owner-dashboard")
     return redirect("housekeeping:task-list")
 
 

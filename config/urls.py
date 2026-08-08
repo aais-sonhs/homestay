@@ -13,6 +13,7 @@ def serve_media(request, path):
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
+    path("", include("analytics.urls")),
     path("admin/", admin.site.urls),
     path("", include("accounts.urls")),
     path("", include("housekeeping.urls")),

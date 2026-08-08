@@ -461,6 +461,7 @@ class OperatingExpenseForm(StyledModelForm):
         fields = (
             "branch",
             "name",
+            "category_code",
             "category",
             "amount",
             "expense_date",
@@ -470,14 +471,15 @@ class OperatingExpenseForm(StyledModelForm):
         labels = {
             "branch": "Chi nhánh",
             "name": "Khoản chi",
-            "category": "Nhóm chi phí",
+            "category_code": "Nhóm chi phí",
+            "category": "Mô tả nhóm (tùy chọn)",
             "expense_date": "Ngày phát sinh",
             "payment_status": "Trạng thái chi",
             "notes": "Ghi chú",
         }
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "Ví dụ: Tiền điện tháng này"}),
-            "category": forms.TextInput(attrs={"placeholder": "Ví dụ: Điện nước, vật tư, sửa chữa"}),
+            "category": forms.TextInput(attrs={"placeholder": "Chi tiết thêm nếu cần"}),
             "expense_date": forms.DateInput(attrs={"type": "date"}),
             "notes": forms.Textarea(attrs={"rows": 3}),
         }
@@ -486,3 +488,24 @@ class OperatingExpenseForm(StyledModelForm):
         super().__init__(*args, **kwargs)
         self.fields["branch"].queryset = revenue_branch_queryset(user)
         self.fields["branch"].empty_label = "Chọn chi nhánh"
+        # Accept legacy web/API posts that only supplied the free-text category.
+        self.fields["category_code"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("category_code"):
+            return cleaned_data
+        haystack = f"{cleaned_data.get('category', '')} {cleaned_data.get('name', '')}".lower()
+        mappings = (
+            (OperatingExpense.CategoryCode.HOUSEKEEPING, ("housekeeping", "buồng", "vệ sinh", "giặt", "dọn")),
+            (OperatingExpense.CategoryCode.TECHNICAL_MAINTENANCE, ("kỹ thuật", "bảo trì", "sửa", "maintenance")),
+            (OperatingExpense.CategoryCode.UTILITIES, ("điện", "nước", "internet", "tiện ích")),
+            (OperatingExpense.CategoryCode.SUPPLIES, ("vật tư", "tiêu hao", "amenity", "khăn")),
+            (OperatingExpense.CategoryCode.PAYROLL, ("nhân sự", "tiền công", "lương")),
+            (OperatingExpense.CategoryCode.CHANNEL_FEES, ("kênh bán", "ota", "hoa hồng")),
+        )
+        cleaned_data["category_code"] = next(
+            (code for code, terms in mappings if any(term in haystack for term in terms)),
+            OperatingExpense.CategoryCode.OTHER,
+        )
+        return cleaned_data

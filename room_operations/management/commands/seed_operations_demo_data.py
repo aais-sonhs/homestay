@@ -39,7 +39,7 @@ from reservations.special_requests import (
     special_request_summary,
     task_special_request_items,
 )
-from room_operations.models import RoomBlocker, RoomStopSell
+from room_operations.models import RoomAsset, RoomBlocker, RoomStopSell
 from room_operations.services import (
     cancel_scheduled_stop_sell,
     confirm_room_reopen,
@@ -369,6 +369,7 @@ class Command(BaseCommand):
         issues = self._seed_issue_and_blocker_cases(rooms, tasks, bookings, users, now)
         stop_sells = self._seed_stop_sell_cases(rooms, issues, users, now)
         self._seed_photos_and_notifications(tasks, issues, users)
+        self._seed_asset_cases(rooms, now)
         self._seed_cost_cases(branches, users, now)
 
         demo_bookings = Booking.objects.filter(code__startswith="DEMO-BK-")
@@ -404,22 +405,47 @@ class Command(BaseCommand):
                 },
             )
         expenses = (
-            (branches["DALAT"], "DEMO Tiền điện tháng này", "Điện nước", Decimal("3200000.00"), OperatingExpense.PaymentStatus.PAID),
-            (branches["DALAT"], "DEMO Mua khăn bổ sung", "Vật tư", Decimal("1500000.00"), OperatingExpense.PaymentStatus.PLANNED),
-            (branches["HCM"], "DEMO Sửa khóa phòng S203", "Sửa chữa", Decimal("2800000.00"), OperatingExpense.PaymentStatus.PAID),
+            (branches["DALAT"], "DEMO Tiền điện tháng này", OperatingExpense.CategoryCode.UTILITIES, "Điện nước", Decimal("3200000.00"), OperatingExpense.PaymentStatus.PAID),
+            (branches["DALAT"], "DEMO Mua khăn bổ sung", OperatingExpense.CategoryCode.HOUSEKEEPING, "Vật tư buồng phòng", Decimal("1500000.00"), OperatingExpense.PaymentStatus.PLANNED),
+            (branches["HCM"], "DEMO Sửa khóa phòng S203", OperatingExpense.CategoryCode.TECHNICAL_MAINTENANCE, "Sửa chữa", Decimal("2800000.00"), OperatingExpense.PaymentStatus.PAID),
         )
-        for branch, name, category, amount, payment_status in expenses:
+        for branch, name, category_code, category, amount, payment_status in expenses:
             OperatingExpense.objects.get_or_create(
                 branch=branch,
                 name=name,
                 expense_date=today,
                 defaults={
+                    "category_code": category_code,
                     "category": category,
                     "amount": amount,
                     "payment_status": payment_status,
                     "notes": "Dữ liệu mẫu do seed_operations_demo_data quản lý.",
                     "created_by": users["admin"],
                     "updated_by": users["manager"],
+                },
+            )
+
+    def _seed_asset_cases(self, rooms, now):
+        today = timezone.localdate(now)
+        specs = (
+            (rooms["A103"], "DEMO-AC-A103", "Điều hòa A103", RoomAsset.Category.AIR_CONDITIONER, RoomAsset.Status.OPERATIONAL, today + timedelta(days=45)),
+            (rooms["A104"], "DEMO-TV-A104", "Tivi A104", RoomAsset.Category.TELEVISION, RoomAsset.Status.OPERATIONAL, today + timedelta(days=90)),
+            (rooms["A202"], "DEMO-WH-A202", "Bình nóng lạnh A202", RoomAsset.Category.WATER_HEATER, RoomAsset.Status.MAINTENANCE, today - timedelta(days=2)),
+            (rooms["B303"], "DEMO-AC-B303", "Điều hòa B303", RoomAsset.Category.AIR_CONDITIONER, RoomAsset.Status.FAULT, today),
+            (rooms["S203"], "DEMO-LOCK-S203", "Khóa cửa thông minh S203", RoomAsset.Category.DOOR_LOCK, RoomAsset.Status.MAINTENANCE, today + timedelta(days=7)),
+        )
+        for room, code, name, category, status, next_maintenance_at in specs:
+            RoomAsset.objects.update_or_create(
+                branch=room.branch,
+                code=code,
+                defaults={
+                    "room": room,
+                    "name": name,
+                    "category": category,
+                    "status": status,
+                    "next_maintenance_at": next_maintenance_at,
+                    "note": "Dữ liệu mẫu do seed_operations_demo_data quản lý.",
+                    "is_active": True,
                 },
             )
 

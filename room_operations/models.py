@@ -245,3 +245,62 @@ class RoomStopSellHistory(models.Model):
                 name="unique_stop_sell_version_action",
             )
         ]
+
+
+class RoomAsset(models.Model):
+    """A maintainable device or asset installed at a branch or in a room."""
+
+    class Category(models.TextChoices):
+        AIR_CONDITIONER = "AIR_CONDITIONER", "Điều hòa"
+        WATER_HEATER = "WATER_HEATER", "Bình nóng lạnh"
+        REFRIGERATOR = "REFRIGERATOR", "Tủ lạnh"
+        TELEVISION = "TELEVISION", "Tivi"
+        DOOR_LOCK = "DOOR_LOCK", "Khóa cửa"
+        ELECTRICAL = "ELECTRICAL", "Thiết bị điện"
+        PLUMBING = "PLUMBING", "Cấp thoát nước"
+        FIRE_SAFETY = "FIRE_SAFETY", "Phòng cháy chữa cháy"
+        FURNITURE = "FURNITURE", "Nội thất"
+        OTHER = "OTHER", "Khác"
+
+    class Status(models.TextChoices):
+        OPERATIONAL = "OPERATIONAL", "Hoạt động bình thường"
+        FAULT = "FAULT", "Đang có sự cố"
+        MAINTENANCE = "MAINTENANCE", "Đang bảo trì"
+        OUT_OF_SERVICE = "OUT_OF_SERVICE", "Ngừng sử dụng"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="room_assets")
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="assets",
+    )
+    code = models.CharField(max_length=40)
+    name = models.CharField(max_length=180)
+    category = models.CharField(max_length=24, choices=Category.choices, default=Category.OTHER, db_index=True)
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.OPERATIONAL, db_index=True)
+    serial_number = models.CharField(max_length=100, blank=True)
+    purchase_date = models.DateField(null=True, blank=True)
+    last_maintenance_at = models.DateField(null=True, blank=True)
+    next_maintenance_at = models.DateField(null=True, blank=True, db_index=True)
+    note = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "room_operations_assets"
+        ordering = ["branch__name", "room__code", "code"]
+        constraints = [
+            models.UniqueConstraint(fields=("branch", "code"), name="unique_room_asset_branch_code"),
+        ]
+        indexes = [
+            models.Index(fields=("branch", "status", "is_active"), name="room_asset_scope_status_idx"),
+            models.Index(fields=("branch", "next_maintenance_at"), name="room_asset_maintenance_idx"),
+        ]
+
+    def __str__(self):
+        location = self.room.code if self.room_id else self.branch.code
+        return f"{location}/{self.code} - {self.name}"
