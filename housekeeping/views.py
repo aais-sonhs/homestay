@@ -5,11 +5,13 @@ leak into the template layer.
 """
 
 from datetime import timedelta
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -414,6 +416,29 @@ def operations_dashboard(request):
             per_page=20,
             page_parameter="performance_page",
         )
+        task_list_url = reverse("housekeeping:task-list")
+
+        def summary_url(**filters):
+            query = {
+                "date": params.get("date", ""),
+                "dashboardScope": "true",
+            }
+            if params.get("branchId"):
+                query["branchId"] = params["branchId"]
+            query.update(filters)
+            return f"{task_list_url}?{urlencode(query, doseq=True)}"
+
+        summary_links = {
+            "total": summary_url(includeAll="true"),
+            "in_progress": summary_url(operationalActive="true"),
+            "near_due": summary_url(nearDue="true"),
+            "overdue": summary_url(overdue="true"),
+            "checkin_risk": summary_url(checkinRisk="true"),
+            "completion_breached": summary_url(
+                includeAll="true",
+                completionBreached="true",
+            ),
+        }
     except HousekeepingError as error:
         messages.error(request, error.message)
         return redirect("housekeeping:task-list")
@@ -428,6 +453,7 @@ def operations_dashboard(request):
             "performance_rows": performance_pagination["items"],
             "performance_pagination": performance_pagination,
             "status_counts": status_counts,
+            "summary_links": summary_links,
             "qc_tasks": qc_pagination["items"],
             "qc_pagination": qc_pagination,
             "active_tasks": active_pagination["items"],

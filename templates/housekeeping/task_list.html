@@ -19,19 +19,24 @@
 <details class="card filter-panel" open>
     <summary>Bộ lọc công việc</summary>
     <form class="toolbar" method="get">
+        {% if request.GET.includeAll == 'true' %}<input type="hidden" name="includeAll" value="true">{% endif %}
+        {% if request.GET.dashboardScope == 'true' %}<input type="hidden" name="dashboardScope" value="true">{% endif %}
         <label class="field grow"><span class="field-label">Tìm kiếm</span><input name="q" value="{{ request.GET.q }}" placeholder="Mã công việc, phòng hoặc đặt phòng"></label>
         <label class="field"><span class="field-label">Ngày</span><input type="date" name="date" value="{{ selected_date }}"></label>
         <label class="field"><span class="field-label">Ca làm việc</span><select name="shiftId"><option value="">Tất cả ca được cấp</option>{% for shift in shifts %}<option value="{{ shift.id }}"{% if request.GET.shiftId == shift.id|stringformat:'s' %} selected{% endif %}>{{ shift.branch.name }} · {{ shift.name }}</option>{% endfor %}</select></label>
         <label class="field"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if request.GET.branchId == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
-        <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="">Trạng thái đang mở</option>{% for value,label in statuses %}<option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="field-label">Trạng thái</span><select name="status"><option value="">{% if request.GET.includeAll == 'true' %}Mọi trạng thái{% else %}Trạng thái đang mở{% endif %}</option>{% for value,label in statuses %}<option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
         <label class="field"><span class="field-label">Loại công việc</span><select name="taskType"><option value="">Tất cả loại việc</option>{% for value,label in task_types %}<option value="{{ value }}"{% if request.GET.taskType == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
         <label class="field"><span class="field-label">Ưu tiên</span><select name="priority"><option value="">Mọi ưu tiên</option>{% for value,label in priorities %}<option value="{{ value }}"{% if request.GET.priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
         <label class="field"><span class="field-label">Khu vực</span><input name="area" value="{{ request.GET.area }}" placeholder="Ví dụ: Khu A"></label>
         <label class="field"><span class="field-label">Tầng</span><input name="floor" value="{{ request.GET.floor }}" placeholder="Ví dụ: Tầng 2"></label>
         <label class="field"><span class="field-label">Loại phòng</span><input name="roomType" value="{{ request.GET.roomType }}" placeholder="Ví dụ: Cao cấp"></label>
         <label class="field"><span class="field-label">Người thực hiện</span><select name="assignee"><option value="">Mọi người thực hiện</option><option value="me"{% if request.GET.assignee == 'me' %} selected{% endif %}>Tôi</option><option value="unassigned"{% if request.GET.assignee == 'unassigned' %} selected{% endif %}>Chưa giao</option></select></label>
+        <label class="checkbox-field"><input type="checkbox" name="operationalActive" value="true"{% if request.GET.operationalActive == 'true' %} checked{% endif %}> Đang xử lý</label>
+        <label class="checkbox-field"><input type="checkbox" name="nearDue" value="true"{% if request.GET.nearDue == 'true' %} checked{% endif %}> Sắp quá hạn</label>
         <label class="checkbox-field"><input type="checkbox" name="overdue" value="true"{% if request.GET.overdue == 'true' %} checked{% endif %}> Quá hạn</label>
         <label class="checkbox-field"><input type="checkbox" name="checkinRisk" value="true"{% if request.GET.checkinRisk == 'true' %} checked{% endif %}> Nguy cơ trễ giờ nhận phòng</label>
+        <label class="checkbox-field"><input type="checkbox" name="completionBreached" value="true"{% if request.GET.completionBreached == 'true' %} checked{% endif %}> Vi phạm hoàn thành</label>
         <label class="checkbox-field"><input type="checkbox" name="qcRework" value="true"{% if request.GET.qcRework == 'true' %} checked{% endif %}> Cần làm lại</label>
         <button type="submit">Áp dụng bộ lọc</button>
         <a class="button secondary" href="{% url 'housekeeping:task-list' %}">Xóa lọc</a>

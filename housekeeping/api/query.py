@@ -59,7 +59,7 @@ def filtered_task_queryset(user, params, *, apply_defaults=True):
             queryset = queryset.filter(scheduled_start_at__date__gte=date_from)
         if date_to:
             queryset = queryset.filter(scheduled_start_at__date__lte=date_to)
-    elif apply_defaults:
+    elif apply_defaults and not _is_true(params.get("dashboardScope")):
         queryset = queryset.filter(scheduled_start_at__date=timezone.localdate())
 
     shift_id = params.get("shiftId") or params.get("shift")
@@ -93,7 +93,7 @@ def filtered_task_queryset(user, params, *, apply_defaults=True):
         if invalid:
             raise HousekeepingError("SYSTEM_ERROR", "Trạng thái lọc không hợp lệ.", details={"values": invalid})
         queryset = queryset.filter(status__in=statuses)
-    elif apply_defaults and tab != "done":
+    elif apply_defaults and tab != "done" and not _is_true(params.get("includeAll")):
         queryset = queryset.exclude(
             status__in={HousekeepingTask.Status.QC_APPROVED, HousekeepingTask.Status.CANCELLED}
         )
@@ -114,9 +114,46 @@ def filtered_task_queryset(user, params, *, apply_defaults=True):
         queryset = _filter_identifier(queryset, assignee, id_field="assignee_id", code_field="assignee__username")
 
     if _is_true(params.get("overdue")):
-        queryset = queryset.filter(due_at__lt=timezone.now()).exclude(
+        now = timezone.now()
+        queryset = queryset.exclude(
             status__in={HousekeepingTask.Status.QC_APPROVED, HousekeepingTask.Status.CANCELLED}
+        ).filter(
+            Q(
+                sla_state__completion_due_at__isnull=False,
+                sla_state__completion_due_at__lt=now,
+            )
+            | Q(
+                sla_state__completion_due_at__isnull=True,
+                due_at__lt=now,
+            )
         )
+    if _is_true(params.get("operationalActive")):
+        queryset = queryset.filter(
+            status__in={
+                HousekeepingTask.Status.IN_PROGRESS,
+                HousekeepingTask.Status.PAUSED,
+                HousekeepingTask.Status.WAITING_SUPPORT,
+            }
+        )
+    if _is_true(params.get("nearDue")):
+        now = timezone.now()
+        near_due_at = now + timedelta(minutes=15)
+        queryset = queryset.exclude(
+            status__in={HousekeepingTask.Status.QC_APPROVED, HousekeepingTask.Status.CANCELLED}
+        ).filter(
+            Q(
+                sla_state__completion_due_at__isnull=False,
+                sla_state__completion_due_at__gte=now,
+                sla_state__completion_due_at__lte=near_due_at,
+            )
+            | Q(
+                sla_state__completion_due_at__isnull=True,
+                due_at__gte=now,
+                due_at__lte=near_due_at,
+            )
+        )
+    if _is_true(params.get("completionBreached")):
+        queryset = queryset.filter(sla_state__completion_breached_at__isnull=False)
 
     area = params.get("area") or params.get("areaId")
     if area:
@@ -135,8 +172,17 @@ def filtered_task_queryset(user, params, *, apply_defaults=True):
         queryset = queryset.filter(status=HousekeepingTask.Status.QC_REJECTED)
     if _is_true(params.get("checkinRisk")):
         now = timezone.now()
-        queryset = queryset.filter(next_checkin_at__isnull=False).filter(
-            Q(next_checkin_at__lte=now + timedelta(hours=1)) | Q(due_at__gte=F("next_checkin_at"))
+        queryset = queryset.filter(
+            Q(sla_state__checkin_risk_at__isnull=False)
+            | (
+                Q(next_checkin_at__isnull=False)
+                & (
+                    Q(next_checkin_at__lte=now + timedelta(minutes=15))
+                    | Q(
+                        due_at__gte=F("next_checkin_at") - timedelta(minutes=15)
+                    )
+                )
+            )
         )
 
     if tab == "mine":

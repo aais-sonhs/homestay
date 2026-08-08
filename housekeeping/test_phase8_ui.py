@@ -253,7 +253,22 @@ class Phase8BackofficeUITests(TestCase):
         self.assertContains(response, "P8-TASK-QC")
         self.assertContains(response, "Hiệu suất theo nhân viên")
         self.assertContains(response, 'class="stat-icon"', count=6, html=False)
-        self.assertContains(response, 'class="stat danger"', html=False)
+        self.assertContains(response, 'class="stat stat-link', count=6, html=False)
+        self.assertContains(response, 'class="stat stat-link danger"', html=False)
+        summary = response.context["sla"]["summary"]
+        expected_counts = {
+            "total": summary["totalTasks"],
+            "in_progress": summary["inProgress"],
+            "near_due": summary["nearDue"],
+            "overdue": summary["overdue"],
+            "checkin_risk": summary["checkinRisk"],
+            "completion_breached": summary["completionBreached"],
+        }
+        client = self.authenticated(self.manager)
+        for key, expected_count in expected_counts.items():
+            task_list = client.get(response.context["summary_links"][key])
+            self.assertEqual(task_list.status_code, 200)
+            self.assertEqual(task_list.context["paginator"].count, expected_count)
         for key, parameter in (
             ("risk_pagination", "risk_page"),
             ("performance_pagination", "performance_page"),
