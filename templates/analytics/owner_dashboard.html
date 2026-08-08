@@ -1,127 +1,121 @@
 {% extends "housekeeping/base.html" %}
-{% load housekeeping_display %}
+{% load housekeeping_display l10n %}
 {% block title %}Tổng quan homestay | Bliss Home{% endblock %}
 {% block content %}
-<div class="owner-dashboard" data-auto-refresh-seconds="30">
-    <div class="owner-dashboard-heading">
-        <div>
-            <span class="owner-eyebrow">TRUNG TÂM ĐIỀU HÀNH</span>
-            <h1>Tổng quan {{ selected_date|date:"d/m/Y" }}</h1>
-            <p>Theo dõi trải nghiệm khách, trạng thái phòng và các việc cần hành động trên một màn hình.</p>
-        </div>
-        <div class="owner-refresh-note"><span></span>Cập nhật {{ dashboard.updatedAt|date:"H:i" }} · tự làm mới 30 giây</div>
-    </div>
-
-    <form class="card owner-filter" method="get">
+<div class="owner-dashboard executive-dashboard" data-auto-refresh-seconds="30">
+    <form class="card owner-filter executive-filter" method="get">
         <label class="field"><span class="field-label">Ngày vận hành</span><input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}"></label>
-        <label class="field grow"><span class="field-label">Chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh được cấp</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if selected_branch_id == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
-        <button type="submit">Cập nhật tổng quan</button>
+        <label class="field"><span class="field-label">Cơ sở</span><select aria-label="Cơ sở"><option>Tất cả cơ sở</option></select></label>
+        <label class="field grow"><span class="field-label">Cơ sở / chi nhánh</span><select name="branchId"><option value="">Tất cả chi nhánh được cấp</option>{% for branch in branches %}<option value="{{ branch.id }}"{% if selected_branch_id == branch.id|stringformat:'s' %} selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+        <button type="submit" title="Cập nhật lúc {{ dashboard.updatedAt|date:'H:i' }} · trang tự làm mới sau 30 giây">↻&nbsp; Cập nhật tổng quan</button>
     </form>
 
-    <div class="owner-hero-grid">
-        <section class="card arrival-card">
-            <div class="owner-section-heading">
-                <div><span class="section-kicker">ƯU TIÊN TRẢI NGHIỆM KHÁCH</span><h2>Check-in / Check-out hôm nay</h2></div>
-                <a href="{{ dashboard.arrivalDeparture.scheduleUrl }}">Mở lịch vận hành →</a>
-            </div>
-            <div class="arrival-totals">
-                <a class="arrival-total checkin" href="{{ dashboard.arrivalDeparture.scheduleUrl }}">
-                    <span class="arrival-icon" aria-hidden="true">↘</span>
-                    <span><small>CHECK-IN</small><strong>{{ dashboard.arrivalDeparture.checkinTotal }} lượt</strong></span>
-                    <span class="arrival-progress"><b>{{ dashboard.arrivalDeparture.checkinDone }} đã đến</b><i>{{ dashboard.arrivalDeparture.checkinPending }} chưa đến</i></span>
-                </a>
-                <a class="arrival-total checkout" href="{{ dashboard.arrivalDeparture.scheduleUrl }}">
-                    <span class="arrival-icon" aria-hidden="true">↗</span>
-                    <span><small>CHECK-OUT</small><strong>{{ dashboard.arrivalDeparture.checkoutTotal }} lượt</strong></span>
-                    <span class="arrival-progress"><b>{{ dashboard.arrivalDeparture.checkoutDone }} đã trả</b><i>{{ dashboard.arrivalDeparture.checkoutPending }} chưa trả</i></span>
-                </a>
-            </div>
-            <div class="guest-risk-grid">
-                <div class="guest-risk-panel">
-                    <div class="guest-risk-title"><span class="risk-dot high"></span><strong>Khách sắp đến nhưng phòng chưa sẵn sàng</strong><b>{{ dashboard.arrivalDeparture.checkinRisks|length }}</b></div>
-                    <div class="guest-risk-list">
-                        {% for row in dashboard.arrivalDeparture.checkinRisks|slice:":4" %}<a href="{{ row.url }}"><span class="risk-time">{{ row.booking.checkin_at|date:"H:i" }}</span><span><strong>{{ row.room.code }}</strong>{% if row.booking.guest_name %} · {{ row.booking.guest_name }}{% endif %}<small>{{ row.reasonLabel }}</small></span><i>›</i></a>{% empty %}<div class="owner-empty success">✓ Tất cả phòng đón khách đều sẵn sàng.</div>{% endfor %}
-                    </div>
+    <section class="executive-kpi-grid" aria-label="Chỉ số tổng quan">
+        <a class="dashboard-kpi kpi-green" href="{{ dashboard.financial.revenueUrl }}">
+            {% include "shared/metric_icon.html" %}
+            <span><small>DOANH THU HÔM NAY</small><strong>{{ dashboard.financial.todayRevenue|money_vi }}đ</strong><em>{% if dashboard.financial.revenueChange.available %}{% if dashboard.financial.revenueChange.direction == 'up' %}↑{% elif dashboard.financial.revenueChange.direction == 'down' %}↓{% else %}→{% endif %} {{ dashboard.financial.revenueChange.value|floatformat:1 }}% <b>{{ dashboard.financial.comparisonLabel }}</b>{% else %}Theo ngày khách trả phòng{% endif %}</em></span>
+        </a>
+        <a class="dashboard-kpi kpi-violet" href="{{ dashboard.room.links.occupied }}">
+            {% include "shared/metric_icon.html" with icon="occupied" %}
+            <span><small>CÔNG SUẤT PHÒNG</small><strong>{{ dashboard.room.occupancyPercent|floatformat:1 }}%</strong><em>Tính trên {{ dashboard.room.sellable }} phòng có thể bán</em></span>
+        </a>
+        <a class="dashboard-kpi kpi-blue" href="{{ dashboard.room.links.ready }}">
+            {% include "shared/metric_icon.html" with icon="room" %}
+            <span><small>PHÒNG SẴN SÀNG</small><strong>{{ dashboard.room.ready }} / {{ dashboard.room.total }}</strong><em>{{ dashboard.room.readyPercent|floatformat:1 }}% sẵn sàng đón khách</em></span>
+        </a>
+        <a class="dashboard-kpi kpi-orange" href="{{ dashboard.financial.expenseUrl }}">
+            {% include "shared/metric_icon.html" with icon="tasks" %}
+            <span><small>CHI PHÍ HÔM NAY</small><strong>{{ dashboard.financial.todayExpense|money_vi }}đ</strong><em>Đã thanh toán trong ngày</em></span>
+        </a>
+        <a class="dashboard-kpi kpi-red" href="#dashboard-alerts">
+            {% include "shared/metric_icon.html" with icon="risk" %}
+            <span><small>CẦN HÀNH ĐỘNG</small><strong>{{ dashboard.alerts|length }}</strong><em>Cảnh báo đang cần kiểm tra</em></span>
+        </a>
+    </section>
+
+    <div class="executive-analytics-grid">
+        <section class="card executive-panel revenue-chart-card">
+            <div class="executive-card-heading compact"><div><span class="section-kicker">TỔNG QUAN DOANH THU</span><h2>{{ dashboard.financial.monthRevenue|money_vi }}đ</h2><small>Tháng {{ dashboard.financial.monthLabel }}</small></div><a href="{{ dashboard.financial.revenueUrl }}">Xem báo cáo →</a></div>
+            <div class="chart-comparison {% if dashboard.financial.revenueChange.direction == 'down' %}down{% endif %}">{% if dashboard.financial.revenueChange.available %}{% if dashboard.financial.revenueChange.direction == 'up' %}↑{% elif dashboard.financial.revenueChange.direction == 'down' %}↓{% else %}→{% endif %} {{ dashboard.financial.revenueChange.value|floatformat:1 }}% <span>{{ dashboard.financial.comparisonLabel }}</span>{% else %}<span>Chưa có dữ liệu tháng trước</span>{% endif %}</div>
+            <div class="revenue-chart-wrap">
+                <div class="chart-axis"><span>{{ dashboard.financial.chart.maxValue|money_vi }}</span><span>{{ dashboard.financial.chart.middleValue|money_vi }}</span><span>0</span></div>
+                <div class="chart-plot">
+                    <svg viewBox="0 0 520 150" preserveAspectRatio="none" role="img" aria-label="Đường doanh thu lũy kế tháng này và tháng trước">
+                        <path class="chart-grid-line" d="M8 8H512M8 75H512M8 142H512"/>
+                        <polyline class="revenue-line previous" points="{{ dashboard.financial.chart.previousPoints }}"/>
+                        <polyline class="revenue-line current" points="{{ dashboard.financial.chart.currentPoints }}"/>
+                    </svg>
+                    <div class="chart-labels"><span>{{ dashboard.financial.chart.labels.0 }}</span><span>{{ dashboard.financial.chart.labels.1 }}</span><span>{{ dashboard.financial.chart.labels.2 }}</span></div>
                 </div>
-                <div class="guest-risk-panel">
-                    <div class="guest-risk-title"><span class="risk-dot medium"></span><strong>Khách đã trả, housekeeping chưa hoàn tất</strong><b>{{ dashboard.arrivalDeparture.checkoutHousekeepingPending|length }}</b></div>
-                    <div class="guest-risk-list">
-                        {% for row in dashboard.arrivalDeparture.checkoutHousekeepingPending|slice:":4" %}<a href="{{ row.url }}"><span class="risk-time">{{ row.booking.checkout_at|date:"H:i" }}</span><span><strong>{{ row.room.code }}</strong>{% if row.booking.guest_name %} · {{ row.booking.guest_name }}{% endif %}<small>{{ row.reasonLabel }}</small></span><i>›</i></a>{% empty %}<div class="owner-empty success">✓ Không còn phòng trả chờ housekeeping.</div>{% endfor %}
-                    </div>
+            </div>
+            <div class="chart-legend"><span><i class="legend-current"></i>Tháng này</span><span><i class="legend-previous"></i>Tháng trước</span></div>
+        </section>
+
+        <section class="card executive-panel expense-panel">
+            <div class="executive-card-heading compact"><div><span class="section-kicker">CHI PHÍ VẬN HÀNH</span><h2>{{ dashboard.financial.totalExpense|money_vi }}đ</h2><small>Tháng {{ dashboard.financial.monthLabel }}</small></div><span class="expense-ratio"><strong>{{ dashboard.financial.expenseRatio|floatformat:1 }}%</strong>Tỷ lệ chi phí/doanh thu</span></div>
+            <div class="expense-content">
+                <a href="{{ dashboard.financial.expenseUrl }}" class="executive-donut expense-donut" style="--slice-one:{{ dashboard.financial.housekeepingPercent|unlocalize }}%;--slice-two:{{ dashboard.financial.technicalEndPercent|unlocalize }}%"><span><strong>{{ dashboard.financial.expenseRatio|floatformat:0 }}%</strong><small>doanh thu</small></span></a>
+                <div class="donut-legend">
+                    <a href="{{ dashboard.financial.expenseUrl }}"><i class="dot-indigo"></i><span>Housekeeping<small>{{ dashboard.financial.housekeepingExpense|money_vi }}đ</small></span><b>{{ dashboard.financial.housekeepingPercent|floatformat:1 }}%</b></a>
+                    <a href="{{ dashboard.financial.expenseUrl }}"><i class="dot-green"></i><span>Kỹ thuật & bảo trì<small>{{ dashboard.financial.technicalExpense|money_vi }}đ</small></span><b>{{ dashboard.financial.technicalPercent|floatformat:1 }}%</b></a>
+                    <a href="{{ dashboard.financial.expenseUrl }}"><i class="dot-orange"></i><span>Chi phí khác<small>{{ dashboard.financial.otherExpense|money_vi }}đ</small></span><b>{{ dashboard.financial.otherPercent|floatformat:1 }}%</b></a>
                 </div>
             </div>
         </section>
 
-        <section class="card action-alerts-card">
-            <div class="owner-section-heading compact"><div><span class="section-kicker">CẦN HÀNH ĐỘNG</span><h2>Cảnh báo</h2></div><span class="alert-total">{{ dashboard.alerts|length }}</span></div>
-            <div class="action-alert-list">
-                {% for alert in dashboard.alerts %}<a href="{{ alert.url }}" class="action-alert priority-{{ alert.level|lower }}">
-                    <span class="alert-priority">{% if alert.level == 'HIGH' %}CAO{% elif alert.level == 'MEDIUM' %}TRUNG BÌNH{% else %}THẤP{% endif %}</span>
-                    <strong>{{ alert.title }}</strong><small>{{ alert.description }}</small><i>›</i>
-                </a>{% empty %}<div class="owner-empty success roomy"><span>✓</span><strong>Không có cảnh báo cần xử lý</strong><small>Hoạt động đang diễn ra đúng kế hoạch.</small></div>{% endfor %}
-            </div>
+        <section id="dashboard-alerts" class="card executive-panel executive-alert-panel">
+            <div class="executive-card-heading compact"><div><span class="section-kicker red">CẢNH BÁO & CẦN HÀNH ĐỘNG</span><h2>{{ dashboard.alerts|length }} cảnh báo</h2></div><span class="alert-total">{{ dashboard.alerts|length }}</span></div>
+            <div class="executive-alert-list">{% for alert in dashboard.alerts|slice:":4" %}<a class="executive-alert priority-{{ alert.level|lower }}" href="{{ alert.url }}"><span class="executive-alert-icon">{% if alert.level == 'HIGH' %}!{% elif alert.level == 'MEDIUM' %}⌁{% else %}i{% endif %}</span><span><strong>{{ alert.title }}</strong><small>{{ alert.description }}</small></span><b>{% if alert.level == 'HIGH' %}Cao{% elif alert.level == 'MEDIUM' %}TB{% else %}Thấp{% endif %}</b></a>{% empty %}<div class="executive-empty success roomy">✓ Không có cảnh báo cần xử lý</div>{% endfor %}</div>
         </section>
     </div>
 
-    <section class="card owner-section room-overview-card">
-        <div class="owner-section-heading">
-            <div><span class="section-kicker">TÌNH HÌNH PHÒNG HÔM NAY</span><h2>Khả năng phục vụ và bán phòng</h2></div>
-            <a href="{{ dashboard.room.links.total }}">Xem trạng thái phòng →</a>
-        </div>
-        <div class="room-overview-layout">
-            <div class="occupancy-block">
-                <div class="occupancy-value"><strong>{{ dashboard.room.occupancyPercent|floatformat:1 }}%</strong><span>Công suất phòng</span></div>
-                <div class="occupancy-track"><span style="width:{{ dashboard.room.occupancyPercent }}%"></span></div>
-                <small>{{ dashboard.room.sellable }} phòng có thể bán trong ngày</small>
-            </div>
-            <div class="owner-metric-grid room-metric-grid">
-                <a href="{{ dashboard.room.links.total }}" class="owner-metric neutral"><span>Tổng phòng/căn</span><strong>{{ dashboard.room.total }}</strong><small>Trong phạm vi đang xem</small></a>
-                <a href="{{ dashboard.room.links.occupied }}" class="owner-metric info"><span>Đang có khách</span><strong>{{ dashboard.room.occupied }}</strong><small>Phòng đang lưu trú</small></a>
-                <a href="{{ dashboard.room.links.ready }}" class="owner-metric success"><span>Trống sạch sẵn sàng</span><strong>{{ dashboard.room.ready }}</strong><small>Có thể đón khách ngay</small></a>
-                <a href="{{ dashboard.room.links.waitingCleaning }}" class="owner-metric warning"><span>Đang chờ dọn</span><strong>{{ dashboard.room.waitingCleaning }}</strong><small>Gồm đang dọn, chờ QC/làm lại</small></a>
-                <a href="{{ dashboard.room.links.maintenance }}" class="owner-metric danger"><span>Bảo trì / dừng bán</span><strong>{{ dashboard.room.maintenance }}</strong><small>Không sẵn sàng để bán</small></a>
-            </div>
-        </div>
-    </section>
-
-    <section class="card owner-section task-overview-card">
-        <div class="owner-section-heading"><div><span class="section-kicker">CÔNG VIỆC VẬN HÀNH</span><h2>Tiến độ công việc hôm nay</h2></div><a href="{{ dashboard.tasks.links.total }}">Mở màn Công việc →</a></div>
-        <div class="owner-metric-grid task-metric-grid">
-            <a href="{{ dashboard.tasks.links.total }}" class="owner-metric neutral"><span>Tổng công việc</span><strong>{{ dashboard.tasks.total }}</strong><small>Được lên lịch hôm nay</small></a>
-            <a href="{{ dashboard.tasks.links.completed }}" class="owner-metric success"><span>Đã hoàn thành</span><strong>{{ dashboard.tasks.completed }}</strong><small>Đã đạt điều kiện hoàn tất</small></a>
-            <a href="{{ dashboard.tasks.links.inProgress }}" class="owner-metric info"><span>Đang thực hiện</span><strong>{{ dashboard.tasks.inProgress }}</strong><small>Đã nhận hoặc đang xử lý</small></a>
-            <a href="{{ dashboard.tasks.links.unaccepted }}" class="owner-metric warning"><span>Chưa nhận</span><strong>{{ dashboard.tasks.unaccepted }}</strong><small>Cần phân công hoặc tiếp nhận</small></a>
-            <a href="{{ dashboard.tasks.links.overdue }}" class="owner-metric danger"><span>Quá hạn</span><strong>{{ dashboard.tasks.overdue }}</strong><small>Đã vượt SLA hoàn thành</small></a>
-            <a href="{{ dashboard.tasks.links.rework }}" class="owner-metric violet"><span>Cần làm lại</span><strong>{{ dashboard.tasks.rework }}</strong><small>QC yêu cầu xử lý lại</small></a>
-        </div>
-    </section>
-
-    <div class="owner-bottom-grid">
-        <section class="card owner-section technical-card">
-            <div class="owner-section-heading"><div><span class="section-kicker">KỸ THUẬT & TÀI SẢN</span><h2>Sức khỏe thiết bị</h2></div><a href="{{ dashboard.technical.assetUrl }}">Danh mục tài sản →</a></div>
-            <div class="technical-summary">
-                <a href="{{ dashboard.technical.assetUrl }}" class="technical-main success"><span>Hoạt động bình thường</span><strong>{{ dashboard.technical.operational }}</strong><small>thiết bị</small></a>
-                <div class="technical-facts">
-                    <a href="{{ dashboard.technical.faultUrl }}"><span>Đang có sự cố</span><strong class="danger-text">{{ dashboard.technical.fault }}</strong></a>
-                    <a href="{{ dashboard.technical.maintenanceDueUrl }}"><span>Đến hạn bảo trì</span><strong>{{ dashboard.technical.maintenanceDue }}</strong></a>
-                    <a href="{{ dashboard.technical.issueUrl }}"><span>Sự cố trong tháng</span><strong>{{ dashboard.technical.monthlyIncidents }}</strong></a>
-                    <a href="{{ dashboard.financial.expenseUrl }}"><span>Chi phí sửa chữa/bảo trì</span><strong>{{ dashboard.technical.monthlyCost|money_vi }} đ</strong></a>
+    <div class="executive-operations-grid">
+        <section class="card executive-panel room-status-panel">
+            <div class="executive-card-heading compact"><span class="section-kicker">TÌNH TRẠNG PHÒNG</span><a href="{{ dashboard.room.links.total }}">Chi tiết →</a></div>
+            <div class="room-status-content">
+                <a href="{{ dashboard.room.links.total }}" class="executive-donut room-donut" style="--room-one:{{ dashboard.room.occupiedPercent|unlocalize }}%;--room-two:{{ dashboard.room.readyEndPercent|unlocalize }}%;--room-three:{{ dashboard.room.waitingEndPercent|unlocalize }}%"><span><small>TỔNG</small><strong>{{ dashboard.room.total }}</strong><small>phòng</small></span></a>
+                <div class="donut-legend room-legend">
+                    <a href="{{ dashboard.room.links.occupied }}"><i class="dot-green"></i><span>Đang ở</span><b>{{ dashboard.room.occupied }} <small>({{ dashboard.room.occupiedPercent|floatformat:0 }}%)</small></b></a>
+                    <a href="{{ dashboard.room.links.ready }}"><i class="dot-blue"></i><span>Sẵn sàng</span><b>{{ dashboard.room.ready }} <small>({{ dashboard.room.readyPercent|floatformat:0 }}%)</small></b></a>
+                    <a href="{{ dashboard.room.links.waitingCleaning }}"><i class="dot-orange"></i><span>Chờ dọn</span><b>{{ dashboard.room.waitingCleaning }} <small>({{ dashboard.room.waitingPercent|floatformat:0 }}%)</small></b></a>
+                    <a href="{{ dashboard.room.links.maintenance }}"><i class="dot-red"></i><span>Bảo trì/dừng bán</span><b>{{ dashboard.room.maintenance }} <small>({{ dashboard.room.maintenancePercent|floatformat:0 }}%)</small></b></a>
                 </div>
             </div>
+            <a class="panel-footer-link" href="{{ dashboard.room.links.total }}">Xem trạng thái tất cả phòng →</a>
         </section>
 
-        <section class="card owner-section finance-card">
-            <div class="owner-section-heading"><div><span class="section-kicker">DOANH THU & CHI PHÍ</span><h2>Hiệu quả vận hành</h2></div><a href="{{ dashboard.financial.revenueUrl }}">Xem báo cáo →</a></div>
-            <div class="finance-highlight-grid">
-                <a href="{{ dashboard.financial.revenueUrl }}" class="finance-highlight revenue"><span>Doanh thu hôm nay</span><strong>{{ dashboard.financial.todayRevenue|money_vi }} đ</strong><small>Ghi nhận theo ngày check-out</small></a>
-                <a href="{{ dashboard.financial.revenueUrl }}" class="finance-highlight revenue"><span>Doanh thu tháng {{ dashboard.financial.monthLabel }}</span><strong>{{ dashboard.financial.monthRevenue|money_vi }} đ</strong><small class="comparison {% if dashboard.financial.revenueChange.direction == 'down' %}down{% else %}up{% endif %}">{% if dashboard.financial.revenueChange.available %}{% if dashboard.financial.revenueChange.direction == 'up' %}↑{% elif dashboard.financial.revenueChange.direction == 'down' %}↓{% else %}→{% endif %} {{ dashboard.financial.revenueChange.value|floatformat:1 }}% {{ dashboard.financial.comparisonLabel }}{% else %}Chưa có dữ liệu so sánh tháng trước{% endif %}</small></a>
+        <section class="card executive-panel task-today-panel">
+            <div class="executive-card-heading compact"><span class="section-kicker">CÔNG VIỆC HÔM NAY</span><span class="executive-count-badge">{{ dashboard.tasks.total }}</span></div>
+            <div class="task-summary-list">
+                <a href="{{ dashboard.arrivalDeparture.scheduleUrl }}"><span class="task-summary-icon info">↘</span><span>Check-in</span><strong>{{ dashboard.arrivalDeparture.checkinTotal }}</strong></a>
+                <a href="{{ dashboard.arrivalDeparture.scheduleUrl }}"><span class="task-summary-icon warning">↗</span><span>Check-out</span><strong>{{ dashboard.arrivalDeparture.checkoutTotal }}</strong></a>
+                <a href="{{ dashboard.tasks.links.total }}"><span class="task-summary-icon success">✓</span><span>Dọn phòng / vận hành</span><strong>{{ dashboard.tasks.total }}</strong></a>
+                <a href="{{ dashboard.technical.issueUrl }}"><span class="task-summary-icon danger">⌁</span><span>Công việc kỹ thuật</span><strong>{{ dashboard.technical.monthlyIncidents }}</strong></a>
             </div>
-            <div class="finance-cost-grid">
-                <a href="{{ dashboard.financial.expenseUrl }}"><span>Housekeeping</span><strong>{{ dashboard.financial.housekeepingExpense|money_vi }} đ</strong></a>
-                <a href="{{ dashboard.financial.expenseUrl }}"><span>Kỹ thuật/bảo trì</span><strong>{{ dashboard.financial.technicalExpense|money_vi }} đ</strong></a>
-                <a href="{{ dashboard.financial.costUrl }}" class="total-cost"><span>Tổng chi phí vận hành đã chi</span><strong>{{ dashboard.financial.totalExpense|money_vi }} đ</strong><small class="comparison cost {% if dashboard.financial.expenseChange.direction == 'down' %}up{% elif dashboard.financial.expenseChange.direction == 'up' %}down{% endif %}">{% if dashboard.financial.expenseChange.available %}{% if dashboard.financial.expenseChange.direction == 'up' %}↑{% elif dashboard.financial.expenseChange.direction == 'down' %}↓{% else %}→{% endif %} {{ dashboard.financial.expenseChange.value|floatformat:1 }}% {{ dashboard.financial.comparisonLabel }}{% else %}Chưa có dữ liệu so sánh tháng trước{% endif %}</small></a>
+            <a class="panel-footer-link" href="{{ dashboard.tasks.links.total }}">Xem danh sách công việc →</a>
+        </section>
+
+        <section class="card executive-panel channel-panel">
+            <div class="executive-card-heading compact"><span class="section-kicker">DOANH THU THEO KÊNH</span><a href="{{ dashboard.financial.revenueUrl }}">Chi tiết →</a></div>
+            <div class="channel-content">
+                <a href="{{ dashboard.financial.revenueUrl }}" class="executive-donut channel-donut" style="--channel-one:{{ dashboard.financial.channelOneEnd|unlocalize }}%;--channel-two:{{ dashboard.financial.channelTwoEnd|unlocalize }}%;--channel-three:{{ dashboard.financial.channelThreeEnd|unlocalize }}%"><span><strong>{{ dashboard.financial.monthRevenue|money_vi }}</strong><small>doanh thu</small></span></a>
+                <div class="donut-legend channel-legend">{% for row in dashboard.financial.channelBreakdown %}<a href="{{ dashboard.financial.revenueUrl }}"><i class="channel-dot-{{ forloop.counter }}"></i><span>{{ row.label }}</span><b>{{ row.percent|floatformat:0 }}%</b></a>{% endfor %}</div>
             </div>
+            <a class="panel-footer-link" href="{{ dashboard.financial.revenueUrl }}">Xem doanh thu theo kênh →</a>
+        </section>
+
+        <section class="card executive-panel branch-performance-panel">
+            <div class="executive-card-heading compact"><span class="section-kicker">HIỆU SUẤT THEO CƠ SỞ</span><a href="{{ dashboard.financial.revenueUrl }}">Chi tiết →</a></div>
+            <div class="branch-performance-list">{% for row in dashboard.branchPerformance %}<a href="{{ row.url }}"><span class="branch-mark">{{ row.branch.code|slice:":2" }}</span><span><strong>{{ row.branch.name }}</strong><small>Doanh thu <b>{{ row.revenue|money_vi }}đ</b></small></span><em>Công suất <b>{{ row.occupancyPercent|floatformat:0 }}%</b></em></a>{% empty %}<div class="executive-empty">Chưa có dữ liệu cơ sở</div>{% endfor %}</div>
+            <div class="branch-tech-strip"><a href="{{ dashboard.technical.faultUrl }}"><i class="dot-red"></i>{{ dashboard.technical.fault }} thiết bị lỗi</a><a href="{{ dashboard.technical.maintenanceDueUrl }}"><i class="dot-orange"></i>{{ dashboard.technical.maintenanceDue }} đến hạn bảo trì</a></div>
+            <a class="panel-footer-link" href="{{ dashboard.technical.assetUrl }}">Xem kỹ thuật & hiệu suất cơ sở →</a>
         </section>
     </div>
+
+    <section class="executive-insight">
+        <span class="insight-icon">💡</span>
+        <div><small>GỢI Ý HÔM NAY</small>{% if dashboard.alerts %}<strong>{{ dashboard.alerts.0.title }}</strong><p>{{ dashboard.alerts.0.description }}. Xử lý sớm giúp bảo vệ trải nghiệm khách và hạn chế dừng bán.</p>{% else %}<strong>Hoạt động đang diễn ra đúng kế hoạch</strong><p>Chưa có cảnh báo cần xử lý. Tiếp tục theo dõi lịch check-in và các công việc sắp đến hạn.</p>{% endif %}</div>
+        {% if dashboard.alerts %}<a href="{{ dashboard.alerts.0.url }}">Xem chi tiết</a>{% else %}<a href="{{ dashboard.arrivalDeparture.scheduleUrl }}">Xem lịch vận hành</a>{% endif %}
+    </section>
 </div>
 {% endblock %}

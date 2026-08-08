@@ -5,7 +5,7 @@ from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, TruncDate
 from django.urls import reverse
 from django.utils import timezone
 
@@ -96,6 +96,76 @@ def _change(current, previous):
     }
 
 
+def _percentage(part, total):
+    if not total:
+        return 0
+    return round(float(Decimal(part) * Decimal("100") / Decimal(total)), 1)
+
+
+def _chart_points(values, max_value, *, width=520, height=150, padding=8):
+    plotted_values = list(values)
+    if len(plotted_values) == 1:
+        plotted_values.append(plotted_values[0])
+    if not plotted_values:
+        plotted_values = [MONEY_ZERO, MONEY_ZERO]
+    scale = float(max_value or Decimal("1"))
+    x_step = (width - padding * 2) / max(1, len(plotted_values) - 1)
+    return " ".join(
+        f"{padding + index * x_step:.1f},{height - padding - (float(value) / scale) * (height - padding * 2):.1f}"
+        for index, value in enumerate(plotted_values)
+    )
+
+
+def _revenue_chart(revenue, selected_date, current_start_at, current_end_at, previous_start, previous_end):
+    previous_start_at, _ = _day_bounds(previous_start)
+    _, previous_end_at = _day_bounds(previous_end)
+
+    def totals_by_day(queryset, starts_at, ends_at):
+        return {
+            row["chart_date"]: row["total"]
+            for row in queryset.filter(checkout_at__gte=starts_at, checkout_at__lt=ends_at)
+            .annotate(chart_date=TruncDate("checkout_at"))
+            .values("chart_date")
+            .annotate(
+                total=Coalesce(
+                    Sum(_booking_total_expression()),
+                    Value(MONEY_ZERO),
+                    output_field=MONEY_FIELD,
+                )
+            )
+            .order_by("chart_date")
+        }
+
+    current_daily = totals_by_day(revenue, current_start_at, current_end_at)
+    previous_daily = totals_by_day(revenue, previous_start_at, previous_end_at)
+    current_values = []
+    previous_values = []
+    current_running = MONEY_ZERO
+    previous_running = MONEY_ZERO
+    for offset in range(selected_date.day):
+        current_day = selected_date.replace(day=1) + timedelta(days=offset)
+        previous_day = previous_start + timedelta(days=offset)
+        current_running += current_daily.get(current_day, MONEY_ZERO)
+        if previous_day <= previous_end:
+            previous_running += previous_daily.get(previous_day, MONEY_ZERO)
+        current_values.append(current_running)
+        previous_values.append(previous_running)
+
+    chart_max = max([MONEY_ZERO, *current_values, *previous_values])
+    middle_day = max(1, (selected_date.day + 1) // 2)
+    return {
+        "currentPoints": _chart_points(current_values, chart_max),
+        "previousPoints": _chart_points(previous_values, chart_max),
+        "maxValue": chart_max,
+        "middleValue": chart_max / Decimal("2"),
+        "labels": (
+            f"01/{selected_date:%m}",
+            f"{middle_day:02d}/{selected_date:%m}",
+            f"{selected_date.day:02d}/{selected_date:%m}",
+        ),
+    }
+
+
 def _query_url(name, **params):
     values = {key: str(value) for key, value in params.items() if value not in (None, "")}
     base_url = reverse(name)
@@ -179,6 +249,7 @@ def _financial_summary(branches, selected_date, *, branch_id):
     previous_expenses = expenses.filter(expense_date__gte=previous_start, expense_date__lte=previous_end)
     total_expense = _money_sum(month_expenses)
     previous_total_expense = _money_sum(previous_expenses)
+    today_expense = _money_sum(expenses.filter(expense_date=selected_date))
     housekeeping_expense = _money_sum(
         month_expenses.filter(
             _expense_category_query(
@@ -195,13 +266,77 @@ def _financial_summary(branches, selected_date, *, branch_id):
             )
         )
     )
+    other_expense = max(
+        MONEY_ZERO,
+        total_expense - housekeeping_expense - technical_expense,
+    )
+    housekeeping_percent = _percentage(housekeeping_expense, total_expense)
+    technical_percent = _percentage(technical_expense, total_expense)
+    technical_end_percent = min(100, housekeeping_percent + technical_percent)
+    revenue_chart = _revenue_chart(
+        revenue,
+        selected_date,
+        current_month_start_at,
+        current_mtd_end_at,
+        previous_start,
+        previous_end,
+    )
+    channel_totals = {
+        row["source"]: row["total"]
+        for row in revenue.filter(
+            checkout_at__gte=current_month_start_at,
+            checkout_at__lt=current_mtd_end_at,
+        )
+        .values("source")
+        .annotate(
+            total=Coalesce(
+                Sum(_booking_total_expression()),
+                Value(MONEY_ZERO),
+                output_field=MONEY_FIELD,
+            )
+        )
+    }
+    source_labels = dict(Booking.Source.choices)
+    channel_breakdown = sorted(
+        (
+            {
+                "code": source,
+                "label": source_labels.get(source, source.replace("_", " ").title()),
+                "amount": amount,
+                "percent": _percentage(amount, month_revenue),
+            }
+            for source, amount in channel_totals.items()
+            if amount
+        ),
+        key=lambda row: row["amount"],
+        reverse=True,
+    )[:4]
+    while len(channel_breakdown) < 4:
+        channel_breakdown.append(
+            {"code": "EMPTY", "label": "Chưa có dữ liệu", "amount": MONEY_ZERO, "percent": 0}
+        )
+    channel_one_end = channel_breakdown[0]["percent"]
+    channel_two_end = min(100, channel_one_end + channel_breakdown[1]["percent"])
+    channel_three_end = min(100, channel_two_end + channel_breakdown[2]["percent"])
     query_params = {"branchId": branch_id or "", "year": selected_date.year}
     return {
         "todayRevenue": today_revenue,
+        "todayExpense": today_expense,
         "monthRevenue": month_revenue,
         "housekeepingExpense": housekeeping_expense,
         "technicalExpense": technical_expense,
         "totalExpense": total_expense,
+        "otherExpense": other_expense,
+        "expenseRatio": _percentage(total_expense, month_revenue),
+        "housekeepingPercent": housekeeping_percent,
+        "technicalPercent": technical_percent,
+        "technicalEndPercent": technical_end_percent,
+        "otherPercent": _percentage(other_expense, total_expense),
+        "chart": revenue_chart,
+        "channelBreakdown": channel_breakdown,
+        "channelOneEnd": channel_one_end,
+        "channelTwoEnd": channel_two_end,
+        "channelThreeEnd": channel_three_end,
         "revenueChange": _change(month_revenue, previous_revenue),
         "expenseChange": _change(total_expense, previous_total_expense),
         "monthLabel": selected_date.strftime("%m/%Y"),
@@ -328,6 +463,22 @@ def build_owner_dashboard(user, selected_date, *, branch_id=None, at=None):
             "maintenance": _query_url("room_operations:room-readiness", branchId=branch_id or "", state="BLOCKED"),
         },
     }
+    room_summary.update(
+        {
+            "occupiedPercent": _percentage(len(occupied_bucket), len(rooms)),
+            "readyPercent": _percentage(len(ready_room_ids), len(rooms)),
+            "waitingPercent": _percentage(len(waiting_room_ids), len(rooms)),
+            "maintenancePercent": _percentage(len(maintenance_room_ids), len(rooms)),
+        }
+    )
+    room_summary["readyEndPercent"] = min(
+        100,
+        room_summary["occupiedPercent"] + room_summary["readyPercent"],
+    )
+    room_summary["waitingEndPercent"] = min(
+        100,
+        room_summary["readyEndPercent"] + room_summary["waitingPercent"],
+    )
 
     checkin_risks = []
     for booking in checkins:
@@ -545,6 +696,46 @@ def build_owner_dashboard(user, selected_date, *, branch_id=None, at=None):
 
     financial = _financial_summary(branches, selected_date, branch_id=branch_id)
     financial["occupancyPercent"] = occupancy_percent
+    current_month_start_at, _ = _day_bounds(_month_start(selected_date))
+    _, current_mtd_end_at = _day_bounds(selected_date)
+    branch_performance = []
+    for branch in branches:
+        branch_room_ids = {
+            room.id for room in rooms if room.branch_id == branch.id
+        }
+        branch_occupied = len(branch_room_ids & occupied_day_room_ids)
+        branch_maintenance = len(branch_room_ids & maintenance_room_ids)
+        branch_sellable = max(
+            branch_occupied,
+            len(branch_room_ids) - branch_maintenance,
+        )
+        branch_performance.append(
+            {
+                "branch": branch,
+                "revenue": _money_sum(
+                    bookings.filter(
+                        branch=branch,
+                        checkout_at__gte=current_month_start_at,
+                        checkout_at__lt=current_mtd_end_at,
+                    ),
+                    _booking_total_expression(),
+                ),
+                "occupancyPercent": (
+                    round(branch_occupied * 100 / branch_sellable, 1)
+                    if branch_sellable
+                    else 0
+                ),
+                "url": _query_url(
+                    "analytics:owner-dashboard",
+                    date=selected_date.isoformat(),
+                    branchId=branch.id,
+                ),
+            }
+        )
+    branch_performance.sort(
+        key=lambda row: (row["revenue"], row["occupancyPercent"]),
+        reverse=True,
+    )
     return {
         "room": room_summary,
         "arrivalDeparture": arrival_departure,
@@ -552,6 +743,7 @@ def build_owner_dashboard(user, selected_date, *, branch_id=None, at=None):
         "alerts": alerts[:10],
         "technical": technical,
         "financial": financial,
+        "branchPerformance": branch_performance[:3],
         "updatedAt": at,
         "selectedDate": selected_date,
     }

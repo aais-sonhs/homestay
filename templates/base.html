@@ -9,12 +9,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
     {% include "shared/favicon.html" %}
-    <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}?v=20260808-3">
+    <link rel="stylesheet" href="{% static 'css/housekeeping.css' %}?v=20260808-8">
     <title>{% block title %}Buồng phòng | Bliss Home{% endblock %}</title>
     {% block extra_head %}{% endblock %}
 </head>
 <body class="app-body">
-<div id="app-shell" class="app-shell">
+<div id="app-shell" class="app-shell{% if request.resolver_match.namespace == 'analytics' %} analytics-shell{% endif %}">
     <button id="mobile-backdrop" class="mobile-backdrop" type="button" aria-label="Đóng menu"></button>
     <aside id="sidebar" class="sidebar" aria-label="Điều hướng chính">
         <a class="sidebar-brand" href="{% url 'dashboard' %}" aria-label="Bliss Home - Tổng quan">
