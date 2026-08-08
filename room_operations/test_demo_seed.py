@@ -3,6 +3,7 @@ from io import StringIO
 
 from django.core.management import call_command
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from accounts.models import User
 from housekeeping.models import (
@@ -10,9 +11,11 @@ from housekeeping.models import (
     BookingSpecialRequest,
     HousekeepingTask,
     IssueTicket,
+    OperatingExpense,
     OutboxEvent,
     TaskPhoto,
 )
+from analytics.selectors import build_owner_dashboard
 from organizations.models import Room
 from room_operations.models import (
     RoomAsset,
@@ -68,7 +71,7 @@ class OperationsDemoSeedTests(TestCase):
         self.assertEqual(first_counts["rooms"], 11)
         self.assertEqual(first_counts["bookings"], 6)
         self.assertEqual(first_counts["booking_tasks"], 12)
-        self.assertEqual(first_counts["standalone_tasks"], 2)
+        self.assertEqual(first_counts["standalone_tasks"], 4)
         self.assertEqual(first_counts["issues"], 2)
         self.assertEqual(first_counts["photos"], 4)
         self.assertEqual(first_counts["stop_sells"], 5)
@@ -107,6 +110,7 @@ class OperationsDemoSeedTests(TestCase):
                 HousekeepingTask.Status.WAITING_SUPPORT,
                 HousekeepingTask.Status.COMPLETED,
                 HousekeepingTask.Status.QC_APPROVED,
+                HousekeepingTask.Status.QC_REJECTED,
                 HousekeepingTask.Status.CANCELLED,
             }.issubset(demo_statuses)
         )
@@ -156,4 +160,34 @@ class OperationsDemoSeedTests(TestCase):
         self.assertGreaterEqual(board["summary"]["blocked"], 1)
         self.assertGreaterEqual(board["summary"]["checkinRisk"], 1)
         self.assertGreaterEqual(board["summary"]["stopSell"], 1)
+
+        dashboard = build_owner_dashboard(
+            User.objects.get(username="admin"),
+            timezone.localdate(),
+        )
+        self.assertGreaterEqual(dashboard["arrivalDeparture"]["checkinDone"], 1)
+        self.assertGreaterEqual(dashboard["arrivalDeparture"]["checkinPending"], 1)
+        self.assertGreaterEqual(dashboard["arrivalDeparture"]["checkoutPending"], 1)
+        self.assertGreaterEqual(
+            len(dashboard["arrivalDeparture"]["checkoutHousekeepingPending"]),
+            1,
+        )
+        self.assertGreaterEqual(dashboard["tasks"]["completed"], 1)
+        self.assertGreaterEqual(dashboard["tasks"]["inProgress"], 1)
+        self.assertGreaterEqual(dashboard["tasks"]["unaccepted"], 1)
+        self.assertGreaterEqual(dashboard["tasks"]["overdue"], 1)
+        self.assertGreaterEqual(dashboard["tasks"]["rework"], 1)
+        self.assertEqual(
+            {"HIGH", "MEDIUM", "LOW"},
+            {alert["level"] for alert in dashboard["alerts"]},
+        )
+        self.assertGreater(dashboard["financial"]["housekeepingExpense"], 0)
+        self.assertIsNotNone(dashboard["financial"]["revenueChange"])
+        self.assertIsNotNone(dashboard["financial"]["expenseChange"])
+        self.assertTrue(
+            OperatingExpense.objects.filter(
+                name="DEMO Chi phí dọn phòng tháng này",
+                payment_status=OperatingExpense.PaymentStatus.PAID,
+            ).exists()
+        )
         self.assertIn("Dữ liệu demo vận hành đã sẵn sàng", output.getvalue())

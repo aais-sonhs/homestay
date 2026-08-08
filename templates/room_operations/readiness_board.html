@@ -14,13 +14,13 @@
 </form>
 
 <div class="stat-grid readiness-summary">
-    <div class="stat">{% include "shared/metric_icon.html" with icon="room" %}<span class="label">Tổng phòng</span><strong>{{ board.summary.total }}</strong><span class="stat-note">Trong phạm vi đang lọc</span></div>
-    <div class="stat success">{% include "shared/metric_icon.html" with icon="ready" %}<span class="label">Sẵn sàng</span><strong>{{ board.summary.ready }}</strong><span class="stat-note">Có thể đón khách</span></div>
-    <div class="stat info">{% include "shared/metric_icon.html" with icon="occupied" %}<span class="label">Đang có khách</span><strong>{{ board.summary.occupied }}</strong><span class="stat-note">Phòng đang lưu trú</span></div>
-    <div class="stat warning">{% include "shared/metric_icon.html" with icon="clock" %}<span class="label">Chưa sẵn sàng</span><strong>{{ board.summary.notReady }}</strong><span class="stat-note">Còn điều kiện phải xử lý</span></div>
-    <div class="stat danger">{% include "shared/metric_icon.html" with icon="blocked" %}<span class="label">Đang bị chặn</span><strong>{{ board.summary.blocked }}</strong><span class="stat-note">Có blocker vận hành</span></div>
-    <div class="stat danger">{% include "shared/metric_icon.html" with icon="risk" %}<span class="label">Rủi ro check-in</span><strong>{{ board.summary.checkinRisk }}</strong><span class="stat-note">Trong 24 giờ tới</span></div>
-    <div class="stat danger">{% include "shared/metric_icon.html" with icon="stop_sell" %}<span class="label">Đang dừng bán</span><strong>{{ board.summary.stopSell }}</strong><span class="stat-note">Sales không thể nhận booking</span></div>
+    <a class="stat stat-link{% if not request.GET.state %} is-active{% endif %}" href="{{ summary_links.total }}" aria-label="Xem tất cả {{ board.summary.total }} phòng">{% include "shared/metric_icon.html" with icon="room" %}<span class="label">Tổng phòng</span><strong>{{ board.summary.total }}</strong><span class="stat-note">Trong phạm vi đang lọc <span class="stat-link-hint">Xem phòng →</span></span></a>
+    <a class="stat stat-link success{% if request.GET.state == 'READY' %} is-active{% endif %}" href="{{ summary_links.ready }}" aria-label="Lọc {{ board.summary.ready }} phòng sẵn sàng">{% include "shared/metric_icon.html" with icon="ready" %}<span class="label">Sẵn sàng</span><strong>{{ board.summary.ready }}</strong><span class="stat-note">Có thể đón khách <span class="stat-link-hint">Xem phòng →</span></span></a>
+    <a class="stat stat-link info{% if request.GET.state == 'OCCUPIED' %} is-active{% endif %}" href="{{ summary_links.occupied }}" aria-label="Lọc {{ board.summary.occupied }} phòng đang có khách">{% include "shared/metric_icon.html" with icon="occupied" %}<span class="label">Đang có khách</span><strong>{{ board.summary.occupied }}</strong><span class="stat-note">Phòng đang lưu trú <span class="stat-link-hint">Xem phòng →</span></span></a>
+    <a class="stat stat-link warning{% if request.GET.state == 'NOT_READY' %} is-active{% endif %}" href="{{ summary_links.not_ready }}" aria-label="Lọc {{ board.summary.notReady }} phòng chưa sẵn sàng">{% include "shared/metric_icon.html" with icon="clock" %}<span class="label">Chưa sẵn sàng</span><strong>{{ board.summary.notReady }}</strong><span class="stat-note">Còn điều kiện phải xử lý <span class="stat-link-hint">Xem phòng →</span></span></a>
+    <a class="stat stat-link danger{% if request.GET.state == 'BLOCKED' %} is-active{% endif %}" href="{{ summary_links.blocked }}" aria-label="Lọc {{ board.summary.blocked }} phòng đang bị chặn">{% include "shared/metric_icon.html" with icon="blocked" %}<span class="label">Đang bị chặn</span><strong>{{ board.summary.blocked }}</strong><span class="stat-note">Có blocker vận hành <span class="stat-link-hint">Xem phòng →</span></span></a>
+    <a class="stat stat-link danger{% if request.GET.state == 'CHECKIN_RISK' %} is-active{% endif %}" href="{{ summary_links.checkin_risk }}" aria-label="Lọc {{ board.summary.checkinRisk }} phòng có rủi ro check-in">{% include "shared/metric_icon.html" with icon="risk" %}<span class="label">Rủi ro check-in</span><strong>{{ board.summary.checkinRisk }}</strong><span class="stat-note">Trong 24 giờ tới <span class="stat-link-hint">Xem phòng →</span></span></a>
+    <a class="stat stat-link danger{% if request.GET.state == 'STOP_SELL' %} is-active{% endif %}" href="{{ summary_links.stop_sell }}" aria-label="Lọc {{ board.summary.stopSell }} phòng đang dừng bán">{% include "shared/metric_icon.html" with icon="stop_sell" %}<span class="label">Đang dừng bán</span><strong>{{ board.summary.stopSell }}</strong><span class="stat-note">Sales không thể nhận booking <span class="stat-link-hint">Xem phòng →</span></span></a>
 </div>
 
 <div class="room-readiness-grid">
@@ -40,6 +40,7 @@
         {% if row.nextBookingStopSell and not row.activeStopSells %}<div class="room-issue-preview"><strong>Đã lên lịch dừng bán từ {{ row.nextBookingStopSell.starts_at|date:"H:i d/m/Y" }}</strong><br>{{ row.nextBookingStopSell.reason }}</div>{% endif %}
         {% for issue in row.blockingIssues|slice:":1" %}<div class="room-issue-preview">{{ issue.description }}</div>{% endfor %}
         {% if row.expectedReadyAt %}<div class="room-eta">Dự kiến hoàn tất: <strong>{{ row.expectedReadyAt|date:"H:i d/m/Y" }}</strong></div>{% endif %}
+        <span class="room-card-link-label">Xem hồ sơ phòng <span aria-hidden="true">→</span></span>
     </a>
 {% empty %}<div class="card empty room-grid-empty">Không có phòng phù hợp với bộ lọc.</div>{% endfor %}
 </div>

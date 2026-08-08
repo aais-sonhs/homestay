@@ -523,7 +523,7 @@ def build_owner_dashboard(user, selected_date, *, branch_id=None, at=None):
     if stop_sell_room_ids:
         alerts.append(
             {
-                "level": "MEDIUM" if checkin_risks else "LOW",
+                "level": "LOW",
                 "title": f"{len(stop_sell_room_ids)} phòng đang dừng bán",
                 "description": "Kiểm tra tiến độ xử lý và xác nhận mở bán lại khi đủ điều kiện.",
                 "url": _query_url("room_operations:stop-sell-list", branchId=branch_id or "", status=RoomStopSell.Status.ACTIVE),
@@ -549,7 +549,7 @@ def build_owner_dashboard(user, selected_date, *, branch_id=None, at=None):
         "room": room_summary,
         "arrivalDeparture": arrival_departure,
         "tasks": task_summary,
-        "alerts": alerts[:8],
+        "alerts": alerts[:10],
         "technical": technical,
         "financial": financial,
         "updatedAt": at,

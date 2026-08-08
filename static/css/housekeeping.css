@@ -262,6 +262,10 @@ button.wide,.button.wide { width:100%; }
 .stat.success { --stat-color:#059669; --stat-bg:rgba(5,150,105,.15); }
 .stat.info { --stat-color:#2563eb; --stat-bg:rgba(37,99,235,.15); }
 .stat.violet { --stat-color:#8b5cf6; --stat-bg:rgba(139,92,246,.15); }
+a.stat-link { display:block; color:inherit; cursor:pointer; }
+a.stat-link:hover { color:inherit; }
+.stat-link.is-active { border-color:color-mix(in srgb,var(--stat-color,#6366f1) 48%,transparent); box-shadow:0 22px 42px -26px color-mix(in srgb,var(--stat-color,#6366f1) 38%,transparent),inset 0 0 0 1px color-mix(in srgb,var(--stat-color,#6366f1) 14%,transparent); }
+.stat-link-hint { display:inline-block; margin-left:5px; color:var(--stat-color,#6366f1); font-weight:750; }
 
 /* Tables */
 .table-wrap { width:100%; overflow:auto; border:1px solid rgba(229,231,235,.7); border-radius:16px; background:#fff; box-shadow:var(--shadow-sm); }
@@ -321,6 +325,9 @@ code { color:#334155; font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
 .room-ready-pill { color:#047857; background:#d1fae5; }
 .room-issue-preview { padding:9px 10px; border-radius:9px; color:#991b1b; background:#fef2f2; font-size:11px; }
 .room-eta { padding-top:10px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; }
+.room-card-link-label { display:flex; align-items:center; justify-content:flex-end; gap:6px; margin-top:auto; color:var(--room-accent); font-size:12px; font-weight:750; }
+.room-readiness-card:hover .room-card-link-label span { transform:translateX(3px); }
+.room-card-link-label span { transition:transform 180ms ease; }
 .room-grid-empty { grid-column:1/-1; }
 .room-profile-heading .back-link { display:inline-block; margin-bottom:8px; color:var(--muted); font-size:12px; font-weight:650; }
 .readiness-hero { padding:8px 13px; font-size:12px; }

@@ -167,6 +167,13 @@ class Command(BaseCommand):
 
     def _seed_scenarios(self):
         now = timezone.now()
+        local_now = timezone.localtime(now)
+        today_at = lambda hour, minute=0: local_now.replace(
+            hour=hour,
+            minute=minute,
+            second=0,
+            microsecond=0,
+        )
         users = {
             username: User.objects.get(username=username)
             for username in (
@@ -194,8 +201,8 @@ class Command(BaseCommand):
                 "code": "DEMO-BK-CHECKIN-TODAY",
                 "room": rooms["A202"],
                 "status": Booking.Status.BOOKED,
-                "checkin_at": now + timedelta(hours=4),
-                "checkout_at": now + timedelta(days=2, hours=4),
+                "checkin_at": today_at(14),
+                "checkout_at": today_at(11) + timedelta(days=2),
                 "guest_name": "Nguyễn Minh Anh",
                 "guest_phone": "0909000101",
                 "guest_count": 3,
@@ -214,8 +221,8 @@ class Command(BaseCommand):
                 "code": "DEMO-BK-OCCUPIED",
                 "room": rooms["A104"],
                 "status": Booking.Status.CHECKED_IN,
-                "checkin_at": now - timedelta(days=1, hours=2),
-                "checkout_at": now + timedelta(hours=20),
+                "checkin_at": today_at(10),
+                "checkout_at": today_at(17),
                 "guest_name": "Trần Gia Đình",
                 "guest_phone": "0909000102",
                 "guest_count": 4,
@@ -262,8 +269,8 @@ class Command(BaseCommand):
                 "code": "DEMO-BK-AFFECTED-BY-STOP-SELL",
                 "room": rooms["B303"],
                 "status": Booking.Status.BOOKED,
-                "checkin_at": now + timedelta(hours=6),
-                "checkout_at": now + timedelta(days=2, hours=6),
+                "checkin_at": today_at(16),
+                "checkout_at": today_at(12) + timedelta(days=2),
                 "guest_name": "Phạm Thảo Vy",
                 "guest_phone": "0909000104",
                 "guest_count": 2,
@@ -290,8 +297,8 @@ class Command(BaseCommand):
                 "code": "DEMO-BK-CHECKED-OUT",
                 "room": rooms["S201"],
                 "status": Booking.Status.CHECKED_OUT,
-                "checkin_at": now - timedelta(days=2),
-                "checkout_at": now - timedelta(hours=1),
+                "checkin_at": today_at(15) - timedelta(days=2),
+                "checkout_at": today_at(11),
                 "guest_name": "Võ Quang Huy",
                 "guest_phone": "0909000105",
                 "guest_count": 2,
@@ -364,6 +371,27 @@ class Command(BaseCommand):
             now,
             "Đã vệ sinh sau sửa khóa; chờ quản lý xác nhận phòng.",
         )
+        tasks["REWORK"] = self._seed_standalone_task(
+            rooms["A202"],
+            "DEMO-HK-A202-QC-REWORK",
+            HousekeepingTask.TaskType.QC_REWORK,
+            HousekeepingTask.Status.QC_REJECTED,
+            users["housekeeping"],
+            users,
+            now,
+            "QC không đạt do khu vực phòng tắm còn vệt nước; cần làm lại.",
+        )
+        tasks["OVERDUE"] = self._seed_standalone_task(
+            rooms["B305"],
+            "DEMO-HK-B305-OVERDUE",
+            HousekeepingTask.TaskType.PERIODIC_CLEANING,
+            HousekeepingTask.Status.IN_PROGRESS,
+            users["housekeeping_lead"],
+            users,
+            now,
+            "Công việc vệ sinh định kỳ đã quá SLA và cần điều phối hỗ trợ.",
+            due_at=now - timedelta(minutes=45),
+        )
 
         self._seed_supply_case(tasks["CHECKED_OUT"][HousekeepingTask.TaskType.CHECKOUT_CLEANING], users)
         issues = self._seed_issue_and_blocker_cases(rooms, tasks, bookings, users, now)
@@ -371,6 +399,7 @@ class Command(BaseCommand):
         self._seed_photos_and_notifications(tasks, issues, users)
         self._seed_asset_cases(rooms, now)
         self._seed_cost_cases(branches, users, now)
+        self._seed_financial_comparison_case(branches, rooms, users, now)
 
         demo_bookings = Booking.objects.filter(code__startswith="DEMO-BK-")
         booking_tasks = HousekeepingTask.objects.filter(booking__in=demo_bookings).count()
@@ -386,7 +415,11 @@ class Command(BaseCommand):
         }
 
     def _seed_cost_cases(self, branches, users, now):
-        today = timezone.localdate()
+        today = timezone.localdate(now)
+        previous_month_last_day = today.replace(day=1) - timedelta(days=1)
+        previous_date = previous_month_last_day.replace(
+            day=min(today.day, previous_month_last_day.day)
+        )
         cases = (
             (branches["DALAT"], "DEMO Vốn đầu tư phòng mẫu", Decimal("50000000.00"), "Chủ chi nhánh", "Vốn đầu tư ban đầu"),
             (branches["HCM"], "DEMO Vốn mở rộng khu S", Decimal("80000000.00"), "Nhà đầu tư", "Vốn bổ sung"),
@@ -407,14 +440,20 @@ class Command(BaseCommand):
         expenses = (
             (branches["DALAT"], "DEMO Tiền điện tháng này", OperatingExpense.CategoryCode.UTILITIES, "Điện nước", Decimal("3200000.00"), OperatingExpense.PaymentStatus.PAID),
             (branches["DALAT"], "DEMO Mua khăn bổ sung", OperatingExpense.CategoryCode.HOUSEKEEPING, "Vật tư buồng phòng", Decimal("1500000.00"), OperatingExpense.PaymentStatus.PLANNED),
+            (branches["DALAT"], "DEMO Chi phí dọn phòng tháng này", OperatingExpense.CategoryCode.HOUSEKEEPING, "Housekeeping", Decimal("1100000.00"), OperatingExpense.PaymentStatus.PAID),
             (branches["HCM"], "DEMO Sửa khóa phòng S203", OperatingExpense.CategoryCode.TECHNICAL_MAINTENANCE, "Sửa chữa", Decimal("2800000.00"), OperatingExpense.PaymentStatus.PAID),
+            (branches["DALAT"], "DEMO Điện nước tháng trước", OperatingExpense.CategoryCode.UTILITIES, "Điện nước", Decimal("2500000.00"), OperatingExpense.PaymentStatus.PAID, previous_date),
+            (branches["DALAT"], "DEMO Housekeeping tháng trước", OperatingExpense.CategoryCode.HOUSEKEEPING, "Housekeeping", Decimal("900000.00"), OperatingExpense.PaymentStatus.PAID, previous_date),
+            (branches["HCM"], "DEMO Bảo trì tháng trước", OperatingExpense.CategoryCode.TECHNICAL_MAINTENANCE, "Bảo trì", Decimal("1600000.00"), OperatingExpense.PaymentStatus.PAID, previous_date),
         )
-        for branch, name, category_code, category, amount, payment_status in expenses:
-            OperatingExpense.objects.get_or_create(
+        for expense in expenses:
+            branch, name, category_code, category, amount, payment_status, *expense_dates = expense
+            expense_date = expense_dates[0] if expense_dates else today
+            OperatingExpense.objects.update_or_create(
                 branch=branch,
                 name=name,
-                expense_date=today,
                 defaults={
+                    "expense_date": expense_date,
                     "category_code": category_code,
                     "category": category,
                     "amount": amount,
@@ -424,6 +463,35 @@ class Command(BaseCommand):
                     "updated_by": users["manager"],
                 },
             )
+
+    def _seed_financial_comparison_case(self, branches, rooms, users, now):
+        today = timezone.localdate(now)
+        previous_month_last_day = today.replace(day=1) - timedelta(days=1)
+        previous_date = previous_month_last_day.replace(
+            day=min(today.day, previous_month_last_day.day)
+        )
+        previous_checkout_at = now - timedelta(days=(today - previous_date).days)
+        Booking.objects.update_or_create(
+            branch=branches["DALAT"],
+            code="DEMO-FIN-PREVIOUS-MONTH",
+            defaults={
+                "room": rooms["A103"],
+                "status": Booking.Status.CHECKED_OUT,
+                "checkin_at": previous_checkout_at - timedelta(days=2),
+                "checkout_at": previous_checkout_at,
+                "guest_name": "Khách so sánh tháng trước",
+                "guest_phone": "0909000199",
+                "guest_count": 2,
+                "special_requests": "Dữ liệu mẫu dùng để tính phần trăm so sánh tháng.",
+                "room_charge": Decimal("1000000.00"),
+                "service_charge": Decimal("100000.00"),
+                "discount_amount": Decimal("100000.00"),
+                "paid_amount": Decimal("1000000.00"),
+                "source": Booking.Source.MANUAL_SALES,
+                "created_by": users["sales"],
+                "updated_by": users["manager"],
+            },
+        )
 
     def _seed_asset_cases(self, rooms, now):
         today = timezone.localdate(now)
@@ -710,7 +778,14 @@ class Command(BaseCommand):
         users,
         now,
         note,
+        *,
+        due_at=None,
     ):
+        due_at = due_at or now + timedelta(hours=1)
+        is_qc_result = status in {
+            HousekeepingTask.Status.QC_REJECTED,
+            HousekeepingTask.Status.QC_APPROVED,
+        }
         task, _ = HousekeepingTask.objects.update_or_create(
             code=code,
             defaults={
@@ -725,17 +800,19 @@ class Command(BaseCommand):
                 "scheduled_start_at": now - timedelta(hours=2),
                 "acceptance_due_at": now - timedelta(hours=2, minutes=30),
                 "start_due_at": now - timedelta(hours=1, minutes=45),
-                "due_at": now + timedelta(hours=1),
+                "due_at": due_at,
                 "standard_duration_minutes": 180,
                 "accepted_at": now - timedelta(hours=2),
                 "started_at": now - timedelta(hours=1, minutes=45),
                 "completed_at": (
                     now - timedelta(minutes=20)
-                    if status == HousekeepingTask.Status.COMPLETED
+                    if status == HousekeepingTask.Status.COMPLETED or is_qc_result
                     else None
                 ),
                 "progress_percent": (
-                    100 if status == HousekeepingTask.Status.COMPLETED else 55
+                    100
+                    if status == HousekeepingTask.Status.COMPLETED or is_qc_result
+                    else 55
                 ),
                 "pause_reason": (
                     "GUEST_REQUEST_LATER"
@@ -743,6 +820,13 @@ class Command(BaseCommand):
                     else ""
                 ),
                 "note": f"[DEMO] {note}",
+                "rework_count": 1 if status == HousekeepingTask.Status.QC_REJECTED else 0,
+                "current_rework_round": 1 if status == HousekeepingTask.Status.QC_REJECTED else 0,
+                "rework_started_at": (
+                    now - timedelta(minutes=15)
+                    if status == HousekeepingTask.Status.QC_REJECTED
+                    else None
+                ),
                 "created_by": users["manager"],
                 "updated_by": users["manager"],
             },
@@ -793,6 +877,19 @@ class Command(BaseCommand):
                     "paused_by": assignee,
                     "approved_by": users["manager"],
                     "approved_at": now - timedelta(minutes=25),
+                },
+            )
+        if status == HousekeepingTask.Status.QC_REJECTED:
+            QCTask.objects.update_or_create(
+                task=task,
+                round_number=1,
+                defaults={
+                    "status": QCTask.Status.REJECTED,
+                    "reviewer": users["qc"],
+                    "reason": "BATHROOM_WATER_MARKS",
+                    "note": "[DEMO] Phòng tắm còn vệt nước, yêu cầu dọn lại.",
+                    "reviewed_at": now - timedelta(minutes=20),
+                    "result_snapshot": {"result": "REJECTED", "source": "DEMO"},
                 },
             )
         return task

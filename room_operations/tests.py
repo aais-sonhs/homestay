@@ -166,6 +166,12 @@ class RoomOperationsTests(TestCase):
         self.assertIn("CLEANLINESS_NOT_READY", blocker_codes)
         self.assertEqual(board["summary"]["blocked"], 1)
 
+        checkin_risk = build_readiness_board(self.cskh, state="CHECKIN_RISK")
+        self.assertEqual(
+            [row["room"].code for row in checkin_risk["rows"]],
+            ["OPS-102"],
+        )
+
     def test_mobile_readiness_api_serializes_and_keeps_branch_scope(self):
         token = AccessToken.objects.create(user=self.cskh, label="Room app test")
         client = Client(HTTP_AUTHORIZATION=f"Bearer {token.key}")
@@ -209,6 +215,8 @@ class RoomOperationsTests(TestCase):
         self.assertContains(board, "Nguồn xác nhận chung cho CSKH, vận hành và Sales")
         self.assertContains(board, "Máy lạnh không hoạt động")
         self.assertContains(board, 'class="stat-icon"', count=7, html=False)
+        self.assertContains(board, 'class="stat stat-link', count=7, html=False)
+        self.assertContains(board, "Xem hồ sơ phòng", count=2)
         self.assertContains(board, 'class="room-readiness-card state-blocked"', html=False)
         self.assertContains(profile, "Hồ sơ phòng")
         self.assertContains(profile, "Ảnh theo phòng")

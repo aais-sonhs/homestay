@@ -346,7 +346,11 @@ def readiness_rows_for_user(user, *, branch_id=None, query="", state="", room_id
         Prefetch("stop_sells", queryset=_open_stop_sells_queryset(), to_attr="active_room_stop_sells"),
     ).order_by("branch__name", "area", "floor", "code")
     rows = [_room_readiness_row(room, at) for room in queryset]
-    if state:
+    if state == "CHECKIN_RISK":
+        rows = [row for row in rows if row["checkinRisk"]]
+    elif state == "STOP_SELL":
+        rows = [row for row in rows if row["salesStatus"] == "STOP_SELL"]
+    elif state:
         rows = [row for row in rows if row["state"] == state]
     return rows
 

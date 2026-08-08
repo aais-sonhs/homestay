@@ -1,4 +1,5 @@
 from datetime import date
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -6,6 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from common.list_views import paginate_collection, paginate_context
@@ -95,10 +97,11 @@ def operations_schedule(request):
 def room_readiness_board(request):
     branches = branch_queryset_for_user(request.user)
     branch_id = _branch_filter(request, branches)
+    query = str(request.GET.get("q") or "").strip()
     board = build_readiness_board(
         request.user,
         branch_id=branch_id,
-        query=request.GET.get("q", ""),
+        query=query,
         state=request.GET.get("state", ""),
     )
     page_context = paginate_context(
@@ -108,6 +111,18 @@ def room_readiness_board(request):
         per_page=18,
     )
     board = {**board, "rows": page_context["readiness_rows"]}
+    base_url = reverse("room_operations:room-readiness")
+
+    def summary_url(state=""):
+        params = {}
+        if branch_id:
+            params["branchId"] = branch_id
+        if query:
+            params["q"] = query
+        if state:
+            params["state"] = state
+        return f"{base_url}?{urlencode(params)}" if params else base_url
+
     return render(
         request,
         "room_operations/readiness_board.html",
@@ -120,7 +135,18 @@ def room_readiness_board(request):
                 ("OCCUPIED", "Đang có khách"),
                 ("NOT_READY", "Chưa sẵn sàng"),
                 ("BLOCKED", "Đang bị chặn"),
+                ("CHECKIN_RISK", "Rủi ro check-in"),
+                ("STOP_SELL", "Đang dừng bán"),
             ),
+            "summary_links": {
+                "total": summary_url(),
+                "ready": summary_url("READY"),
+                "occupied": summary_url("OCCUPIED"),
+                "not_ready": summary_url("NOT_READY"),
+                "blocked": summary_url("BLOCKED"),
+                "checkin_risk": summary_url("CHECKIN_RISK"),
+                "stop_sell": summary_url("STOP_SELL"),
+            },
             "board": board,
             **page_context,
         },
